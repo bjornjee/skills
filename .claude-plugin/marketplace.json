@@ -1,14 +1,19 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "bjornjee-skills",
-  "description": "Personal skills and commands",
+  "owner": {
+    "name": "bjornjee"
+  },
+  "metadata": {
+    "description": "Personal skills and commands"
+  },
   "plugins": [
     {
       "name": "bjornjee-skills",
       "source": "./",
       "description": "Personal skills, commands, and workflows for Claude Code",
       "version": "0.1.0",
-      "category": "workflow"
+      "category": "workflow",
+      "strict": false
     }
   ]
 }
