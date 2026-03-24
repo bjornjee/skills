@@ -8,19 +8,21 @@ Follow these steps exactly:
 
 ### 1. Create the worktree
 
-- Derive a branch name from the feature description in kebab-case, prefixed with `feat/` (e.g. `feat/voice-car-diagnosis`)
-- Run: `git worktree add -b <branch-name> ../worktrees/<branch-name> main`
+- Derive a short name from the feature description in kebab-case (e.g. `voice-car-diagnosis`)
+- Branch name: `feat/<name>` (e.g. `feat/voice-car-diagnosis`)
+- Worktree directory: `../worktrees/feat-<name>` (e.g. `../worktrees/feat-voice-car-diagnosis`)
+- Run: `git worktree add -b feat/<name> ../worktrees/feat-<name> main`
 
 ### 2. Copy environment and settings files
 
 Copy these from the original project root into the new worktree:
 
-- All `.env*` files: `cp .env* ../worktrees/<branch-name>/`
-- Claude local settings: `mkdir -p ../worktrees/<branch-name>/.claude && cp .claude/settings.local.json ../worktrees/<branch-name>/.claude/settings.local.json`
+- All `.env*` files: `cp .env* ../worktrees/feat-<name>/`
+- Claude local settings: `mkdir -p ../worktrees/feat-<name>/.claude && cp .claude/settings.local.json ../worktrees/feat-<name>/.claude/settings.local.json`
 
 ### 3. Switch to the worktree
 
-- `cd` into `../worktrees/<branch-name>`
+- `cd` into `../worktrees/feat-<name>`
 - Confirm the working directory and branch with `pwd` and `git branch --show-current`
 
 ### 4. Enter plan mode
