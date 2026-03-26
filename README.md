@@ -4,29 +4,16 @@ Personal skills, commands, and workflows for Claude Code.
 
 ## Installation
 
-Add to `~/.claude/settings.json`:
+1. Add the marketplace:
 
-```json
-{
-  "extraKnownMarketplaces": {
-    "bjornjee-skills": {
-      "source": {
-        "source": "github",
-        "repo": "bjornjee/skills"
-      }
-    }
-  }
-}
+```
+/plugin marketplace add bjornjee/skills
 ```
 
-Then enable the plugin:
+2. Install the plugin:
 
-```json
-{
-  "enabledPlugins": {
-    "bjornjee-skills@bjornjee-skills": true
-  }
-}
+```
+/plugin install bjornjee-skills@bjornjee-skills
 ```
 
 ## Structure
