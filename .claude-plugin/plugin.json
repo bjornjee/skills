@@ -1,11 +1,15 @@
 {
   "name": "bjornjee-skills",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Personal skills, commands, and workflows for Claude Code",
   "author": {
     "name": "bjornjee"
   },
   "repository": "https://github.com/bjornjee/skills",
   "license": "MIT",
-  "commands": ["./.claude-plugin/commands/"]
+  "commands": ["./.claude-plugin/commands/"],
+  "agents": [
+    "./agents/rn-environment-setup.md",
+    "./agents/rn-environment-cleanup.md"
+  ]
 }
