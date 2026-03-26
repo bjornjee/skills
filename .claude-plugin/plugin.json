@@ -7,9 +7,5 @@
   },
   "repository": "https://github.com/bjornjee/skills",
   "license": "MIT",
-  "commands": ["./.claude-plugin/commands/"],
-  "agents": [
-    "./agents/rn-environment-setup.md",
-    "./agents/rn-environment-cleanup.md"
-  ]
+  "commands": ["./.claude-plugin/commands/"]
 }
