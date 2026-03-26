@@ -4,29 +4,83 @@ Feature description: $ARGUMENTS
 
 ## Instructions
 
-Follow these steps exactly:
+Follow these phases in order. Each phase has a gate — do not proceed until the gate is satisfied.
 
-### 1. Create the worktree
+---
 
-- Derive a short name from the feature description in kebab-case (e.g. `voice-car-diagnosis`)
-- Branch name: `feat/<name>` (e.g. `feat/voice-car-diagnosis`)
-- Worktree directory: `../worktrees/feat-<name>` (e.g. `../worktrees/feat-voice-car-diagnosis`)
-- Run: `git worktree add -b feat/<name> ../worktrees/feat-<name> main`
+### Phase 1: Setup
 
-### 2. Copy environment and settings files
+1. Derive a short kebab-case name from the description
+2. Create branch `feat/<name>` and worktree `../worktrees/feat-<name>` from main
+3. Copy `.env*` and `.claude/settings.local.json` into the worktree (if they exist)
+4. cd into the worktree and confirm with `pwd` and `git branch --show-current`
 
-Copy these from the original project root into the new worktree:
+**Gate:** Working directory is the new worktree on the correct branch.
 
-- All `.env*` files: `cp .env* ../worktrees/feat-<name>/`
-- Claude local settings: `mkdir -p ../worktrees/feat-<name>/.claude && cp .claude/settings.local.json ../worktrees/feat-<name>/.claude/settings.local.json`
+---
 
-### 3. Switch to the worktree
+### Phase 2: Environment
 
-- `cd` into `../worktrees/feat-<name>`
-- Confirm the working directory and branch with `pwd` and `git branch --show-current`
+Auto-detect project type from project files:
 
-### 4. Enter plan mode
+| Signal | Type |
+|--------|------|
+| `react-native` in package.json dependencies | Mobile |
+| `next`, `vite`, or `webpack` in package.json | Web |
+| `requirements.txt`, `pyproject.toml`, or `setup.py` | Python |
+| `go.mod` | Go |
+| `Dockerfile` or `docker-compose.yml` | Containerized |
 
-- Enter plan mode to research and design the feature implementation
-- Do NOT write any code until the plan is approved
-- Follow the standard development workflow (TDD, code review) after plan approval
+Confirm the detected type with the user. Set up the development environment
+appropriate for the project type — install dependencies, configure ports,
+create emulators/simulators as needed.
+
+For projects with large data directories (datasets, evals, model artifacts):
+symlink them from the original repo into the worktree rather than copying.
+Scan for directories matching common patterns (`data/`, `datasets/`, `evals/`,
+`models/`, `artifacts/`) and symlink any that exist in the source repo.
+
+**Gate:** Dependencies installed. Data directories symlinked. Dev environment ready to run.
+
+---
+
+### Phase 3: Plan
+
+Research the codebase and design the implementation approach.
+
+**Gate:** User has approved the approach. No code has been written yet.
+
+---
+
+### Phase 4: Implement
+
+Build the feature following the workflow rules (tests first, then implementation).
+
+**Gate:** All tests pass. Implementation matches the approved plan.
+
+---
+
+### Phase 5: Review
+
+Review all changes for correctness, security, and convention adherence.
+
+**Gate:** No critical or high-severity issues remain.
+
+---
+
+### Phase 6: Deliver
+
+Commit changes and prepare for merge.
+
+**Gate:** Clean commit history with conventional commit messages.
+
+---
+
+### Phase 7: Cleanup (on merge)
+
+Triggered when the user indicates the feature has been merged upstream.
+
+1. Verify the branch is merged (warn if unmerged commits remain)
+2. Tear down any environment resources created in Phase 2
+3. Remove worktree and delete branch
+4. Confirm cleanup is complete
