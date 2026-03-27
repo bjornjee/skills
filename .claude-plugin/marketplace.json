@@ -1,5 +1,5 @@
 {
-  "name": "bjornjee-skills",
+  "name": "pinkgu",
   "owner": {
     "name": "bjornjee"
   },
@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "bjornjee-skills",
+      "name": "skills",
       "source": "./",
       "description": "Personal skills, commands, and workflows for Claude Code",
       "version": "0.1.0",
