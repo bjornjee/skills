@@ -3,7 +3,9 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('path');
 const { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg } = require('./desktop-notify');
+const { extractSessionWindow } = require(path.resolve(__dirname, '..', '..', 'packages', 'tmux'));
 
 describe('stripMarkdown', () => {
   it('removes headings', () => {
@@ -100,5 +102,27 @@ describe('sanitizeShellArg', () => {
     assert.equal(sanitizeShellArg('foo;rm -rf /'), 'foorm-rf/');
     assert.equal(sanitizeShellArg("test'quote"), 'testquote');
     assert.equal(sanitizeShellArg('$(cmd)'), 'cmd');
+  });
+});
+
+describe('extractSessionWindow', () => {
+  it('extracts session:window from simple target', () => {
+    assert.equal(extractSessionWindow('main:0.1'), 'main:0');
+  });
+
+  it('handles session names with dots', () => {
+    assert.equal(extractSessionWindow('my.project:0.1'), 'my.project:0');
+  });
+
+  it('handles IP-like session names', () => {
+    assert.equal(extractSessionWindow('127.0.0.1:0.1'), '127.0.0.1:0');
+  });
+
+  it('handles multi-digit window and pane indices', () => {
+    assert.equal(extractSessionWindow('dev:12.3'), 'dev:12');
+  });
+
+  it('returns input unchanged when no dot present', () => {
+    assert.equal(extractSessionWindow('main:0'), 'main:0');
   });
 });

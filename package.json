@@ -1,0 +1,9 @@
+{
+  "name": "bjornjee-skills",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Personal skills, commands, and workflows for Claude Code",
+  "scripts": {
+    "test": "node --test packages/*/test.js scripts/hooks/*.test.js"
+  }
+}
