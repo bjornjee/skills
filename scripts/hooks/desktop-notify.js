@@ -17,7 +17,10 @@
 'use strict';
 
 const { spawnSync } = require('child_process');
-const { basename } = require('path');
+const { basename, resolve } = require('path');
+
+const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || resolve(__dirname, '..', '..');
+const tmuxPkg = require(resolve(pluginRoot, 'packages', 'tmux'));
 
 const TITLE = 'Claude Code';
 const MAX_BODY = 100;
@@ -88,7 +91,7 @@ function getTmuxAction() {
   if (!target.stdout) return undefined;
 
   const t = sanitizeShellArg(target.stdout.trim());
-  const sessionWindow = sanitizeShellArg(t.split('.')[0]);
+  const sessionWindow = tmuxPkg.extractSessionWindow(t);
   return `tmux select-window -t '${sessionWindow}' && tmux select-pane -t '${t}'`;
 }
 
@@ -134,21 +137,23 @@ if (typeof module !== 'undefined') {
   module.exports = { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg };
 }
 
-// stdin path — Claude Code pipes hook input as JSON
-const MAX_STDIN = 1024 * 1024;
-let data = '';
+// Only run stdin reader when executed directly (not when require()'d by tests)
+if (require.main === module) {
+  const MAX_STDIN = 1024 * 1024;
+  let data = '';
 
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', chunk => {
-  if (data.length < MAX_STDIN) data += chunk.substring(0, MAX_STDIN - data.length);
-});
-process.stdin.on('end', () => {
-  try {
-    const input = data.trim() ? JSON.parse(data) : {};
-    const body = extractSummary(input.last_assistant_message);
-    const subtitle = getSubtitle(input.cwd);
-    notify(TITLE, subtitle, body);
-  } catch {
-    // Silent — don't break Claude Code if notification fails
-  }
-});
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', chunk => {
+    if (data.length < MAX_STDIN) data += chunk.substring(0, MAX_STDIN - data.length);
+  });
+  process.stdin.on('end', () => {
+    try {
+      const input = data.trim() ? JSON.parse(data) : {};
+      const body = extractSummary(input.last_assistant_message);
+      const subtitle = getSubtitle(input.cwd);
+      notify(TITLE, subtitle, body);
+    } catch {
+      // Silent — don't break Claude Code if notification fails
+    }
+  });
+}
