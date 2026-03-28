@@ -7,6 +7,6 @@
   },
   "repository": "https://github.com/bjornjee/skills",
   "license": "MIT",
-  "commands": ["./.claude-plugin/commands/"],
+  "skills": "./skills/",
   "hooks": "./hooks/hooks.json"
 }

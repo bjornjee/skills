@@ -11,20 +11,26 @@
           }
         ],
         "description": "Block destructive shell commands (rm -rf, git reset --hard, DROP TABLE, etc.)"
-      }
-    ],
-    "PostToolUse": [
+      },
       {
-        "matcher": "Write|Edit",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/auto-format-python.js\"",
-            "async": true,
-            "timeout": 10
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/commit-lint.js\""
           }
         ],
-        "description": "Auto-format Python files with ruff/black after write or edit"
+        "description": "Validate conventional commit message format on git commit"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/test-gate.js\""
+          }
+        ],
+        "description": "Block git commit unless make test passes (set SKIP_TEST_GATE=1 to bypass)"
       }
     ],
     "Stop": [
