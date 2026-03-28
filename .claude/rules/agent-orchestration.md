@@ -6,8 +6,9 @@ No user prompt needed:
 1. Complex feature → **planner** agent
 2. Code written/modified → **code-reviewer** agent
 3. Bug fix or new feature → **tdd-guide** agent
-4. Architectural decision → **architect** agent
+4. Architectural decision → **planner** agent
 5. Build fails → **build-error-resolver** agent
+6. User input, auth, or API code → **security-reviewer** agent
 
 ## Parallel Execution
 
