@@ -1,3 +1,9 @@
+---
+name: feature
+description: Start a new feature in an isolated git worktree with TDD workflow
+disable-model-invocation: true
+---
+
 Start a new feature in an isolated git worktree.
 
 Feature description: $ARGUMENTS
@@ -14,12 +20,16 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 2. Derive the app name from the git repo: `basename $(git rev-parse --show-toplevel)`
 3. Create branch `feat/<name>` and worktree `../worktrees/<app>/<name>` from main:
    `mkdir -p ../worktrees/<app> && git worktree add ../worktrees/<app>/<name> -b feat/<name>`
-4. **From the source repo root** (before cd'ing), copy environment files into the worktree:
-   - List `.env*` files in the source repo: `ls .env* 2>/dev/null` — note which files exist
-   - Copy them: `cp .env* ../worktrees/<app>/<name>/`
+4. **From the source repo root** (before cd'ing), copy environment files into the worktree **preserving their exact relative path from the project root**:
+   - Find all env files recursively: `find . -name '.env*' -not -path './.git/*' -not -path './node_modules/*'`
+   - For each file found, recreate its directory structure in the worktree and copy it. For example:
+     - `./. env` → `../worktrees/<app>/<name>/.env`
+     - `./services/api/.env.local` → `../worktrees/<app>/<name>/services/api/.env.local`
+     - `./infra/.env.production` → `../worktrees/<app>/<name>/infra/.env.production`
+   - Use: `for f in $(find . -name '.env*' -not -path './.git/*' -not -path './node_modules/*'); do mkdir -p "../worktrees/<app>/<name>/$(dirname "$f")" && cp "$f" "../worktrees/<app>/<name>/$f"; done`
    - If `.claude/settings.local.json` exists: `mkdir -p ../worktrees/<app>/<name>/.claude && cp .claude/settings.local.json ../worktrees/<app>/<name>/.claude/`
 5. cd into the worktree and confirm with `pwd` and `git branch --show-current`
-6. Verify: run `ls .env* 2>/dev/null` in the worktree. If the source repo had `.env*` files and none appear here, **halt and report failure**. If the source repo had no `.env*` files, note that explicitly.
+6. Verify: compare env files between source and worktree. Run the same `find` command in both directories and diff the file lists. If any files are missing in the worktree, **halt and report failure**. If the source repo had no `.env*` files, note that explicitly.
 
 **Gate:** Working directory is the new worktree on the correct branch. If `.env*` files existed in the source repo, they are all present in the worktree.
 
@@ -61,15 +71,19 @@ Start two tracks in parallel:
 - If `.env-setup-failed` exists: surface the error and halt.
 - If neither file exists: the background agent is still running — wait for it to finish before proceeding.
 
-Build the feature following the workflow rules (tests first, then implementation).
+Build the feature following strict RED → GREEN → REFACTOR:
 
-**Gate:** Environment ready. All tests pass. Implementation matches the approved plan.
+1. **RED:** Write failing tests first. Run `make test` to confirm they fail. Show the failing output. Do not proceed until tests fail for the right reason.
+2. **GREEN:** Write the minimum implementation to make tests pass. Run `make test` to confirm all tests pass.
+3. **REFACTOR:** Clean up the implementation. Run `make test` to confirm tests still pass.
+
+**Gate:** Environment ready. All tests pass via `make test`. Implementation matches the approved plan.
 
 ---
 
 ### Phase 4: Review
 
-Review all changes for correctness, security, and convention adherence.
+Review all changes for correctness, security, and convention adherence. Apply all project rules and conventions that are in your context.
 
 **Gate:** No critical or high-severity issues remain.
 
