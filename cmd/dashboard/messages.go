@@ -1,0 +1,54 @@
+package main
+
+import "time"
+
+// -- Messages --
+
+type stateUpdatedMsg struct{ state StateFile }
+type tickMsg time.Time
+type jumpResultMsg struct{ err error }
+type sendResultMsg struct{ err error }
+type captureResultMsg struct{ lines []string }
+type conversationMsg struct{ entries []ConversationEntry }
+type pruneDeadMsg struct{ removed int }
+type usageMsg struct {
+	perAgent map[string]Usage
+	total    Usage
+}
+type persistResultMsg struct{ err error }
+type dbCostMsg struct{ total float64 }
+type activityMsg struct{ entries []ActivityEntry }
+type subagentsMsg struct {
+	parentTarget string
+	agents       []SubagentInfo
+}
+type pendingInputMsg struct {
+	target  string
+	pending bool
+}
+
+// -- Modes --
+
+const (
+	modeNormal = iota
+	modeReply
+	modeUsage
+)
+
+// -- Viewport focus --
+
+const (
+	focusAgentList = iota
+	focusFiles
+	focusHistory
+	focusMessage
+	focusCount // sentinel for wrapping
+)
+
+// Fixed heights for inner viewports
+const (
+	filesVPHeight   = 5
+	historyVPHeight = 10
+	headerLines     = 8 // header + state + branch + dir + cost + spacers
+	sectionGaps     = 6 // gaps between sections (labels + blank-line buffers)
+)
