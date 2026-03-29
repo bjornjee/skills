@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fsnotify/fsnotify"
@@ -74,6 +75,24 @@ const (
 	modeReply
 )
 
+// -- Viewport focus --
+
+const (
+	focusAgentList = iota
+	focusFiles
+	focusHistory
+	focusMessage
+	focusCount // sentinel for wrapping
+)
+
+// Fixed heights for inner viewports
+const (
+	filesVPHeight   = 5
+	historyVPHeight = 10
+	headerLines     = 8 // header + state + branch + dir + cost + spacers
+	sectionGaps     = 6 // gaps between sections (labels + blank-line buffers)
+)
+
 // -- Model --
 
 type model struct {
@@ -84,16 +103,26 @@ type model struct {
 	textInput     textinput.Model
 	tmuxAvailable bool
 	statePath     string
-	selfTarget    string // dashboard's own pane — excluded from list
+	selfTarget    string
 	statusMsg     string
 	capturedLines []string
 	conversation  []ConversationEntry
-	convOffset    int // scroll offset for conversation
-	tickCount     int // counts 1s ticks for less frequent tasks
+	tickCount     int
 	agentUsage    map[string]Usage
 	totalUsage    Usage
 	db            *DB
-	dbTotalCost   float64 // all-time cost from DB
+	dbTotalCost   float64
+
+	// Viewports
+	agentListVP viewport.Model
+	filesVP     viewport.Model
+	historyVP   viewport.Model
+	messageVP   viewport.Model
+	focusedVP   int
+
+	// Layout cache (for mouse routing)
+	leftWidth  int
+	rightWidth int
 }
 
 func newModel(statePath, selfTarget string, db *DB) model {
@@ -102,13 +131,18 @@ func newModel(statePath, selfTarget string, db *DB) model {
 	ti.CharLimit = 4096
 
 	return model{
-		agents:        nil,
-		statePath:     statePath,
-		selfTarget:    selfTarget,
+		agents:      nil,
+		statePath:   statePath,
+		selfTarget:  selfTarget,
 		tmuxAvailable: TmuxIsAvailable(),
-		textInput:     ti,
-		mode:          modeNormal,
-		db:            db,
+		textInput:   ti,
+		mode:        modeNormal,
+		db:          db,
+		agentListVP: viewport.New(0, 0),
+		filesVP:     viewport.New(0, 0),
+		historyVP:   viewport.New(0, 0),
+		messageVP:   viewport.New(0, 0),
+		focusedVP:   focusAgentList,
 	}
 }
 
@@ -131,6 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.resizeViewports()
 		return m, nil
 
 	case stateUpdatedMsg:
@@ -143,16 +178,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case conversationMsg:
 		prevLen := len(m.conversation)
 		m.conversation = msg.entries
-		// On first load, jump to the end
+		m.updateRightContent()
+		// On first load, scroll history to end
 		if prevLen == 0 {
-			if len(m.conversation) > 10 {
-				m.convOffset = len(m.conversation) - 10
-			}
-		}
-		// Clamp if conversation shrunk
-		maxOffset := max(0, len(m.conversation)-10)
-		if m.convOffset > maxOffset {
-			m.convOffset = maxOffset
+			m.historyVP.GotoBottom()
 		}
 		return m, nil
 
@@ -167,6 +196,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case usageMsg:
 		m.agentUsage = msg.perAgent
 		m.totalUsage = msg.total
+		m.updateRightContent()
 		var cmds []tea.Cmd
 		if m.db != nil {
 			cmds = append(cmds, persistUsage(m.db, m.agents, msg.perAgent))
@@ -186,13 +216,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pruneDeadMsg:
 		if msg.removed > 0 {
-			// Reload state to reflect removals
 			return m, loadState(m.statePath)
 		}
 		return m, nil
 
 	case captureResultMsg:
 		m.capturedLines = msg.lines
+		m.updateRightContent()
 		return m, nil
 
 	case jumpResultMsg:
@@ -211,6 +241,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
+
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -222,6 +255,58 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *model) resizeViewports() {
+	m.leftWidth = m.width*30/100 - 2
+	m.rightWidth = m.width - m.leftWidth - 4
+	panelHeight := m.height - 5
+
+	m.agentListVP.Width = m.leftWidth
+	m.agentListVP.Height = panelHeight
+
+	m.filesVP.Width = m.rightWidth
+	m.filesVP.Height = filesVPHeight
+
+	m.historyVP.Width = m.rightWidth
+	m.historyVP.Height = historyVPHeight
+
+	msgHeight := panelHeight - headerLines - filesVPHeight - historyVPHeight - sectionGaps
+	if msgHeight < 3 {
+		msgHeight = 3
+	}
+	m.messageVP.Width = m.rightWidth
+	m.messageVP.Height = msgHeight
+
+	m.updateLeftContent()
+	m.updateRightContent()
+}
+
+func (m model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	leftBorderEnd := m.leftWidth + 2
+
+	if msg.X < leftBorderEnd {
+		var cmd tea.Cmd
+		m.agentListVP, cmd = m.agentListVP.Update(msg)
+		return m, cmd
+	}
+
+	// Route to inner right viewport based on Y position
+	// Header takes ~headerLines rows + 1 border
+	rightStart := 1 // top border
+	filesStart := rightStart + headerLines
+	historyStart := filesStart + filesVPHeight + 2 // +1 label +1 buffer
+	messageStart := historyStart + historyVPHeight + 2 // +1 label +1 buffer
+
+	var cmd tea.Cmd
+	if msg.Y >= messageStart {
+		m.messageVP, cmd = m.messageVP.Update(msg)
+	} else if msg.Y >= historyStart {
+		m.historyVP, cmd = m.historyVP.Update(msg)
+	} else if msg.Y >= filesStart {
+		m.filesVP, cmd = m.filesVP.Update(msg)
+	}
+	return m, cmd
 }
 
 func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -258,35 +343,28 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selected > 0 {
 			m.selected--
 			m.statusMsg = ""
-			m.conversation = nil // trigger jump-to-end on next load
-			m.convOffset = 0
+			m.conversation = nil
+			m.updateLeftContent()
 			return m, tea.Batch(m.captureSelected(), m.loadConversation())
 		}
 	case "down", "j":
 		if m.selected < len(m.agents)-1 {
 			m.selected++
 			m.statusMsg = ""
-			m.conversation = nil // trigger jump-to-end on next load
-			m.convOffset = 0
+			m.conversation = nil
+			m.updateLeftContent()
 			return m, tea.Batch(m.captureSelected(), m.loadConversation())
 		}
+	case "tab":
+		m.focusedVP = (m.focusedVP + 1) % focusCount
+		return m, nil
+	case "shift+tab":
+		m.focusedVP = (m.focusedVP - 1 + focusCount) % focusCount
+		return m, nil
 	case "ctrl+u":
-		if m.convOffset > 0 {
-			m.convOffset -= 5
-			if m.convOffset < 0 {
-				m.convOffset = 0
-			}
-		}
-		return m, nil
+		return m.scrollFocused(msg)
 	case "ctrl+d":
-		maxOffset := max(0, len(m.conversation)-10)
-		if m.convOffset < maxOffset {
-			m.convOffset += 5
-			if m.convOffset > maxOffset {
-				m.convOffset = maxOffset
-			}
-		}
-		return m, nil
+		return m.scrollFocused(msg)
 	case "enter":
 		if !m.tmuxAvailable {
 			m.statusMsg = "Cannot jump: tmux not detected"
@@ -307,7 +385,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, textinput.Blink
 		}
 	case "y", "n":
-		// Quick yes/no for needs-attention agents
 		if m.tmuxAvailable && m.selected < len(m.agents) {
 			agent := m.agents[m.selected]
 			if agent.State == "input" || agent.State == "error" {
@@ -315,7 +392,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-		// Quick number selection for needs-attention agents
 		if m.tmuxAvailable && m.selected < len(m.agents) {
 			agent := m.agents[m.selected]
 			if agent.State == "input" || agent.State == "error" {
@@ -327,18 +403,237 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) scrollFocused(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch m.focusedVP {
+	case focusAgentList:
+		m.agentListVP, cmd = m.agentListVP.Update(msg)
+	case focusFiles:
+		m.filesVP, cmd = m.filesVP.Update(msg)
+	case focusHistory:
+		m.historyVP, cmd = m.historyVP.Update(msg)
+	case focusMessage:
+		m.messageVP, cmd = m.messageVP.Update(msg)
+	}
+	return m, cmd
+}
+
+// -- Content Builders --
+
+func (m *model) updateLeftContent() {
+	m.agentListVP.SetContent(m.agentListContent())
+}
+
+func (m *model) updateRightContent() {
+	if m.selected >= len(m.agents) || len(m.agents) == 0 {
+		m.filesVP.SetContent("")
+		m.historyVP.SetContent("")
+		m.messageVP.SetContent("  No agents found")
+		return
+	}
+
+	agent := m.agents[m.selected]
+
+	m.filesVP.SetContent(m.filesContent(agent))
+	m.historyVP.SetContent(m.historyContent())
+
+	needsAttention := agent.State == "input" || agent.State == "error"
+	isDone := agent.State == "done" || agent.State == "idle"
+
+	if needsAttention {
+		m.messageVP.SetContent(m.waitingMessageContent())
+	} else if isDone {
+		m.messageVP.SetContent(m.finalMessageContent())
+	} else if m.tmuxAvailable && hasContent(m.capturedLines) {
+		var lines []string
+		for _, l := range m.capturedLines {
+			lines = append(lines, " "+l)
+		}
+		m.messageVP.SetContent(strings.Join(lines, "\n"))
+	} else {
+		m.messageVP.SetContent("")
+	}
+}
+
+func (m model) agentListContent() string {
+	var lines []string
+
+	if len(m.agents) == 0 {
+		lines = append(lines, "  No agents found")
+		return strings.Join(lines, "\n")
+	}
+
+	lastGroup := -1
+	for i, agent := range m.agents {
+		group := stateGroup(agent.State)
+		if group == 0 {
+			group = 3
+		}
+
+		if group != lastGroup {
+			if lastGroup != -1 {
+				lines = append(lines, "")
+			}
+			hdr := groupHeaders[group]
+			lines = append(lines, " "+lipgloss.NewStyle().
+				Foreground(hdr.color).Bold(true).Render(hdr.label))
+			lastGroup = group
+		}
+
+		si := stateIcons[agent.State]
+		if si.icon == "" {
+			si = stateIcons["idle"]
+		}
+
+		paneID := fmt.Sprintf("%d.%d", agent.Window, agent.Pane)
+
+		label := ""
+		if agent.Branch != "" {
+			b := agent.Branch
+			b = strings.TrimPrefix(b, "feat/")
+			b = strings.TrimPrefix(b, "fix/")
+			label = b
+		}
+		if label == "" && agent.Cwd != "" {
+			label = filepath.Base(agent.Cwd)
+		}
+		if label == "" {
+			label = agent.Session
+		}
+
+		duration := ""
+		if agent.State == "running" {
+			duration = FormatDuration(agent.UpdatedAt)
+		}
+
+		maxLabel := m.leftWidth - 5 - len(paneID) - 2 - len(duration)
+		if maxLabel > 0 && len(label) > maxLabel {
+			label = label[:maxLabel-1] + "…"
+		}
+
+		icon := lipgloss.NewStyle().Foreground(si.color).Render(si.icon)
+		line := fmt.Sprintf("   %s %s %s  %s", icon, paneID, label, duration)
+
+		if i == m.selected {
+			line = selectedStyle.Render(fmt.Sprintf("  %s %s %s  %s", si.icon, paneID, label, duration))
+		}
+
+		lines = append(lines, line)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (m model) filesContent(agent Agent) string {
+	if len(agent.FilesChanged) == 0 {
+		return helpStyle.Render("  No files changed")
+	}
+	var lines []string
+	for _, f := range agent.FilesChanged {
+		var color lipgloss.Color
+		switch {
+		case strings.HasPrefix(f, "+"):
+			color = doneColor
+		case strings.HasPrefix(f, "-"):
+			color = errorColor
+		default:
+			color = inputColor
+		}
+		lines = append(lines, "  "+lipgloss.NewStyle().Foreground(color).Render(f))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m model) historyContent() string {
+	if len(m.conversation) == 0 {
+		return helpStyle.Render("  No conversation history")
+	}
+
+	var lines []string
+	for _, entry := range m.conversation {
+		ts := ""
+		if t, err := time.Parse(time.RFC3339, entry.Timestamp); err == nil {
+			ts = t.Local().Format("15:04")
+		}
+
+		roleStyle := lipgloss.NewStyle().Foreground(runningColor).Bold(true)
+		if entry.Role == "human" {
+			roleStyle = lipgloss.NewStyle().Foreground(inputColor).Bold(true)
+		}
+
+		preview := strings.Split(entry.Content, "\n")[0]
+		if len(preview) > 120 {
+			preview = preview[:119] + "…"
+		}
+
+		lines = append(lines, fmt.Sprintf(" %s %s %s",
+			helpStyle.Render("["+ts+"]"),
+			roleStyle.Render(entry.Role+":"),
+			preview))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m model) waitingMessageContent() string {
+	var lastAssistant *ConversationEntry
+	for i := len(m.conversation) - 1; i >= 0; i-- {
+		if m.conversation[i].Role == "assistant" {
+			lastAssistant = &m.conversation[i]
+			break
+		}
+	}
+
+	if lastAssistant == nil {
+		return helpStyle.Render("  Waiting for agent message...")
+	}
+
+	var lines []string
+	wrapped := wrapText(lastAssistant.Content, m.rightWidth-3)
+	for _, wl := range wrapped {
+		lines = append(lines, "  "+wl)
+	}
+
+	lines = append(lines, "")
+	if m.mode == modeReply {
+		lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
+			Render("Reply: ")+m.textInput.View())
+	} else {
+		lines = append(lines, " "+helpStyle.Render("Press r to reply, y/n for quick answer"))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (m model) finalMessageContent() string {
+	var lastAssistant *ConversationEntry
+	for i := len(m.conversation) - 1; i >= 0; i-- {
+		if m.conversation[i].Role == "assistant" {
+			lastAssistant = &m.conversation[i]
+			break
+		}
+	}
+
+	if lastAssistant == nil {
+		return ""
+	}
+
+	var lines []string
+	wrapped := wrapText(lastAssistant.Content, m.rightWidth-3)
+	for _, wl := range wrapped {
+		lines = append(lines, "  "+wl)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// -- View --
+
 func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
 
-	// Width/Height set content area; borders add +2 each dimension
-	leftWidth := m.width*30/100 - 2       // content width (total = leftWidth+2)
-	rightWidth := m.width - leftWidth - 4 // remaining content width (total = rightWidth+2)
-	panelHeight := m.height - 5           // content height (total = panelHeight+2, +1 help bar, +2 bottom buffer)
-
-	left := m.renderAgentList(leftWidth, panelHeight)
-	right := m.renderPeekPanel(rightWidth, panelHeight)
+	left := m.renderLeftPanel()
+	right := m.renderRightPanel()
 	main := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	help := m.renderHelpBar()
@@ -346,9 +641,115 @@ func (m model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, main, help)
 }
 
-// stateGroup returns the priority group for a state.
-func stateGroup(state string) int {
-	return statePriority[state]
+func (m model) renderLeftPanel() string {
+	panelHeight := m.height - 5
+	return borderStyle.
+		Width(m.leftWidth).
+		Height(panelHeight).
+		Render(m.agentListVP.View())
+}
+
+func (m model) renderRightPanel() string {
+	panelHeight := m.height - 5
+
+	if m.selected >= len(m.agents) || len(m.agents) == 0 {
+		return borderStyle.
+			Width(m.rightWidth).
+			Height(panelHeight).
+			Render(m.messageVP.View())
+	}
+
+	agent := m.agents[m.selected]
+	si := stateIcons[agent.State]
+	if si.icon == "" {
+		si = stateIcons["idle"]
+	}
+
+	// Header (not in a viewport — static)
+	var header []string
+
+	name := agent.Session
+	if name == "" {
+		name = agent.Target
+	}
+	header = append(header, titleStyle.Render(fmt.Sprintf(" PEEK: %s ", name)))
+	header = append(header, "")
+
+	stateLabel := map[string]string{
+		"input": "Waiting for input", "error": "Error",
+		"running": "Running", "done": "Done", "idle": "Idle",
+	}[agent.State]
+	if stateLabel == "" {
+		stateLabel = agent.State
+	}
+	stateStr := lipgloss.NewStyle().Foreground(si.color).Bold(true).
+		Render(fmt.Sprintf("%s %s", si.icon, stateLabel))
+	header = append(header, fmt.Sprintf(" %s", stateStr))
+	header = append(header, "")
+
+	if agent.Branch != "" {
+		header = append(header, fmt.Sprintf(" Branch: %s", boldStyle.Render(agent.Branch)))
+	}
+	if agent.Cwd != "" {
+		header = append(header, fmt.Sprintf(" Dir: %s", agent.Cwd))
+	}
+
+	// Usage / cost
+	if u, ok := m.agentUsage[agent.Target]; ok && u.OutputTokens > 0 {
+		header = append(header, fmt.Sprintf(" Cost: %s  (in: %s  out: %s  cache: %s)",
+			boldStyle.Render(FormatCost(u.CostUSD)),
+			FormatTokens(u.InputTokens),
+			FormatTokens(u.OutputTokens),
+			FormatTokens(u.CacheReadTokens+u.CacheWriteTokens)))
+	}
+	header = append(header, "")
+
+	// Section labels + viewports
+	needsAttention := agent.State == "input" || agent.State == "error"
+	isDone := agent.State == "done" || agent.State == "idle"
+
+	filesLabel := " " + boldStyle.Render("Files:")
+	historyLabel := " " + boldStyle.Render("── History ───────────────────")
+
+	var messageLabel string
+	if needsAttention {
+		messageLabel = " " + lipgloss.NewStyle().Foreground(inputColor).Bold(true).
+			Render("── Agent is waiting ──────────")
+	} else if isDone {
+		messageLabel = " " + lipgloss.NewStyle().Foreground(doneColor).Bold(true).
+			Render("── Final message ─────────────")
+	} else {
+		messageLabel = " " + boldStyle.Render("── Live ──────────────────────")
+	}
+
+	// Status message
+	statusLine := ""
+	if m.statusMsg != "" {
+		statusLine = " " + lipgloss.NewStyle().Foreground(errorColor).Render(m.statusMsg)
+	}
+
+	// Compose right panel (with blank-line buffers between sections)
+	parts := []string{
+		strings.Join(header, "\n"),
+		filesLabel,
+		m.filesVP.View(),
+		"",
+		historyLabel,
+		m.historyVP.View(),
+		"",
+		messageLabel,
+		m.messageVP.View(),
+	}
+	if statusLine != "" {
+		parts = append(parts, statusLine)
+	}
+
+	content := strings.Join(parts, "\n")
+
+	return borderStyle.
+		Width(m.rightWidth).
+		Height(panelHeight).
+		Render(content)
 }
 
 var groupHeaders = map[int]struct {
@@ -360,298 +761,13 @@ var groupHeaders = map[int]struct {
 	3: {"COMPLETED", doneColor},
 }
 
-func (m model) renderAgentList(width, height int) string {
-	var lines []string
-
-	if len(m.agents) == 0 {
-		lines = append(lines, "  No agents found")
-	} else {
-		lastGroup := -1
-		for i, agent := range m.agents {
-			group := stateGroup(agent.State)
-			if group == 0 {
-				group = 3
-			}
-
-			// Insert group header when group changes
-			if group != lastGroup {
-				if lastGroup != -1 {
-					lines = append(lines, "") // spacer between groups
-				}
-				hdr := groupHeaders[group]
-				lines = append(lines, " "+lipgloss.NewStyle().
-					Foreground(hdr.color).Bold(true).Render(hdr.label))
-				lastGroup = group
-			}
-
-			si := stateIcons[agent.State]
-			if si.icon == "" {
-				si = stateIcons["idle"]
-			}
-
-			paneID := fmt.Sprintf("%d.%d", agent.Window, agent.Pane)
-
-			label := ""
-			if agent.Branch != "" {
-				b := agent.Branch
-				b = strings.TrimPrefix(b, "feat/")
-				b = strings.TrimPrefix(b, "fix/")
-				label = b
-			}
-			if label == "" && agent.Cwd != "" {
-				label = filepath.Base(agent.Cwd)
-			}
-			if label == "" {
-				label = agent.Session
-			}
-			duration := ""
-			if agent.State == "running" {
-				duration = FormatDuration(agent.UpdatedAt)
-			}
-
-			overhead := 5 + len(paneID) + 2 + len(duration) // indent+icon+spaces+paneID+gap+duration
-			maxLabel := width - overhead
-			if maxLabel > 0 && len(label) > maxLabel {
-				label = label[:maxLabel-1] + "…"
-			}
-
-			icon := lipgloss.NewStyle().Foreground(si.color).Render(si.icon)
-			line := fmt.Sprintf("   %s %s %s  %s", icon, paneID, label, duration)
-
-			if i == m.selected {
-				line = selectedStyle.Render(fmt.Sprintf("  %s %s %s  %s", si.icon, paneID, label, duration))
-			}
-
-			lines = append(lines, line)
-		}
-	}
-
-	agentContent := fitContent(lines, width, height)
-
-	return borderStyle.
-		Width(width).
-		Height(height).
-		Render(agentContent)
-}
-
-func (m model) renderPeekPanel(width, height int) string {
-	var lines []string
-
-	if m.selected >= len(m.agents) || len(m.agents) == 0 {
-		lines = append(lines, "")
-		lines = append(lines, "  No agents found")
-	} else {
-		agent := m.agents[m.selected]
-		si := stateIcons[agent.State]
-		if si.icon == "" {
-			si = stateIcons["idle"]
-		}
-
-		// Header
-		name := agent.Session
-		if name == "" {
-			name = agent.Target
-		}
-		lines = append(lines, titleStyle.Render(fmt.Sprintf(" PEEK: %s ", name)))
-		lines = append(lines, "")
-
-		// State + duration
-		stateLabel := map[string]string{
-			"input": "Waiting for input", "error": "Error",
-			"running": "Running", "done": "Done", "idle": "Idle",
-		}[agent.State]
-		if stateLabel == "" {
-			stateLabel = agent.State
-		}
-		stateStr := lipgloss.NewStyle().Foreground(si.color).Bold(true).
-			Render(fmt.Sprintf("%s %s", si.icon, stateLabel))
-		lines = append(lines, fmt.Sprintf(" %s  (%s)", stateStr, FormatDuration(agent.UpdatedAt)))
-		lines = append(lines, "")
-
-		// Branch + cwd
-		if agent.Branch != "" {
-			lines = append(lines, fmt.Sprintf(" Branch: %s", boldStyle.Render(agent.Branch)))
-		}
-		if agent.Cwd != "" {
-			lines = append(lines, fmt.Sprintf(" Dir: %s", agent.Cwd))
-		}
-		lines = append(lines, "")
-
-		// Usage / cost
-		if u, ok := m.agentUsage[agent.Target]; ok && u.OutputTokens > 0 {
-			lines = append(lines, fmt.Sprintf(" Cost: %s  (in: %s  out: %s  cache: %s)",
-				boldStyle.Render(FormatCost(u.CostUSD)),
-				FormatTokens(u.InputTokens),
-				FormatTokens(u.OutputTokens),
-				FormatTokens(u.CacheReadTokens+u.CacheWriteTokens)))
-			lines = append(lines, "")
-		}
-
-		// Files changed
-		if len(agent.FilesChanged) > 0 {
-			lines = append(lines, " "+boldStyle.Render("Files:"))
-			for _, f := range agent.FilesChanged {
-				var color lipgloss.Color
-				switch {
-				case strings.HasPrefix(f, "+"):
-					color = doneColor
-				case strings.HasPrefix(f, "-"):
-					color = errorColor
-				default:
-					color = inputColor
-				}
-				lines = append(lines, "   "+lipgloss.NewStyle().Foreground(color).Render(f))
-			}
-			lines = append(lines, "")
-		}
-
-		needsAttention := agent.State == "input" || agent.State == "error"
-
-		if needsAttention && len(m.conversation) > 0 {
-			// Show the last assistant message in full so user can read and reply
-			lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
-				Render("── Agent is waiting ──────────"))
-
-			// Find last assistant message
-			var lastAssistant *ConversationEntry
-			for i := len(m.conversation) - 1; i >= 0; i-- {
-				if m.conversation[i].Role == "assistant" {
-					lastAssistant = &m.conversation[i]
-					break
-				}
-			}
-
-			if lastAssistant != nil {
-				lines = append(lines, "")
-				// Word-wrap the full content to panel width
-				wrapped := wrapText(lastAssistant.Content, width-3)
-				for _, wl := range wrapped {
-					lines = append(lines, "  "+wl)
-				}
-			}
-
-			lines = append(lines, "")
-
-			// Reply prompt
-			if m.mode == modeReply {
-				lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
-					Render("Reply: ")+m.textInput.View())
-			} else {
-				lines = append(lines, " "+helpStyle.Render("Press r to reply, y/n for quick answer"))
-			}
-		} else if len(m.conversation) > 0 {
-			isDone := agent.State == "done" || agent.State == "idle"
-
-			// Fixed-height scrollable history viewport (10 lines)
-			const historyRows = 10
-
-			lines = append(lines, " "+boldStyle.Render("── History ───────────────────"))
-
-			// Build all compact history lines
-			var histLines []string
-			for _, entry := range m.conversation {
-				ts := ""
-				if t, err := time.Parse(time.RFC3339, entry.Timestamp); err == nil {
-					ts = t.Local().Format("15:04")
-				}
-
-				roleStyle := lipgloss.NewStyle().Foreground(runningColor).Bold(true)
-				if entry.Role == "human" {
-					roleStyle = lipgloss.NewStyle().Foreground(inputColor).Bold(true)
-				}
-
-				preview := strings.Split(entry.Content, "\n")[0]
-				if len(preview) > 120 {
-					preview = preview[:119] + "…"
-				}
-
-				histLines = append(histLines, fmt.Sprintf(" %s %s %s",
-					helpStyle.Render("["+ts+"]"),
-					roleStyle.Render(entry.Role+":"),
-					preview))
-			}
-
-			// Apply scroll offset within fixed viewport
-			viewStart := m.convOffset
-			if viewStart > len(histLines) {
-				viewStart = max(0, len(histLines)-historyRows)
-			}
-			viewEnd := viewStart + historyRows
-			if viewEnd > len(histLines) {
-				viewEnd = len(histLines)
-			}
-
-			if viewStart > 0 {
-				lines = append(lines, " "+helpStyle.Render(fmt.Sprintf("  ▲ %d more (ctrl+u)", viewStart)))
-			}
-			for i := viewStart; i < viewEnd; i++ {
-				lines = append(lines, histLines[i])
-			}
-			// Pad to fixed height so content below doesn't shift
-			for i := viewEnd - viewStart; i < historyRows; i++ {
-				lines = append(lines, "")
-			}
-			if viewEnd < len(histLines) {
-				lines = append(lines, " "+helpStyle.Render(fmt.Sprintf("  ▼ %d more (ctrl+d)", len(histLines)-viewEnd)))
-			} else {
-				lines = append(lines, "") // keep consistent height
-			}
-
-			// For done agents, always show last assistant message in full at the bottom
-			if isDone {
-				var lastAssistant *ConversationEntry
-				for i := len(m.conversation) - 1; i >= 0; i-- {
-					if m.conversation[i].Role == "assistant" {
-						lastAssistant = &m.conversation[i]
-						break
-					}
-				}
-				if lastAssistant != nil {
-					lines = append(lines, "")
-					lines = append(lines, " "+lipgloss.NewStyle().Foreground(doneColor).Bold(true).
-						Render("── Final message ─────────────"))
-					lines = append(lines, "")
-					wrapped := wrapText(lastAssistant.Content, width-3)
-					for _, wl := range wrapped {
-						lines = append(lines, "  "+wl)
-					}
-				}
-			}
-		} else if m.tmuxAvailable && hasContent(m.capturedLines) {
-			// Fallback to tmux capture
-			lines = append(lines, " "+boldStyle.Render("── Live ──────────────────────"))
-			for _, l := range m.capturedLines {
-				lines = append(lines, " "+l)
-			}
-		} else if agent.LastMessagePreview != "" {
-			lines = append(lines, " "+boldStyle.Render("── Last Message ──────────────"))
-			lines = append(lines, " "+agent.LastMessagePreview)
-		}
-
-		if !m.tmuxAvailable {
-			lines = append(lines, "")
-			lines = append(lines, " "+helpStyle.Render("tmux not detected — jump and reply disabled"))
-		}
-
-		// Status message
-		if m.statusMsg != "" {
-			lines = append(lines, "")
-			lines = append(lines, " "+lipgloss.NewStyle().Foreground(errorColor).Render(m.statusMsg))
-		}
-	}
-
-	content := fitContent(lines, width, height)
-
-	return borderStyle.
-		Width(width).
-		Height(height).
-		Render(content)
+func stateGroup(state string) int {
+	return statePriority[state]
 }
 
 func (m model) renderHelpBar() string {
 	var parts []string
 
-	// Total cost on the left — DB total (all-time) or in-memory fallback
 	totalCost := m.dbTotalCost
 	if totalCost == 0 {
 		totalCost = m.totalUsage.CostUSD
@@ -674,7 +790,6 @@ func (m model) renderHelpBar() string {
 	if m.tmuxAvailable {
 		parts = append(parts, boldStyle.Render("enter")+" jump")
 		parts = append(parts, boldStyle.Render("r")+" reply")
-		// Show quick-action hints for needs-attention agents
 		if m.selected < len(m.agents) {
 			agent := m.agents[m.selected]
 			if agent.State == "input" || agent.State == "error" {
@@ -685,6 +800,7 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("enter")+" "+helpStyle.Render("jump"))
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
+	parts = append(parts, boldStyle.Render("tab")+" focus")
 	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
 	parts = append(parts, boldStyle.Render("q")+" quit")
 
@@ -721,7 +837,6 @@ func (m model) loadConversation() tea.Cmd {
 	cwd := agent.Cwd
 
 	return func() tea.Msg {
-		// Fallback: if no session_id in state, find by cwd
 		if sessionID == "" {
 			sessionID = FindSessionID(cwd)
 		}
@@ -746,7 +861,6 @@ func pruneDead(statePath string) tea.Cmd {
 
 func persistUsage(db *DB, agents []Agent, perAgent map[string]Usage) tea.Cmd {
 	today := time.Now().Format("2006-01-02")
-	// Copy data for goroutine
 	type entry struct {
 		sessionID string
 		model     string
@@ -780,7 +894,6 @@ func loadDBCost(db *DB) tea.Cmd {
 }
 
 func loadUsage(agents []Agent) tea.Cmd {
-	// Copy to avoid race
 	agentsCopy := make([]Agent, len(agents))
 	copy(agentsCopy, agents)
 	return func() tea.Msg {
@@ -844,7 +957,6 @@ func watchStateFile(path string, p *tea.Program) (*fsnotify.Watcher, error) {
 	}()
 
 	if err := watcher.Add(path); err != nil {
-		// Try adding the directory instead (file might not exist yet)
 		dir := filepath.Dir(path)
 		if dirErr := watcher.Add(dir); dirErr != nil {
 			watcher.Close()
@@ -866,7 +978,6 @@ func hasContent(lines []string) bool {
 	return false
 }
 
-// wrapText wraps a string to the given width, breaking on word boundaries.
 func wrapText(s string, width int) []string {
 	if width <= 0 {
 		return []string{s}
@@ -894,49 +1005,4 @@ func wrapText(s string, width int) []string {
 		result = append(result, line)
 	}
 	return result
-}
-
-// fitContent constrains lines to exactly width x height (visual chars).
-// Truncates long lines, truncates excess lines, pads short content.
-func fitContent(lines []string, width, height int) string {
-	out := make([]string, height)
-	for i := 0; i < height; i++ {
-		if i < len(lines) {
-			out[i] = truncateLine(lines[i], width)
-		}
-	}
-	return strings.Join(out, "\n")
-}
-
-// truncateLine truncates a string to maxWidth visual characters,
-// accounting for ANSI escape sequences (which have zero width).
-func truncateLine(s string, maxWidth int) string {
-	if lipgloss.Width(s) <= maxWidth {
-		return s
-	}
-	// Walk runes, track visual width, preserve ANSI sequences
-	var b strings.Builder
-	w := 0
-	inEsc := false
-	for _, r := range s {
-		if r == '\x1b' {
-			inEsc = true
-			b.WriteRune(r)
-			continue
-		}
-		if inEsc {
-			b.WriteRune(r)
-			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
-				inEsc = false
-			}
-			continue
-		}
-		rw := lipgloss.Width(string(r))
-		if w+rw > maxWidth {
-			break
-		}
-		b.WriteRune(r)
-		w += rw
-	}
-	return b.String()
 }

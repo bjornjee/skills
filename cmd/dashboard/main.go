@@ -44,7 +44,7 @@ func main() {
 
 	self := ownTarget()
 	m := newModel(statePath, self, db)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 
 	// Start file watcher
 	watcher, err := watchStateFile(statePath, p)

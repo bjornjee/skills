@@ -71,9 +71,13 @@ function report(input) {
   const lastMessage = input.last_assistant_message || null;
 
   // SessionStart/PreToolUse → agent is actively working
+  // PreToolUse AskUserQuestion → agent is waiting for user input
   // Stop → detect whether waiting for input or done
   let state;
-  if (hookEvent === 'SessionStart' || hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse') {
+  const toolName = input.tool_name || '';
+  if (hookEvent === 'PreToolUse' && toolName === 'AskUserQuestion') {
+    state = 'input';
+  } else if (hookEvent === 'SessionStart' || hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse') {
     state = 'running';
   } else {
     const paneBuffer = capture(target, 15);
