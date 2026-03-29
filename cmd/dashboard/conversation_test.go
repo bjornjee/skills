@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -405,5 +406,72 @@ func TestIsSubagentCompleted_StillRunning(t *testing.T) {
 	os.WriteFile(path, []byte(jsonl), 0644)
 	if isSubagentCompleted(path) {
 		t.Error("expected not completed for active tool_use")
+	}
+}
+
+func TestReadConversation_LargeAssistantMessageNotTruncated(t *testing.T) {
+	dir := t.TempDir()
+	slug := "test-project"
+	sessionID := "abc-123"
+
+	projDir := filepath.Join(dir, slug)
+	if err := os.MkdirAll(projDir, 0755); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// Create a 20000-char assistant message (simulating a plan)
+	longText := strings.Repeat("x", 20000)
+
+	msg := map[string]interface{}{
+		"role": "assistant",
+		"content": []map[string]string{
+			{"type": "text", "text": longText},
+		},
+	}
+	msgJSON, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	entry := `{"type":"assistant","message":` + string(msgJSON) + `,"timestamp":"2026-03-28T10:15:30Z"}`
+
+	if err := os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(entry+"\n"), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	entries := ReadConversation(filepath.Join(dir, slug), sessionID, 10)
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+
+	// The full 20000-char message should be preserved, not truncated to 8000
+	if len(entries[0].Content) != 20000 {
+		t.Errorf("expected content length 20000, got %d (message was truncated)", len(entries[0].Content))
+	}
+}
+
+func TestIsSubagentCompleted_LargeFinalEntry(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.jsonl")
+
+	// The real bug: the final assistant message with stop_reason exceeds 4KB.
+	// When isSubagentCompleted seeks to (fileSize - 4KB), it lands mid-entry.
+	// The partial line fails JSON parsing and no complete line follows.
+	largeText := strings.Repeat("x", 6000)
+
+	// Small initial entry + large final entry with stop_reason
+	jsonl := `{"type":"system","sessionId":"sess-1","timestamp":"2026-03-28T09:59:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"` + largeText + `"}],"stop_reason":"end_turn"},"timestamp":"2026-03-28T10:00:00Z"}
+`
+	if err := os.WriteFile(path, []byte(jsonl), 0644); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// File is >4KB but the completion signal is in the final entry which spans beyond 4KB
+	if len(jsonl) <= 4*1024 {
+		t.Fatalf("test setup error: file too small (%d bytes), need >4KB", len(jsonl))
+	}
+
+	if !isSubagentCompleted(path) {
+		t.Error("expected completed: large final entry with stop_reason=end_turn should be detected even when entry exceeds 4KB tail buffer")
 	}
 }
