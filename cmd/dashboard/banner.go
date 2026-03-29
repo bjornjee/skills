@@ -55,28 +55,31 @@ var (
 	pxLavender   = lipgloss.Color("#D8B4FE")
 )
 
-// axolotlPixels: 0=empty, 1=hotpink, 2=medpink, 3=lightpink, 4=palepink, 5=darkpurple, 6=lavender
-// Traced from kawaii pixel axolotl face reference grid.
+// Color Palette based on image:
+// 0: Empty/Transparent
+// 1: Dark Pink (Gills/Outline)
+// 2: Light Pink (Face/Body)
+// 3: Dark Purple (Eyes)
+// 4: Muted Pink (Nose/Blush)
 var axolotlPixels = [][]int{
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0},
-	{0, 0, 2, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 2, 0, 0},
-	{0, 2, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 2, 0},
-	{0, 1, 0, 2, 1, 2, 3, 3, 3, 2, 3, 3, 3, 2, 1, 2, 0, 1, 0},
-	{0, 0, 1, 2, 3, 4, 4, 4, 4, 3, 4, 4, 4, 4, 3, 2, 1, 0, 0},
-	{0, 0, 2, 3, 5, 3, 6, 4, 6, 4, 6, 4, 6, 3, 5, 3, 2, 0, 0},
-	{0, 0, 0, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 0, 0, 0},
-	{0, 0, 0, 0, 2, 3, 4, 4, 3, 4, 3, 4, 4, 3, 2, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 1, 2, 3, 3, 0, 3, 3, 2, 1, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0},
+	{0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0},
+	{0, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0},
+	{0, 1, 1, 2, 2, 3, 2, 2, 4, 4, 2, 2, 3, 2, 2, 1, 1, 0},
+	{0, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1, 0},
+	{0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 }
 
 var pxColors = map[int]lipgloss.Color{
-	1: pxHotPink,
-	2: pxMedPink,
-	3: pxLightPink,
-	4: pxPalePink,
-	5: pxDarkPurple,
-	6: pxLavender,
+	1: lipgloss.Color("#E882B4"), // Dark Pink
+	2: lipgloss.Color("#F8C8E8"), // Light Pink
+	3: lipgloss.Color("#3D0E61"), // Dark Purple (Eyes)
+	4: lipgloss.Color("#D1A1C4"), // Muted Pink (Nose)
 }
 
 // renderAxolotl renders the pixel art using half-block characters with true colors.
