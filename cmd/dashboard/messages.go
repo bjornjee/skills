@@ -25,10 +25,6 @@ type subagentsMsg struct {
 	parentTarget string
 	agents       []SubagentInfo
 }
-type pendingInputMsg struct {
-	target  string
-	pending bool
-}
 type notifyResultMsg struct{}
 type selectPaneMsg struct{ err error }
 type closeResultMsg struct {

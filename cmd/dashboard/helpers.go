@@ -105,11 +105,15 @@ func permissionModeStyle(mode string) string {
 	return lipgloss.NewStyle().Foreground(permissionModeColor(mode)).Render(mode)
 }
 
-// agentBadges returns a compact metadata string like "S auto [2]".
+// agentBadges returns a compact metadata string like "auto Bash [2]".
 func agentBadges(agent Agent) string {
 	var parts []string
 	if agent.PermissionMode != "" && agent.PermissionMode != "default" {
 		parts = append(parts, permissionModeStyle(agent.PermissionMode))
+	}
+	if agent.CurrentTool != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("248")).
+			Render(agent.CurrentTool))
 	}
 	if agent.SubagentCount > 0 {
 		parts = append(parts, lipgloss.NewStyle().Foreground(runningColor).
@@ -121,28 +125,10 @@ func agentBadges(agent Agent) string {
 	return strings.Join(parts, " ")
 }
 
-// effectiveState returns the display state for an agent, overriding to "input"
-// when the agent is waiting for user interaction. Two cases:
-//
-//  1. Running + pending tool_use + Stop: agent finished its turn with an
-//     unanswered tool call (permission prompt, question, etc.).
-//  2. Running + pending tool_use + PreToolUse: tool is blocked on user approval
-//     mid-turn. The 2s polling interval prevents false positives from
-//     auto-approved tools (they complete in <100ms).
-//  3. Done + pendingInput: race condition where Stop fired before Claude Code
-//     rendered the plan approval UI. Dashboard-side pane re-check set the flag.
-//
-// PostToolUse/SessionStart/SubagentStart/SubagentStop are excluded — tools are
-// actively being processed during those events.
+// effectiveState returns the display state for an agent.
+// The state file is the single source of truth — hooks (agent-state-fast.js)
+// write "input" on PermissionRequest and "running" on PostToolUse directly.
 func (m model) effectiveState(agent Agent) string {
-	if agent.State == "running" && m.pendingInput[agent.Target] {
-		if agent.LastHookEvent == "Stop" || agent.LastHookEvent == "PreToolUse" {
-			return "input"
-		}
-	}
-	if agent.State == "done" && m.pendingInput[agent.Target] {
-		return "input"
-	}
 	return agent.State
 }
 

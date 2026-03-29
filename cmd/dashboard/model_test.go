@@ -56,57 +56,39 @@ func TestBuildTree_CollapsedHidesSubs(t *testing.T) {
 	}
 }
 
-func TestEffectiveState_RunningPendingStop(t *testing.T) {
+func TestEffectiveState_ReturnsStateDirectly(t *testing.T) {
+	// effectiveState is now a pass-through — state file is the single source of truth.
+	// Hooks (agent-state-fast.js) write "input" on PermissionRequest and "running" on PostToolUse.
 	m := newModel("", "", nil)
-	m.pendingInput["a:0.1"] = true
-	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "Stop"}
-	if got := m.effectiveState(agent); got != "input" {
-		t.Errorf("expected input, got %s", got)
+	tests := []struct {
+		name  string
+		state string
+	}{
+		{"running", "running"},
+		{"input", "input"},
+		{"done", "done"},
+		{"error", "error"},
+		{"idle", "idle"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			agent := Agent{Target: "a:0.1", State: tt.state}
+			if got := m.effectiveState(agent); got != tt.state {
+				t.Errorf("effectiveState(%q) = %q, want %q", tt.state, got, tt.state)
+			}
+		})
 	}
 }
 
-func TestEffectiveState_RunningPendingPreToolUse(t *testing.T) {
-	m := newModel("", "", nil)
-	m.pendingInput["a:0.1"] = true
-	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "PreToolUse"}
-	if got := m.effectiveState(agent); got != "input" {
-		t.Errorf("expected input, got %s", got)
+func TestCurrentTool_InAgentStruct(t *testing.T) {
+	// Verify CurrentTool field is available and serializes correctly
+	agent := Agent{
+		Target:      "a:0.1",
+		State:       "running",
+		CurrentTool: "Bash",
 	}
-}
-
-func TestEffectiveState_RunningPendingPostToolUse(t *testing.T) {
-	m := newModel("", "", nil)
-	m.pendingInput["a:0.1"] = true
-	// PostToolUse means tool just completed — should stay running
-	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "PostToolUse"}
-	if got := m.effectiveState(agent); got != "running" {
-		t.Errorf("expected running, got %s", got)
-	}
-}
-
-func TestEffectiveState_RunningNoPending(t *testing.T) {
-	m := newModel("", "", nil)
-	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "Stop"}
-	if got := m.effectiveState(agent); got != "running" {
-		t.Errorf("expected running, got %s", got)
-	}
-}
-
-func TestEffectiveState_DoneWithPending(t *testing.T) {
-	m := newModel("", "", nil)
-	m.pendingInput["a:0.1"] = true
-	// Done agent with pending input = plan approval race condition
-	agent := Agent{Target: "a:0.1", State: "done", LastHookEvent: "Stop"}
-	if got := m.effectiveState(agent); got != "input" {
-		t.Errorf("expected input, got %s", got)
-	}
-}
-
-func TestEffectiveState_DoneNoPending(t *testing.T) {
-	m := newModel("", "", nil)
-	agent := Agent{Target: "a:0.1", State: "done", LastHookEvent: "Stop"}
-	if got := m.effectiveState(agent); got != "done" {
-		t.Errorf("expected done, got %s", got)
+	if agent.CurrentTool != "Bash" {
+		t.Errorf("expected CurrentTool=Bash, got %q", agent.CurrentTool)
 	}
 }
 
@@ -475,8 +457,6 @@ func TestStateUpdate_PrunesAllMaps(t *testing.T) {
 	m.buildTree()
 
 	// Populate maps for both agents
-	m.pendingInput["main:1.0"] = true
-	m.pendingInput["main:2.0"] = false
 	m.prevEffState["main:1.0"] = "running"
 	m.prevEffState["main:2.0"] = "done"
 	m.agentSubagents["main:1.0"] = []SubagentInfo{{AgentID: "sub1"}}
@@ -496,17 +476,11 @@ func TestStateUpdate_PrunesAllMaps(t *testing.T) {
 	rm := result.(model)
 
 	// main:1.0 maps should survive
-	if _, ok := rm.pendingInput["main:1.0"]; !ok {
-		t.Error("pendingInput for main:1.0 should survive")
-	}
 	if _, ok := rm.agentSubagents["main:1.0"]; !ok {
 		t.Error("agentSubagents for main:1.0 should survive")
 	}
 
 	// main:2.0 maps should be pruned
-	if _, ok := rm.pendingInput["main:2.0"]; ok {
-		t.Error("pendingInput for main:2.0 should be pruned")
-	}
 	if _, ok := rm.prevEffState["main:2.0"]; ok {
 		t.Error("prevEffState for main:2.0 should be pruned")
 	}

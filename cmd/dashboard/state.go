@@ -27,6 +27,7 @@ type Agent struct {
 	PermissionMode     string   `json:"permission_mode"`
 	SubagentCount      int      `json:"subagent_count"`
 	LastHookEvent      string   `json:"last_hook_event"`
+	CurrentTool        string   `json:"current_tool"`
 }
 
 // StateFile is the top-level JSON structure.
