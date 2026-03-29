@@ -31,6 +31,10 @@ type pendingInputMsg struct {
 }
 type notifyResultMsg struct{}
 type closeResultMsg struct{ err error }
+type createSessionMsg struct {
+	target string
+	err    error
+}
 
 // -- Modes --
 
@@ -39,6 +43,8 @@ const (
 	modeReply
 	modeUsage
 	modeConfirmClose
+	modeCreateFolder
+	modeInteractive
 )
 
 // -- Viewport focus --

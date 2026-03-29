@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -286,6 +287,79 @@ func TestReplyMode_EscRestoresView(t *testing.T) {
 	content := m.messageVP.View()
 	if strings.Contains(content, "Reply:") {
 		t.Error("message viewport should not show 'Reply:' after esc")
+	}
+}
+
+func TestFindWindowForRepo_MatchesByFolder(t *testing.T) {
+	agents := []Agent{
+		{Target: "main:1.0", Session: "main", Window: 1, Pane: 0, Cwd: "/home/user/code/skills"},
+		{Target: "main:2.0", Session: "main", Window: 2, Pane: 0, Cwd: "/home/user/code/other"},
+	}
+
+	sw, found := findWindowForRepo(agents, "/home/user/code/skills", "main:0.0")
+	if !found {
+		t.Fatal("expected to find window for matching folder")
+	}
+	if sw != "main:1" {
+		t.Errorf("expected session:window main:1, got %q", sw)
+	}
+}
+
+func TestFindWindowForRepo_NoMatch(t *testing.T) {
+	agents := []Agent{
+		{Target: "main:1.0", Session: "main", Window: 1, Pane: 0, Cwd: "/home/user/code/skills"},
+	}
+
+	_, found := findWindowForRepo(agents, "/home/user/code/newrepo", "main:0.0")
+	if found {
+		t.Error("expected no match for different folder")
+	}
+}
+
+func TestFindWindowForRepo_EmptyAgents(t *testing.T) {
+	_, found := findWindowForRepo(nil, "/home/user/code/skills", "main:0.0")
+	if found {
+		t.Error("expected no match with empty agents")
+	}
+}
+
+func TestCreateSessionMsg_Success(t *testing.T) {
+	m := newModel("/tmp/test-state.json", "main:0.0", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+	}
+	m.buildTree()
+
+	result, _ := m.Update(createSessionMsg{target: "main:2.0", err: nil})
+	rm := result.(model)
+
+	if rm.mode != modeInteractive {
+		t.Errorf("expected modeInteractive after successful create, got %d", rm.mode)
+	}
+	if rm.interactTarget != "main:2.0" {
+		t.Errorf("expected interactTarget main:2.0, got %q", rm.interactTarget)
+	}
+}
+
+func TestCreateSessionMsg_Error(t *testing.T) {
+	m := newModel("/tmp/test-state.json", "main:0.0", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+
+	result, _ := m.Update(createSessionMsg{target: "", err: fmt.Errorf("4-pane limit reached")})
+	rm := result.(model)
+
+	if rm.mode != modeNormal {
+		t.Errorf("expected modeNormal after failed create, got %d", rm.mode)
+	}
+	if !strings.Contains(rm.statusMsg, "4-pane limit") {
+		t.Errorf("expected error in statusMsg, got %q", rm.statusMsg)
 	}
 }
 

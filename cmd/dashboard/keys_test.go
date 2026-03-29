@@ -77,6 +77,86 @@ func TestCtrlUpDoesNotJump(t *testing.T) {
 	}
 }
 
+func TestAKeyEntersCreateFolderMode(t *testing.T) {
+	m := newTestModelWithAgents()
+	m.selected = 0
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	result, _ := m.handleKey(msg)
+	rm := result.(model)
+
+	if rm.mode != modeCreateFolder {
+		t.Errorf("expected modeCreateFolder, got %d", rm.mode)
+	}
+}
+
+func TestAKeyNoopWithoutTmux(t *testing.T) {
+	m := newTestModelWithAgents()
+	m.tmuxAvailable = false
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	result, _ := m.handleKey(msg)
+	rm := result.(model)
+
+	if rm.mode != modeNormal {
+		t.Errorf("expected modeNormal when tmux unavailable, got %d", rm.mode)
+	}
+	if rm.statusMsg == "" {
+		t.Error("expected status message about tmux not available")
+	}
+}
+
+func TestCreateFolderMode_EscReturnsToNormal(t *testing.T) {
+	m := newTestModelWithAgents()
+	m.mode = modeCreateFolder
+	m.textInput.SetValue("/some/path")
+
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	result, _ := m.handleKey(msg)
+	rm := result.(model)
+
+	if rm.mode != modeNormal {
+		t.Errorf("expected modeNormal after esc, got %d", rm.mode)
+	}
+	if rm.textInput.Value() != "" {
+		t.Error("expected textInput to be reset after esc")
+	}
+}
+
+func TestIKeyEntersInteractiveMode(t *testing.T) {
+	m := newTestModelWithAgents()
+	m.selected = 0
+
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}}
+	result, _ := m.handleKey(msg)
+	rm := result.(model)
+
+	if rm.mode != modeInteractive {
+		t.Errorf("expected modeInteractive, got %d", rm.mode)
+	}
+	if rm.interactTarget != "main:1.0" {
+		t.Errorf("expected interactTarget main:1.0, got %q", rm.interactTarget)
+	}
+}
+
+func TestInteractiveMode_EscReturnsToNormal(t *testing.T) {
+	m := newTestModelWithAgents()
+	m.mode = modeInteractive
+	m.interactTarget = "main:1.0"
+	m.textInput.SetValue("some text")
+
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	result, _ := m.handleKey(msg)
+	rm := result.(model)
+
+	if rm.mode != modeNormal {
+		t.Errorf("expected modeNormal after esc, got %d", rm.mode)
+	}
+	if rm.interactTarget != "" {
+		t.Error("expected interactTarget to be cleared after esc")
+	}
+}
+
 func TestShiftSDoesNothing(t *testing.T) {
 	m := newTestModelWithAgents()
 	m.selected = 0

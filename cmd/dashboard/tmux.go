@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -68,11 +69,17 @@ func TmuxJump(target string) error {
 	return nil
 }
 
-// TmuxSendKeys sends keystrokes to a tmux pane, followed by Enter.
+// TmuxSendKeys sends text literally to a tmux pane, followed by Enter.
+// The -l flag prevents tmux from interpreting key names (e.g. "Enter", "Escape").
 func TmuxSendKeys(target, text string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
-	defer cancel()
-	return exec.CommandContext(ctx, "tmux", "send-keys", "-t", target, text, "Enter").Run()
+	ctx1, cancel1 := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel1()
+	if err := exec.CommandContext(ctx1, "tmux", "send-keys", "-l", "-t", target, text).Run(); err != nil {
+		return err
+	}
+	ctx2, cancel2 := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel2()
+	return exec.CommandContext(ctx2, "tmux", "send-keys", "-t", target, "Enter").Run()
 }
 
 // TmuxSendRaw sends a single key to a tmux pane without Enter.
@@ -107,6 +114,124 @@ func TmuxListPanes() map[string]bool {
 		}
 	}
 	return panes
+}
+
+// TmuxWindowInfo holds a tmux window's index and name.
+type TmuxWindowInfo struct {
+	Index int
+	Name  string
+}
+
+// parseListWindowsOutput parses the output of tmux list-windows -F "#{window_index}\t#{window_name}".
+func parseListWindowsOutput(output string) []TmuxWindowInfo {
+	var windows []TmuxWindowInfo
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		idx, err := strconv.Atoi(parts[0])
+		if err != nil {
+			continue
+		}
+		windows = append(windows, TmuxWindowInfo{Index: idx, Name: parts[1]})
+	}
+	return windows
+}
+
+// parseCountPanesOutput counts non-empty lines in tmux list-panes output.
+func parseCountPanesOutput(output string) int {
+	count := 0
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if line != "" {
+			count++
+		}
+	}
+	return count
+}
+
+// parsePaneTarget extracts a clean pane target from tmux -P -F output.
+func parsePaneTarget(output string) string {
+	return strings.TrimSpace(output)
+}
+
+// TmuxListWindows lists all windows in a tmux session with their indices and names.
+func TmuxListWindows(session string) ([]TmuxWindowInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "tmux",
+		"list-windows", "-t", session, "-F", "#{window_index}\t#{window_name}",
+	).Output()
+	if err != nil {
+		return nil, fmt.Errorf("list-windows failed for %s: %w", session, err)
+	}
+	return parseListWindowsOutput(string(out)), nil
+}
+
+// TmuxNewWindow creates a new window in the given session, returning the new pane's target.
+// The -d flag keeps focus on the current window (dashboard).
+func TmuxNewWindow(session, windowName, startDir string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "tmux",
+		"new-window", "-t", session, "-n", windowName, "-c", startDir,
+		"-d", "-P", "-F", "#{session_name}:#{window_index}.#{pane_index}",
+	).Output()
+	if err != nil {
+		return "", fmt.Errorf("new-window failed: %w", err)
+	}
+	target := parsePaneTarget(string(out))
+	if err := ValidateTarget(target); err != nil {
+		return "", fmt.Errorf("new-window returned invalid target %q: %w", target, err)
+	}
+	return target, nil
+}
+
+// TmuxSplitWindow splits an existing window to create a new pane, returning its target.
+// The -d flag keeps focus on the current pane (dashboard).
+func TmuxSplitWindow(sessionWindow, startDir string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "tmux",
+		"split-window", "-t", sessionWindow, "-c", startDir,
+		"-d", "-P", "-F", "#{session_name}:#{window_index}.#{pane_index}",
+	).Output()
+	if err != nil {
+		return "", fmt.Errorf("split-window failed: %w", err)
+	}
+	target := parsePaneTarget(string(out))
+	if err := ValidateTarget(target); err != nil {
+		return "", fmt.Errorf("split-window returned invalid target %q: %w", target, err)
+	}
+	return target, nil
+}
+
+// TmuxCountPanes returns the number of panes in a tmux window.
+func TmuxCountPanes(sessionWindow string) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, "tmux",
+		"list-panes", "-t", sessionWindow, "-F", "#{pane_index}",
+	).Output()
+	if err != nil {
+		return 0, fmt.Errorf("list-panes failed for %s: %w", sessionWindow, err)
+	}
+	return parseCountPanesOutput(string(out)), nil
+}
+
+// extractSession returns the session name from a tmux target (session:window.pane → session).
+func extractSession(target string) string {
+	if idx := strings.Index(target, ":"); idx != -1 {
+		return target[:idx]
+	}
+	return target
 }
 
 // extractSessionWindow returns session:window from session:window.pane.

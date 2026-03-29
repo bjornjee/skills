@@ -65,6 +65,9 @@ type model struct {
 
 	// Close confirmation
 	confirmTarget string // tmux target pending close confirmation
+
+	// Interactive mode
+	interactTarget string // tmux target of pane being mirrored
 }
 
 // buildTree rebuilds the flat tree node list from agents and their subagents.
@@ -181,6 +184,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				delete(m.prevEffState, target)
 			}
 		}
+		// Exit interactive mode if the mirrored pane died
+		if m.mode == modeInteractive && m.interactTarget != "" && !live[m.interactTarget] {
+			m.mode = modeNormal
+			m.interactTarget = ""
+			m.textInput.Reset()
+			m.textInput.Placeholder = "Type reply..."
+			m.statusMsg = "Pane closed — exiting interactive mode"
+			m.statusMsgTick = m.tickCount
+		}
 		m.buildTree()
 		if m.selected >= len(m.treeNodes) {
 			m.selected = max(0, len(m.treeNodes)-1)
@@ -210,7 +222,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.statusMsg != "" && m.statusMsgTick >= 0 && m.tickCount-m.statusMsgTick >= 3 {
 			m.statusMsg = ""
 		}
-		cmds := []tea.Cmd{tickEvery(), m.captureSelected(), m.loadConversation()}
+		cmds := []tea.Cmd{tickEvery()}
+		// In interactive mode, capture the interactive target instead of selected agent
+		if m.mode == modeInteractive && m.interactTarget != "" {
+			cmds = append(cmds, captureInteractive(m.interactTarget, 40))
+		} else {
+			cmds = append(cmds, m.captureSelected(), m.loadConversation())
+		}
 		if m.selectedSubagent() != nil {
 			cmds = append(cmds, m.loadSubagentActivity())
 		}
@@ -277,6 +295,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.updateLeftContent()
 		return m, nil
+
+	case createSessionMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Create failed: %v", msg.err)
+			m.statusMsgTick = m.tickCount
+			m.mode = modeNormal
+			return m, nil
+		}
+		m.interactTarget = msg.target
+		m.mode = modeInteractive
+		m.textInput.Placeholder = "Type message..."
+		m.textInput.Focus()
+		m.statusMsg = fmt.Sprintf("Session created: %s", msg.target)
+		m.statusMsgTick = m.tickCount
+		m.updateRightContent()
+		return m, tea.Batch(loadState(m.statePath), captureInteractive(msg.target, 40))
 
 	case closeResultMsg:
 		if msg.err != nil {
