@@ -67,9 +67,6 @@ type model struct {
 	// Close confirmation
 	confirmTarget string // tmux target pending close confirmation
 
-	// Interactive mode
-	interactTarget string // tmux target of pane being mirrored
-
 	// Z-plugin suggestions for create folder mode
 	zEntries    []zEntry // cached z entries from ~/.z
 	suggestions []string // filtered suggestions for current input
@@ -212,15 +209,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				delete(m.dismissed, key)
 			}
 		}
-		// Exit interactive mode if the mirrored pane died
-		if m.mode == modeInteractive && m.interactTarget != "" && !live[m.interactTarget] {
-			m.mode = modeNormal
-			m.interactTarget = ""
-			m.textInput.Reset()
-			m.textInput.Placeholder = "Type reply..."
-			m.statusMsg = "Pane closed — exiting interactive mode"
-			m.statusMsgTick = m.tickCount
-		}
 		m.buildTree()
 		if m.selected >= len(m.treeNodes) {
 			m.selected = max(0, len(m.treeNodes)-1)
@@ -250,13 +238,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.statusMsg != "" && m.statusMsgTick >= 0 && m.tickCount-m.statusMsgTick >= 3 {
 			m.statusMsg = ""
 		}
-		cmds := []tea.Cmd{tickEvery()}
-		// In interactive mode, capture the interactive target instead of selected agent
-		if m.mode == modeInteractive && m.interactTarget != "" {
-			cmds = append(cmds, captureInteractive(m.interactTarget, 40))
-		} else {
-			cmds = append(cmds, m.captureSelected(), m.loadConversation())
-		}
+		cmds := []tea.Cmd{tickEvery(), m.captureSelected(), m.loadConversation()}
 		if m.selectedSubagent() != nil {
 			cmds = append(cmds, m.loadSubagentActivity())
 		}
@@ -331,14 +313,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.mode = modeNormal
 			return m, nil
 		}
-		m.interactTarget = msg.target
-		m.mode = modeInteractive
-		m.textInput.Placeholder = "Type message..."
-		m.textInput.Focus()
 		m.statusMsg = fmt.Sprintf("Session created: %s", msg.target)
 		m.statusMsgTick = m.tickCount
 		m.updateRightContent()
-		return m, tea.Batch(loadState(m.statePath), captureInteractive(msg.target, 40))
+		return m, tea.Batch(loadState(m.statePath), selectPane(msg.target))
 
 	case closeResultMsg:
 		if msg.err != nil {
@@ -378,6 +356,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Reply sent"
 		}
 		m.statusMsgTick = m.tickCount
+		return m, nil
+
+	case selectPaneMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Focus failed: %v", msg.err)
+			m.statusMsgTick = m.tickCount
+		}
 		return m, nil
 
 	case notifyResultMsg:

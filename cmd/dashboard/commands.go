@@ -310,6 +310,12 @@ func jumpToAgent(target string) tea.Cmd {
 	}
 }
 
+func selectPane(target string) tea.Cmd {
+	return func() tea.Msg {
+		return selectPaneMsg{err: TmuxSelectPane(target)}
+	}
+}
+
 func sendReply(target, text string) tea.Cmd {
 	return func() tea.Msg {
 		return sendResultMsg{err: TmuxSendKeys(target, text)}
@@ -319,11 +325,15 @@ func sendReply(target, text string) tea.Cmd {
 // findWindowForRepo finds an existing tmux session:window for a given folder
 // by scanning existing agents' working directories.
 func findWindowForRepo(agents []Agent, folder, selfTarget string) (string, bool) {
+	folderRepo := repoFromCwd(folder)
+	if folderRepo == "" {
+		return "", false
+	}
 	for _, agent := range agents {
 		if agent.Target == selfTarget {
 			continue
 		}
-		if agent.Cwd == folder {
+		if repoFromCwd(agent.Cwd) == folderRepo {
 			return fmt.Sprintf("%s:%d", agent.Session, agent.Window), true
 		}
 	}
@@ -409,17 +419,6 @@ func createSession(folder string, agents []Agent, selfTarget string) tea.Cmd {
 		}
 
 		return createSessionMsg{target: newTarget}
-	}
-}
-
-// captureInteractive captures more lines from a pane for interactive mode.
-func captureInteractive(target string, lines int) tea.Cmd {
-	return func() tea.Msg {
-		captured, err := TmuxCapture(target, lines)
-		if err != nil {
-			return captureResultMsg{lines: nil}
-		}
-		return captureResultMsg{lines: captured}
 	}
 }
 

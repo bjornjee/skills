@@ -123,37 +123,21 @@ func TestCreateFolderMode_EscReturnsToNormal(t *testing.T) {
 	}
 }
 
-func TestIKeyEntersInteractiveMode(t *testing.T) {
+func TestIKeySelectsPaneDirectly(t *testing.T) {
 	m := newTestModelWithAgents()
 	m.selected = 0
 
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}}
-	result, _ := m.handleKey(msg)
+	result, cmd := m.handleKey(msg)
 	rm := result.(model)
 
-	if rm.mode != modeInteractive {
-		t.Errorf("expected modeInteractive, got %d", rm.mode)
-	}
-	if rm.interactTarget != "main:1.0" {
-		t.Errorf("expected interactTarget main:1.0, got %q", rm.interactTarget)
-	}
-}
-
-func TestInteractiveMode_EscReturnsToNormal(t *testing.T) {
-	m := newTestModelWithAgents()
-	m.mode = modeInteractive
-	m.interactTarget = "main:1.0"
-	m.textInput.SetValue("some text")
-
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
-	result, _ := m.handleKey(msg)
-	rm := result.(model)
-
+	// i should stay in modeNormal — it just issues a selectPane command
 	if rm.mode != modeNormal {
-		t.Errorf("expected modeNormal after esc, got %d", rm.mode)
+		t.Errorf("expected modeNormal after i, got %d", rm.mode)
 	}
-	if rm.interactTarget != "" {
-		t.Error("expected interactTarget to be cleared after esc")
+	// Should return a command (selectPane)
+	if cmd == nil {
+		t.Error("expected selectPane command, got nil")
 	}
 }
 
@@ -168,5 +152,25 @@ func TestShiftSDoesNothing(t *testing.T) {
 	// "S" should not set any status message (feature removed)
 	if rm.statusMsg != "" {
 		t.Errorf("S key should not set statusMsg, got %q", rm.statusMsg)
+	}
+}
+
+func TestCreateFolderMode_EnterAcceptsSuggestion(t *testing.T) {
+	m := newTestModelWithAgents()
+	m.mode = modeCreateFolder
+	m.suggestions = []string{"/Users/test/code/myrepo", "/Users/test/code/other"}
+	m.selectedSugg = 0
+	// textInput is empty — user arrow-selected a suggestion without Tab
+
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	result, cmd := m.handleKey(msg)
+	rm := result.(model)
+
+	if rm.mode != modeNormal {
+		t.Errorf("expected modeNormal after enter, got %d", rm.mode)
+	}
+	// A command should be returned (createSession) since suggestion was used
+	if cmd == nil {
+		t.Error("expected createSession command when suggestion available, got nil")
 	}
 }

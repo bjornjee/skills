@@ -42,6 +42,9 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch key {
 		case "enter":
 			folder := m.textInput.Value()
+			if folder == "" && len(m.suggestions) > 0 && m.selectedSugg < len(m.suggestions) {
+				folder = m.suggestions[m.selectedSugg]
+			}
 			m.mode = modeNormal
 			m.textInput.Reset()
 			m.textInput.Placeholder = "Type reply..."
@@ -85,36 +88,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.textInput, cmd = m.textInput.Update(msg)
 			m.suggestions = filterZSuggestions(m.textInput.Value(), m.zEntries)
 			m.selectedSugg = 0
-			m.updateRightContent()
-			return m, cmd
-		}
-	}
-
-	// Interactive mode
-	if m.mode == modeInteractive {
-		switch key {
-		case "enter":
-			text := m.textInput.Value()
-			m.textInput.Reset()
-			if text != "" {
-				m.statusMsg = fmt.Sprintf("Sent: %s", text)
-				m.statusMsgTick = m.tickCount
-			}
-			m.updateRightContent()
-			if text != "" && m.interactTarget != "" {
-				return m, sendReply(m.interactTarget, text)
-			}
-			return m, nil
-		case "esc":
-			m.mode = modeNormal
-			m.interactTarget = ""
-			m.textInput.Reset()
-			m.textInput.Placeholder = "Type reply..."
-			m.updateRightContent()
-			return m, nil
-		default:
-			var cmd tea.Cmd
-			m.textInput, cmd = m.textInput.Update(msg)
 			m.updateRightContent()
 			return m, cmd
 		}
@@ -306,19 +279,14 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, textinput.Blink
 	case "i":
 		if !m.tmuxAvailable {
-			m.statusMsg = "Cannot interact: tmux not detected"
+			m.statusMsg = "Cannot focus: tmux not detected"
 			m.statusMsgTick = m.tickCount
 			return m, nil
 		}
 		if agent := m.selectedAgent(); agent != nil && m.selectedSubagent() == nil {
-			m.mode = modeInteractive
-			m.interactTarget = agent.Target
-			m.textInput.Placeholder = "Type message..."
-			m.textInput.Focus()
-			m.updateRightContent()
-			return m, tea.Batch(textinput.Blink, captureInteractive(agent.Target, 40))
+			return m, selectPane(agent.Target)
 		}
-		m.statusMsg = "Select an agent to interact"
+		m.statusMsg = "Select an agent to focus"
 		m.statusMsgTick = m.tickCount
 		return m, nil
 	case "y", "n":

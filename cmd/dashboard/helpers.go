@@ -92,6 +92,8 @@ func permissionModeColor(mode string) lipgloss.Color {
 		return lipgloss.Color("220") // yellow/amber
 	case strings.Contains(m, "full") && strings.Contains(m, "auto"):
 		return lipgloss.Color("82") // green
+	case strings.Contains(m, "bypass"):
+		return lipgloss.Color("196") // red — most permissive mode
 	default:
 		return lipgloss.Color("242") // gray
 	}
@@ -106,9 +108,6 @@ func permissionModeStyle(mode string) string {
 // agentBadges returns a compact metadata string like "S auto [2]".
 func agentBadges(agent Agent) string {
 	var parts []string
-	if ms := modelShort(agent.Model); ms != "" {
-		parts = append(parts, ms)
-	}
 	if agent.PermissionMode != "" && agent.PermissionMode != "default" {
 		parts = append(parts, permissionModeStyle(agent.PermissionMode))
 	}
