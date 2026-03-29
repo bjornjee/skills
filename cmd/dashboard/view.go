@@ -720,10 +720,9 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
 	parts = append(parts, boldStyle.Render("u")+" usage")
-	parts = append(parts, boldStyle.Render("S")+" /usage")
 	parts = append(parts, boldStyle.Render("c")+" collapse")
 	parts = append(parts, boldStyle.Render("x")+" dismiss")
-	parts = append(parts, boldStyle.Render("^↑/^↓")+" next agent")
+	parts = append(parts, boldStyle.Render("⇧↑/⇧↓")+" next agent")
 	parts = append(parts, boldStyle.Render("tab")+" focus")
 	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
 	parts = append(parts, boldStyle.Render("q")+" quit")

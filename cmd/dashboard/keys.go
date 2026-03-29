@@ -112,7 +112,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, m.loadSelectionData()
 			}
 		}
-	case "ctrl+down":
+	case "shift+down":
 		// Jump to next parent agent (skip subagents)
 		next := m.nextParentIndex(1)
 		if next != m.selected {
@@ -125,7 +125,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateRightContent()
 			return m, m.loadSelectionData()
 		}
-	case "ctrl+up":
+	case "shift+up":
 		// Jump to previous parent agent (skip subagents)
 		prev := m.nextParentIndex(-1)
 		if prev != m.selected {
@@ -174,20 +174,6 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeUsage
 			m.updateRightContent()
 		}
-		return m, nil
-	case "S":
-		if !m.tmuxAvailable {
-			m.statusMsg = "Cannot send /usage: tmux not detected"
-			m.statusMsgTick = m.tickCount
-			return m, nil
-		}
-		if agent := m.selectedAgent(); agent != nil && m.selectedSubagent() == nil {
-			m.statusMsg = "Sent /usage to " + agent.Target
-			m.statusMsgTick = m.tickCount
-			return m, sendUsageCommand(agent.Target)
-		}
-		m.statusMsg = "Select an agent to send /usage"
-		m.statusMsgTick = m.tickCount
 		return m, nil
 	case "y", "n":
 		if agent := m.selectedAgent(); m.tmuxAvailable && agent != nil && m.selectedSubagent() == nil {
