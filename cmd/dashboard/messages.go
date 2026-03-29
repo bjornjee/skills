@@ -29,6 +29,7 @@ type pendingInputMsg struct {
 	target  string
 	pending bool
 }
+type notifyResultMsg struct{}
 
 // -- Modes --
 

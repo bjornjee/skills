@@ -50,6 +50,60 @@ func TestBuildTree_CollapsedHidesSubs(t *testing.T) {
 	}
 }
 
+func TestEffectiveState_RunningPendingStop(t *testing.T) {
+	m := newModel("", "", nil)
+	m.pendingInput["a:0.1"] = true
+	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "Stop"}
+	if got := m.effectiveState(agent); got != "input" {
+		t.Errorf("expected input, got %s", got)
+	}
+}
+
+func TestEffectiveState_RunningPendingPreToolUse(t *testing.T) {
+	m := newModel("", "", nil)
+	m.pendingInput["a:0.1"] = true
+	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "PreToolUse"}
+	if got := m.effectiveState(agent); got != "input" {
+		t.Errorf("expected input, got %s", got)
+	}
+}
+
+func TestEffectiveState_RunningPendingPostToolUse(t *testing.T) {
+	m := newModel("", "", nil)
+	m.pendingInput["a:0.1"] = true
+	// PostToolUse means tool just completed — should stay running
+	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "PostToolUse"}
+	if got := m.effectiveState(agent); got != "running" {
+		t.Errorf("expected running, got %s", got)
+	}
+}
+
+func TestEffectiveState_RunningNoPending(t *testing.T) {
+	m := newModel("", "", nil)
+	agent := Agent{Target: "a:0.1", State: "running", LastHookEvent: "Stop"}
+	if got := m.effectiveState(agent); got != "running" {
+		t.Errorf("expected running, got %s", got)
+	}
+}
+
+func TestEffectiveState_DoneWithPending(t *testing.T) {
+	m := newModel("", "", nil)
+	m.pendingInput["a:0.1"] = true
+	// Done agent with pending input = plan approval race condition
+	agent := Agent{Target: "a:0.1", State: "done", LastHookEvent: "Stop"}
+	if got := m.effectiveState(agent); got != "input" {
+		t.Errorf("expected input, got %s", got)
+	}
+}
+
+func TestEffectiveState_DoneNoPending(t *testing.T) {
+	m := newModel("", "", nil)
+	agent := Agent{Target: "a:0.1", State: "done", LastHookEvent: "Stop"}
+	if got := m.effectiveState(agent); got != "done" {
+		t.Errorf("expected done, got %s", got)
+	}
+}
+
 func TestNextParentAgent(t *testing.T) {
 	m := newModel("", "", nil)
 	m.agents = []Agent{

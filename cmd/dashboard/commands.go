@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -203,6 +206,58 @@ func loadUsage(agents []Agent) tea.Cmd {
 	}
 }
 
+// notifyNeedsAttention sends a desktop notification when an agent transitions
+// to "needs attention" state. Uses terminal-notifier if available, falls back
+// to osascript.
+func notifyNeedsAttention(agent Agent) tea.Cmd {
+	title := "Claude Code"
+	body := "Agent needs attention"
+	if agent.LastMessagePreview != "" {
+		body = agent.LastMessagePreview
+		runes := []rune(body)
+		if len(runes) > 100 {
+			body = string(runes[:100]) + "..."
+		}
+	}
+	subtitle := ""
+	if agent.Branch != "" {
+		subtitle = agent.Branch
+	}
+
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Try terminal-notifier first
+		if _, err := exec.LookPath("terminal-notifier"); err == nil {
+			args := []string{"-title", title, "-message", body, "-group", "claude-dashboard-" + agent.Target}
+			if subtitle != "" {
+				args = append(args, "-subtitle", subtitle)
+			}
+			args = append(args, "-sound", "default")
+
+			// Add tmux click action — ValidateTarget guarantees target contains
+			// only [a-zA-Z0-9_.\-:] so no shell metacharacters are possible.
+			if ValidateTarget(agent.Target) == nil {
+				sw := extractSessionWindow(agent.Target)
+				action := fmt.Sprintf("tmux select-window -t %s && tmux select-pane -t %s", sw, agent.Target)
+				args = append(args, "-execute", action)
+			}
+
+			_ = exec.CommandContext(ctx, "terminal-notifier", args...).Run()
+			return notifyResultMsg{}
+		}
+
+		// Fallback: osascript
+		script := fmt.Sprintf(`display notification %q with title %q`, body, title)
+		if subtitle != "" {
+			script = fmt.Sprintf(`display notification %q with title %q subtitle %q sound name "default"`, body, title, subtitle)
+		}
+		_ = exec.CommandContext(ctx, "osascript", "-e", script).Run()
+		return notifyResultMsg{}
+	}
+}
+
 func loadState(path string) tea.Cmd {
 	return func() tea.Msg {
 		return stateUpdatedMsg{state: ReadState(path)}
@@ -269,6 +324,57 @@ func watchStateFile(path string, p *tea.Program) (*fsnotify.Watcher, error) {
 }
 
 // checkPendingInput checks if agents have pending tool_use in their JSONL.
+// promptChar is Claude Code's interactive prompt character (U+276F).
+const promptChar = "\u276f"
+
+// recheckDoneAgents captures the tmux pane for agents in "done" state and
+// checks for the ❯ prompt character. This catches the race condition where
+// the Stop hook fires before Claude Code renders the plan approval UI.
+func (m model) recheckDoneAgents() tea.Cmd {
+	if !m.tmuxAvailable {
+		return nil
+	}
+
+	type doneAgent struct {
+		target string
+	}
+	var checks []doneAgent
+	for _, agent := range m.agents {
+		if agent.State != "done" {
+			continue
+		}
+		// Skip agents already detected as needing input
+		if m.pendingInput[agent.Target] {
+			continue
+		}
+		if ValidateTarget(agent.Target) != nil {
+			continue
+		}
+		checks = append(checks, doneAgent{target: agent.Target})
+	}
+	if len(checks) == 0 {
+		return nil
+	}
+
+	var cmds []tea.Cmd
+	for _, c := range checks {
+		c := c
+		cmds = append(cmds, func() tea.Msg {
+			lines, err := TmuxCapture(c.target, 5)
+			if err != nil {
+				return pendingInputMsg{target: c.target, pending: false}
+			}
+			for _, line := range lines {
+				if strings.Contains(line, promptChar) {
+					return pendingInputMsg{target: c.target, pending: true}
+				}
+			}
+			return pendingInputMsg{target: c.target, pending: false}
+		})
+	}
+	return tea.Batch(cmds...)
+}
+
 func (m model) checkPendingInput() tea.Cmd {
 	type agentCheck struct {
 		target    string

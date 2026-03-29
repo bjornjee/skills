@@ -59,6 +59,9 @@ type model struct {
 	// Pending input detection (permission prompts)
 	pendingInput map[string]bool // agentTarget → has pending tool_use
 
+	// Previous effective state per agent — used to detect transitions
+	// and fire desktop notifications on needs-attention.
+	prevEffState map[string]string // agentTarget → last effectiveState result
 }
 
 // buildTree rebuilds the flat tree node list from agents and their subagents.
@@ -132,6 +135,7 @@ func newModel(statePath, selfTarget string, db *DB) model {
 		collapsed:      make(map[string]bool),
 		dismissed:      make(map[string]bool),
 		pendingInput:   make(map[string]bool),
+		prevEffState:   make(map[string]string),
 	}
 }
 
@@ -159,7 +163,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case stateUpdatedMsg:
 		m.agents = SortedAgents(msg.state, m.selfTarget)
-		// Prune pendingInput for agents no longer present
+		// Prune pendingInput and prevEffState for agents no longer present
 		live := make(map[string]bool, len(m.agents))
 		for _, a := range m.agents {
 			live[a.Target] = true
@@ -167,6 +171,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for target := range m.pendingInput {
 			if !live[target] {
 				delete(m.pendingInput, target)
+			}
+		}
+		for target := range m.prevEffState {
+			if !live[target] {
+				delete(m.prevEffState, target)
 			}
 		}
 		m.buildTree()
@@ -177,6 +186,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateRightContent()
 		cmds := []tea.Cmd{m.captureSelected(), m.loadConversation(), loadUsage(m.agents)}
 		cmds = append(cmds, m.loadAllSubagents()...)
+		if cmd := m.checkNeedsAttentionTransition(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 		return m, tea.Batch(cmds...)
 
 	case conversationMsg:
@@ -199,9 +211,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedSubagent() != nil {
 			cmds = append(cmds, m.loadSubagentActivity())
 		}
-		// Check for pending tool_use every 2 ticks (2s)
+		// Check for pending tool_use and done-agent prompts every 2 ticks (2s)
 		if m.tickCount%2 == 0 {
 			if cmd := m.checkPendingInput(); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			if cmd := m.recheckDoneAgents(); cmd != nil {
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -246,6 +261,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pendingInput[msg.target] = msg.pending
 		m.updateLeftContent()
 		m.updateRightContent()
+		if cmd := m.checkNeedsAttentionTransition(); cmd != nil {
+			return m, cmd
+		}
 		return m, nil
 
 	case subagentsMsg:
@@ -284,6 +302,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Reply sent"
 		}
 		m.statusMsgTick = m.tickCount
+		return m, nil
+
+	case notifyResultMsg:
 		return m, nil
 
 	case tea.MouseMsg:

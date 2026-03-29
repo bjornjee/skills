@@ -119,6 +119,26 @@ describe('detect/scorePaneBuffer', () => {
   it('returns 0 for normal output lines', () => {
     assert.equal(scorePaneBuffer(['Running tests...', 'All 5 passed']), 0);
   });
+
+  it('detects plan approval menu with ❯ selector', () => {
+    const planApprovalPane = [
+      'Claude has written up a plan and is ready to execute. Would you like to proceed?',
+      '',
+      ' \u276f 1. Yes, and bypass permissions',
+      '   2. Yes, manually approve edits',
+      '   3. Tell Claude what to change',
+    ];
+    assert.ok(scorePaneBuffer(planApprovalPane) > 0);
+  });
+
+  it('detects ❯ anywhere in line, not just at end', () => {
+    assert.ok(scorePaneBuffer(['some text', '\u276f 1. Option A']) > 0);
+  });
+
+  it('detects human: prompt', () => {
+    assert.ok(scorePaneBuffer(['output', 'human:']) > 0);
+    assert.ok(scorePaneBuffer(['output', 'Human: type here']) > 0);
+  });
 });
 
 describe('detect/detectState', () => {
@@ -134,6 +154,16 @@ describe('detect/detectState', () => {
     // Prompt visible = agent is waiting for user, regardless of message content
     assert.equal(detectState('Task complete.', ['$']), 'input');
     assert.equal(detectState('Here is my plan.', ['\u276f']), 'input');
+  });
+
+  it('returns input when pane shows plan approval menu', () => {
+    const planPane = [
+      'Here is my implementation plan.',
+      '',
+      ' \u276f 1. Yes, and bypass permissions',
+      '   2. Yes, manually approve edits',
+    ];
+    assert.equal(detectState('Here is my implementation plan.', planPane), 'input');
   });
 
   it('returns done when no signals', () => {
