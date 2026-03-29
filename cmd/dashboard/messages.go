@@ -66,5 +66,5 @@ const (
 	historyVPHeight = 10
 	headerLines     = 8 // header + state + branch + dir + cost + spacers
 	sectionGaps     = 6 // gaps between sections (labels + blank-line buffers)
-	bannerHeight    = 9 // top banner: 18 pixel rows rendered via half-blocks
+	bannerHeight    = 6 // top banner: 12 pixel rows rendered via half-blocks
 )
