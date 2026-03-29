@@ -19,7 +19,7 @@ func (m *model) updateRightContent() {
 	// Override modes use the full panel height since they replace all three viewports.
 	// Normal mode restores the standard message viewport height.
 	panelHeight := m.height - 5 // matches resizeViewports
-	if m.mode == modeCreateFolder || m.mode == modeInteractive {
+	if m.mode == modeCreateFolder {
 		fullHeight := panelHeight - 2 // minus panel border
 		if fullHeight < 3 {
 			fullHeight = 3
@@ -58,27 +58,6 @@ func (m *model) updateRightContent() {
 		m.filesVP.SetContent("")
 		m.historyVP.SetContent("")
 		m.messageVP.SetContent(strings.Join(lines, "\n"))
-		return
-	}
-
-	// Interactive mode overrides right panel
-	if m.mode == modeInteractive {
-		var lines []string
-		if hasContent(m.capturedLines) {
-			for _, l := range m.capturedLines {
-				lines = append(lines, " "+l)
-			}
-		} else {
-			lines = append(lines, "")
-			lines = append(lines, helpStyle.Render("  Waiting for pane output..."))
-		}
-		lines = append(lines, "")
-		lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
-			Render("Reply: ")+m.textInput.View())
-		m.filesVP.SetContent("")
-		m.historyVP.SetContent("")
-		m.messageVP.SetContent(strings.Join(lines, "\n"))
-		m.messageVP.GotoBottom()
 		return
 	}
 
@@ -561,16 +540,6 @@ func (m model) renderRightPanel() string {
 			Render(m.messageVP.View())
 	}
 
-	// Interactive mode: full panel pane mirror
-	if m.mode == modeInteractive {
-		header := " " + titleStyle.Render(fmt.Sprintf(" INTERACTIVE: %s ", m.interactTarget))
-		content := header + "\n\n" + m.messageVP.View()
-		return borderStyle.
-			Width(m.rightWidth).
-			Height(panelHeight).
-			Render(content)
-	}
-
 	agent := m.selectedAgent()
 	if agent == nil {
 		return borderStyle.
@@ -778,12 +747,6 @@ func (m model) renderHelpBar() string {
 		return helpStyle.Render("  " + strings.Join(parts, "  "))
 	}
 
-	if m.mode == modeInteractive {
-		parts = append(parts, boldStyle.Render("enter")+" send")
-		parts = append(parts, boldStyle.Render("esc")+" exit")
-		return helpStyle.Render("  " + strings.Join(parts, "  "))
-	}
-
 	if m.mode == modeReply {
 		parts = append(parts, boldStyle.Render("enter")+" send")
 		parts = append(parts, boldStyle.Render("esc")+" cancel")
@@ -804,7 +767,7 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
 	parts = append(parts, boldStyle.Render("a")+" new")
-	parts = append(parts, boldStyle.Render("i")+" interact")
+	parts = append(parts, boldStyle.Render("i")+" focus")
 	parts = append(parts, boldStyle.Render("u")+" usage")
 	parts = append(parts, boldStyle.Render("c")+" collapse")
 	parts = append(parts, boldStyle.Render("x")+" close/dismiss")

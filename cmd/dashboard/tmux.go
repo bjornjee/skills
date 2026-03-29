@@ -69,6 +69,16 @@ func TmuxJump(target string) error {
 	return nil
 }
 
+// TmuxSelectPane switches focus to the given tmux pane without changing window.
+func TmuxSelectPane(target string) error {
+	if err := ValidateTarget(target); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, "tmux", "select-pane", "-t", target).Run()
+}
+
 // TmuxSendKeys sends text literally to a tmux pane, followed by Enter.
 // The -l flag prevents tmux from interpreting key names (e.g. "Enter", "Escape").
 func TmuxSendKeys(target, text string) error {

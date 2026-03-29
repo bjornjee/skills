@@ -168,6 +168,66 @@ func TestSanitizeWindowName(t *testing.T) {
 	}
 }
 
+func TestPermissionModeColor_Bypass(t *testing.T) {
+	got := permissionModeColor("bypassPermissions")
+	want := lipgloss.Color("196")
+	if got != want {
+		t.Errorf("permissionModeColor(bypassPermissions) = %q, want %q", got, want)
+	}
+}
+
+func TestAgentBadges_NoModelIndicator(t *testing.T) {
+	// Test with model only — no permission mode to avoid false matches
+	agent := Agent{
+		Model: "claude-opus-4-6",
+	}
+	badges := agentBadges(agent)
+	if badges != "" {
+		t.Errorf("agentBadges with only model should be empty, got %q", badges)
+	}
+
+	// Test with model + permission — should only show permission
+	agent.PermissionMode = "bypassPermissions"
+	badges = agentBadges(agent)
+	if !strings.Contains(badges, "bypassPermissions") {
+		t.Errorf("agentBadges should contain permission mode, got %q", badges)
+	}
+}
+
+func TestFindWindowForRepo_MatchesWorktrees(t *testing.T) {
+	agents := []Agent{
+		{
+			Target:  "main:1.0",
+			Session: "main",
+			Window:  1,
+			Cwd:     "/Users/test/Code/worktrees/skills/feature-branch",
+		},
+	}
+	// Different path but same repo — should find the window
+	sw, found := findWindowForRepo(agents, "/Users/test/Code/skills", "main:0.0")
+	if !found {
+		t.Error("findWindowForRepo should match worktree agent to same repo")
+	}
+	if sw != "main:1" {
+		t.Errorf("expected main:1, got %s", sw)
+	}
+}
+
+func TestFindWindowForRepo_NoMatchDifferentRepo(t *testing.T) {
+	agents := []Agent{
+		{
+			Target:  "main:1.0",
+			Session: "main",
+			Window:  1,
+			Cwd:     "/Users/test/Code/other-repo",
+		},
+	}
+	_, found := findWindowForRepo(agents, "/Users/test/Code/skills", "main:0.0")
+	if found {
+		t.Error("findWindowForRepo should not match different repos")
+	}
+}
+
 func TestPermissionModeStyle(t *testing.T) {
 	// permissionModeStyle should preserve the original mode text in its output
 	modes := []string{"plan", "auto-edit", "full-auto", "custom"}

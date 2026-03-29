@@ -337,11 +337,12 @@ func TestCreateSessionMsg_Success(t *testing.T) {
 	result, _ := m.Update(createSessionMsg{target: "main:2.0", err: nil})
 	rm := result.(model)
 
-	if rm.mode != modeInteractive {
-		t.Errorf("expected modeInteractive after successful create, got %d", rm.mode)
+	// After successful create, mode stays normal (pane is selected directly)
+	if rm.mode != modeNormal {
+		t.Errorf("expected modeNormal after successful create, got %d", rm.mode)
 	}
-	if rm.interactTarget != "main:2.0" {
-		t.Errorf("expected interactTarget main:2.0, got %q", rm.interactTarget)
+	if !strings.Contains(rm.statusMsg, "Session created") {
+		t.Errorf("expected session created status, got %q", rm.statusMsg)
 	}
 }
 
@@ -360,68 +361,6 @@ func TestCreateSessionMsg_Error(t *testing.T) {
 	}
 	if !strings.Contains(rm.statusMsg, "4-pane limit") {
 		t.Errorf("expected error in statusMsg, got %q", rm.statusMsg)
-	}
-}
-
-func TestInteractiveMode_InputVisibleAtBottom(t *testing.T) {
-	m := newModel("", "", nil)
-	m.width = 120
-	m.height = 40
-	m.resizeViewports()
-	m.tmuxAvailable = true
-	m.agents = []Agent{
-		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
-	}
-	m.buildTree()
-
-	// Enter interactive mode
-	result, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
-	m = result.(model)
-
-	// Simulate many captured lines (more than viewport height) to push input below fold
-	var lines []string
-	for i := 0; i < 50; i++ {
-		lines = append(lines, fmt.Sprintf("output line %d", i))
-	}
-	m.capturedLines = lines
-	m.updateRightContent()
-
-	// Type something
-	for _, ch := range "test input" {
-		result, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
-		m = result.(model)
-	}
-
-	// The visible viewport content should contain the typed text
-	content := m.messageVP.View()
-	if !strings.Contains(content, "test input") {
-		t.Error("interactive mode viewport should show typed text — viewport must scroll to bottom")
-	}
-}
-
-func TestInteractiveMode_SendShowsStatusMsg(t *testing.T) {
-	m := newModel("", "", nil)
-	m.width = 120
-	m.height = 40
-	m.resizeViewports()
-	m.tmuxAvailable = true
-	m.agents = []Agent{
-		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
-	}
-	m.buildTree()
-
-	// Enter interactive mode
-	m.mode = modeInteractive
-	m.interactTarget = "main:1.0"
-	m.textInput.Focus()
-	m.textInput.SetValue("hello world")
-
-	// Press enter to send
-	result, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
-	rm := result.(model)
-
-	if !strings.Contains(rm.statusMsg, "hello world") {
-		t.Errorf("expected statusMsg to contain sent text, got %q", rm.statusMsg)
 	}
 }
 

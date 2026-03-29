@@ -30,6 +30,7 @@ type pendingInputMsg struct {
 	pending bool
 }
 type notifyResultMsg struct{}
+type selectPaneMsg struct{ err error }
 type closeResultMsg struct {
 	err     error
 	renames map[string]string // oldTarget → newTarget (from window renumbering)
@@ -47,7 +48,6 @@ const (
 	modeUsage
 	modeConfirmClose
 	modeCreateFolder
-	modeInteractive
 )
 
 // -- Viewport focus --
