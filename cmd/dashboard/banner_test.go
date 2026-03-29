@@ -111,7 +111,18 @@ func TestRenderBanner_ContainsAxolotl(t *testing.T) {
 	}
 	m.quote = "Test"
 	out := m.renderBanner()
-	if !strings.Contains(out, "◕") {
-		t.Fatalf("banner missing axolotl art, got:\n%s", out)
+	// Half-block pixel art uses ▀, ▄, and █ characters
+	hasBlocks := strings.Contains(out, "▀") || strings.Contains(out, "▄") || strings.Contains(out, "█")
+	if !hasBlocks {
+		t.Fatalf("banner missing axolotl pixel art (no block chars), got:\n%s", out)
+	}
+}
+
+func TestRenderAxolotl_CorrectHeight(t *testing.T) {
+	art := renderAxolotl()
+	lines := strings.Split(art, "\n")
+	want := len(axolotlPixels) / 2
+	if len(lines) != want {
+		t.Fatalf("renderAxolotl() has %d lines, want %d", len(lines), want)
 	}
 }

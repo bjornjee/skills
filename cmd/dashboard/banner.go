@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -44,13 +45,75 @@ func greeting(now time.Time) string {
 	}
 }
 
-var axolotlArt = " ▐▌ ▄██████▄ ▐▌\n▐██▌█ ◕  ◕ █▐██▌\n ▀▀  ▀▄▄▄▀  ▀▀\n      █▌▐█"
+// Pixel art colors matching the reference image
+var (
+	pxBlack      = lipgloss.Color("#000000")
+	pxBodyPink   = lipgloss.Color("#FFD5D0")
+	pxAccentPink = lipgloss.Color("#E88B8B")
+)
 
-var axolotlStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("86")).
-	Bold(true).
-	MarginLeft(1).
-	MarginRight(1)
+// axolotlPixels: 0=empty, 1=black, 2=bodyPink, 3=accentPink
+// Traced from 32x32 pixel axolotl reference, scaled to 16x14.
+var axolotlPixels = [][]int{
+	{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0},
+	{0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
+	{0, 1, 3, 1, 0, 0, 0, 0, 0, 1, 3, 1, 0, 0, 0, 0},
+	{1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 0, 0, 0},
+	{1, 3, 1, 2, 2, 2, 2, 2, 2, 1, 0, 1, 0, 0, 0, 0},
+	{0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0},
+	{0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0},
+	{0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0},
+	{0, 0, 1, 2, 1, 2, 2, 2, 1, 2, 1, 0, 0, 0, 0, 0},
+	{0, 0, 0, 1, 3, 2, 1, 2, 3, 1, 0, 0, 0, 0, 0, 0},
+	{0, 0, 1, 2, 2, 1, 0, 1, 2, 2, 1, 0, 0, 0, 0, 0},
+	{0, 0, 1, 2, 1, 0, 0, 0, 1, 3, 2, 1, 1, 0, 0, 0},
+	{0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 3, 1, 0, 1, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0},
+}
+
+var pxColors = map[int]lipgloss.Color{
+	1: pxBlack,
+	2: pxBodyPink,
+	3: pxAccentPink,
+}
+
+// renderAxolotl renders the pixel art using half-block characters with true colors.
+// Each terminal row encodes 2 pixel rows via ▀ (fg=top, bg=bottom).
+func renderAxolotl() string {
+	var lines []string
+	for y := 0; y < len(axolotlPixels); y += 2 {
+		var line strings.Builder
+		topRow := axolotlPixels[y]
+		var botRow []int
+		if y+1 < len(axolotlPixels) {
+			botRow = axolotlPixels[y+1]
+		}
+		for x := 0; x < len(topRow); x++ {
+			top := topRow[x]
+			bot := 0
+			if botRow != nil && x < len(botRow) {
+				bot = botRow[x]
+			}
+			switch {
+			case top == 0 && bot == 0:
+				line.WriteString(" ")
+			case top == 0:
+				line.WriteString(lipgloss.NewStyle().Foreground(pxColors[bot]).Render("▄"))
+			case bot == 0:
+				line.WriteString(lipgloss.NewStyle().Foreground(pxColors[top]).Render("▀"))
+			case top == bot:
+				line.WriteString(lipgloss.NewStyle().Foreground(pxColors[top]).Render("█"))
+			default:
+				line.WriteString(lipgloss.NewStyle().
+					Foreground(pxColors[top]).
+					Background(pxColors[bot]).
+					Render("▀"))
+			}
+		}
+		lines = append(lines, line.String())
+	}
+	return strings.Join(lines, "\n")
+}
 
 var greetingStyle = lipgloss.NewStyle().
 	Bold(true).
@@ -61,11 +124,11 @@ var quoteStyle = lipgloss.NewStyle().
 	Italic(true)
 
 func (m model) renderBanner() string {
-	icon := axolotlStyle.Render(axolotlArt)
+	icon := renderAxolotl()
 	greet := greetingStyle.Render(greeting(m.nowFunc()))
 	q := quoteStyle.Render(m.quote)
 
-	left := lipgloss.JoinHorizontal(lipgloss.Center, icon, greet)
+	left := lipgloss.JoinHorizontal(lipgloss.Center, "  ", icon, "  ", greet)
 
 	leftWidth := lipgloss.Width(left)
 	rightWidth := m.width - leftWidth - 2
