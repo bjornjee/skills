@@ -1,4 +1,4 @@
-.PHONY: install test build-dashboard dashboard seed clean
+.PHONY: install test build-dashboard install-dashboard dashboard seed clean
 
 install: ## Install dependencies
 	npm install
@@ -9,6 +9,9 @@ test: ## Run all tests
 
 build-dashboard: ## Build the Go dashboard binary
 	go build -o bin/agent-dashboard ./cmd/dashboard/
+
+install-dashboard: build-dashboard ## Install dashboard to ~/.local/bin
+	cp bin/agent-dashboard ~/.local/bin/agent-dashboard
 
 dashboard: build-dashboard ## Launch the agent dashboard
 	./bin/agent-dashboard
