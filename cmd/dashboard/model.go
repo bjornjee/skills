@@ -52,6 +52,7 @@ type model struct {
 	// Subagent tree
 	agentSubagents map[string][]SubagentInfo // parentTarget → subagents
 	collapsed      map[string]bool           // parentTarget → collapsed state
+	dismissed      map[string]bool           // "parentTarget:agentID" → dismissed
 	subActivity    []ActivityEntry           // activity log for selected subagent
 
 	// Pending input detection (permission prompts)
@@ -66,11 +67,26 @@ func (m *model) buildTree() {
 		m.treeNodes = append(m.treeNodes, treeNode{AgentIdx: i})
 		if !m.collapsed[agent.Target] {
 			for _, sub := range m.agentSubagents[agent.Target] {
+				key := agent.Target + ":" + sub.AgentID
+				if m.dismissed[key] {
+					continue
+				}
 				s := sub // copy
 				m.treeNodes = append(m.treeNodes, treeNode{AgentIdx: i, Sub: &s})
 			}
 		}
 	}
+}
+
+// nextParentIndex finds the next parent agent node in the given direction (1 or -1).
+// Returns the index of the next parent, or stays at current if none found.
+func (m model) nextParentIndex(dir int) int {
+	for i := m.selected + dir; i >= 0 && i < len(m.treeNodes); i += dir {
+		if m.treeNodes[i].Sub == nil {
+			return i
+		}
+	}
+	return m.selected
 }
 
 // selectedAgent returns the parent agent for the current selection.
@@ -113,6 +129,7 @@ func newModel(statePath, selfTarget string, db *DB) model {
 		focusedVP:      focusAgentList,
 		agentSubagents: make(map[string][]SubagentInfo),
 		collapsed:      make(map[string]bool),
+		dismissed:      make(map[string]bool),
 		pendingInput:   make(map[string]bool),
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -214,5 +215,104 @@ func TestReadConversation_SkipsMalformedLines(t *testing.T) {
 	entries := ReadConversation(filepath.Join(dir, slug), sessionID, 10)
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+}
+
+func TestFindSubagents_SortedByStartTimeDescending(t *testing.T) {
+	dir := t.TempDir()
+	sessionID := "sess-1"
+	subDir := filepath.Join(dir, sessionID, "subagents")
+	os.MkdirAll(subDir, 0755)
+
+	// Create 3 subagents with different start times
+	agents := []struct {
+		id        string
+		agentType string
+		desc      string
+		timestamp string // first JSONL entry timestamp
+	}{
+		{"aaa", "Explore", "oldest agent", "2026-03-28T10:00:00Z"},
+		{"bbb", "Bash", "middle agent", "2026-03-28T11:00:00Z"},
+		{"ccc", "Plan", "newest agent", "2026-03-28T12:00:00Z"},
+	}
+
+	for _, a := range agents {
+		meta := subagentMeta{AgentType: a.agentType, Description: a.desc}
+		data, _ := json.Marshal(meta)
+		os.WriteFile(filepath.Join(subDir, "agent-"+a.id+".meta.json"), data, 0644)
+
+		// JSONL with sessionId and timestamp
+		jsonl := `{"type":"system","sessionId":"` + sessionID + `","timestamp":"` + a.timestamp + `"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"working"}],"stop_reason":"end_turn"},"timestamp":"` + a.timestamp + `"}
+`
+		os.WriteFile(filepath.Join(subDir, "agent-"+a.id+".jsonl"), []byte(jsonl), 0644)
+	}
+
+	subs := FindSubagents(dir, sessionID)
+	if len(subs) != 3 {
+		t.Fatalf("expected 3 subagents, got %d", len(subs))
+	}
+
+	// Should be sorted newest first: ccc, bbb, aaa
+	if subs[0].AgentID != "ccc" {
+		t.Errorf("expected first subagent to be 'ccc' (newest), got %q", subs[0].AgentID)
+	}
+	if subs[1].AgentID != "bbb" {
+		t.Errorf("expected second subagent to be 'bbb' (middle), got %q", subs[1].AgentID)
+	}
+	if subs[2].AgentID != "aaa" {
+		t.Errorf("expected third subagent to be 'aaa' (oldest), got %q", subs[2].AgentID)
+	}
+
+	// Verify StartedAt is populated
+	if subs[0].StartedAt == "" {
+		t.Error("expected StartedAt to be populated")
+	}
+}
+
+func TestIsSubagentCompleted_EndTurn(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.jsonl")
+	jsonl := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"done"}],"stop_reason":"end_turn"},"timestamp":"2026-03-28T10:00:00Z"}
+`
+	os.WriteFile(path, []byte(jsonl), 0644)
+	if !isSubagentCompleted(path) {
+		t.Error("expected completed for stop_reason=end_turn")
+	}
+}
+
+func TestIsSubagentCompleted_ResultType(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.jsonl")
+	// Some subagents end with a "result" type entry
+	jsonl := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"working"}]},"timestamp":"2026-03-28T10:00:00Z"}
+{"type":"result","result":"success","timestamp":"2026-03-28T10:01:00Z"}
+`
+	os.WriteFile(path, []byte(jsonl), 0644)
+	if !isSubagentCompleted(path) {
+		t.Error("expected completed for type=result entry")
+	}
+}
+
+func TestIsSubagentCompleted_MaxTokens(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.jsonl")
+	jsonl := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ran out"}],"stop_reason":"max_tokens"},"timestamp":"2026-03-28T10:00:00Z"}
+`
+	os.WriteFile(path, []byte(jsonl), 0644)
+	if !isSubagentCompleted(path) {
+		t.Error("expected completed for stop_reason=max_tokens")
+	}
+}
+
+func TestIsSubagentCompleted_StillRunning(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.jsonl")
+	// Last entry is a tool_use with no stop_reason — still running
+	jsonl := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls"}}]},"timestamp":"2026-03-28T10:00:00Z"}
+`
+	os.WriteFile(path, []byte(jsonl), 0644)
+	if isSubagentCompleted(path) {
+		t.Error("expected not completed for active tool_use")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -244,15 +245,7 @@ func toolSummary(name string, input json.RawMessage) string {
 
 	detail := ""
 	switch name {
-	case "Read":
-		if fp, ok := m["file_path"].(string); ok {
-			detail = shortPath(fp)
-		}
-	case "Write":
-		if fp, ok := m["file_path"].(string); ok {
-			detail = shortPath(fp)
-		}
-	case "Edit":
+	case "Read", "Write", "Edit":
 		if fp, ok := m["file_path"].(string); ok {
 			detail = shortPath(fp)
 		}
@@ -304,7 +297,8 @@ type SubagentInfo struct {
 	AgentID     string
 	AgentType   string
 	Description string
-	Completed   bool // true if last JSONL entry has stop_reason=end_turn
+	Completed   bool   // true if the subagent has finished
+	StartedAt   string // ISO8601 timestamp from first JSONL entry
 }
 
 // subagentMeta is the JSON structure of agent-<id>.meta.json.
@@ -359,9 +353,16 @@ func FindSubagents(projDir, sessionID string) []SubagentInfo {
 				AgentType:   meta.AgentType,
 				Description: meta.Description,
 				Completed:   isSubagentCompleted(jsonlPath),
+				StartedAt:   subagentStartTime(jsonlPath),
 			})
 		}
 	}
+
+	// Sort by start time descending (newest first)
+	sort.Slice(agents, func(i, j int) bool {
+		return agents[i].StartedAt > agents[j].StartedAt
+	})
+
 	return agents
 }
 
@@ -375,7 +376,9 @@ func SubagentJSONLPath(projDir, sessionID, agentID string) string {
 	return filepath.Join(projDir, "subagents", "agent-"+agentID+".jsonl")
 }
 
-// isSubagentCompleted checks the last JSONL entry for stop_reason=end_turn.
+// isSubagentCompleted checks the tail of a JSONL file for terminal signals:
+// - stop_reason of "end_turn" or "max_tokens" in the last assistant message
+// - a "result" type entry (subagent returned a result)
 func isSubagentCompleted(jsonlPath string) bool {
 	f, err := os.Open(jsonlPath)
 	if err != nil {
@@ -383,7 +386,7 @@ func isSubagentCompleted(jsonlPath string) bool {
 	}
 	defer f.Close()
 
-	// Read last 4KB to find the final line
+	// Read last 4KB to find the final lines
 	const tailSize = 4 * 1024
 	stat, err := f.Stat()
 	if err != nil {
@@ -395,28 +398,61 @@ func isSubagentCompleted(jsonlPath string) bool {
 		}
 	}
 
-	var lastLine []byte
+	// Scan all lines in the tail — check each for completion signals
 	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, tailSize), tailSize)
+	scanner.Buffer(make([]byte, 0, tailSize), 1024*1024) // allow lines up to 1MB
+
+	completed := false
 	for scanner.Scan() {
-		if len(scanner.Bytes()) > 0 {
-			lastLine = make([]byte, len(scanner.Bytes()))
-			copy(lastLine, scanner.Bytes())
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var entry struct {
+			Type    string `json:"type"`
+			Message struct {
+				StopReason string `json:"stop_reason"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(line, &entry) != nil {
+			continue
+		}
+
+		// A "result" type entry means the subagent returned
+		if entry.Type == "result" {
+			completed = true
+			continue
+		}
+
+		// Check stop_reason on assistant messages
+		switch entry.Message.StopReason {
+		case "end_turn", "max_tokens":
+			completed = true
 		}
 	}
-	if len(lastLine) == 0 {
-		return false
-	}
+	return completed
+}
 
-	var entry struct {
-		Message struct {
-			StopReason string `json:"stop_reason"`
-		} `json:"message"`
+// subagentStartTime reads the timestamp from the first JSONL entry.
+func subagentStartTime(jsonlPath string) string {
+	f, err := os.Open(jsonlPath)
+	if err != nil {
+		return ""
 	}
-	if json.Unmarshal(lastLine, &entry) != nil {
-		return false
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	if scanner.Scan() {
+		var entry struct {
+			Timestamp string `json:"timestamp"`
+		}
+		if json.Unmarshal(scanner.Bytes(), &entry) == nil {
+			return entry.Timestamp
+		}
 	}
-	return entry.Message.StopReason == "end_turn"
+	return ""
 }
 
 // belongsToSession checks if a subagent JSONL's sessionId matches the parent.

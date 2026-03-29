@@ -2,7 +2,7 @@
 bin/
 dist/
 build/
-dashboard
+/dashboard
 
 # Go
 *.exe

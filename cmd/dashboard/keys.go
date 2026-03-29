@@ -96,6 +96,48 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateLeftContent()
 			return m, nil
 		}
+	case "x":
+		// Dismiss selected subagent from tree
+		if sub := m.selectedSubagent(); sub != nil {
+			agent := m.selectedAgent()
+			if agent != nil {
+				dismissKey := agent.Target + ":" + sub.AgentID
+				m.dismissed[dismissKey] = true
+				m.buildTree()
+				if m.selected >= len(m.treeNodes) {
+					m.selected = max(0, len(m.treeNodes)-1)
+				}
+				m.updateLeftContent()
+				m.updateRightContent()
+				return m, m.loadSelectionData()
+			}
+		}
+	case "ctrl+down":
+		// Jump to next parent agent (skip subagents)
+		next := m.nextParentIndex(1)
+		if next != m.selected {
+			m.selected = next
+			m.statusMsg = ""
+			m.mode = modeNormal
+			m.conversation = nil
+			m.subActivity = nil
+			m.updateLeftContent()
+			m.updateRightContent()
+			return m, m.loadSelectionData()
+		}
+	case "ctrl+up":
+		// Jump to previous parent agent (skip subagents)
+		prev := m.nextParentIndex(-1)
+		if prev != m.selected {
+			m.selected = prev
+			m.statusMsg = ""
+			m.mode = modeNormal
+			m.conversation = nil
+			m.subActivity = nil
+			m.updateLeftContent()
+			m.updateRightContent()
+			return m, m.loadSelectionData()
+		}
 	case "tab":
 		m.focusedVP = (m.focusedVP + 1) % focusCount
 		return m, nil
