@@ -23,6 +23,10 @@ type Agent struct {
 	UpdatedAt          string   `json:"updated_at"`
 	LastMessagePreview string   `json:"last_message_preview"`
 	FilesChanged       []string `json:"files_changed"`
+	Model              string   `json:"model"`
+	PermissionMode     string   `json:"permission_mode"`
+	SubagentCount      int      `json:"subagent_count"`
+	LastHookEvent      string   `json:"last_hook_event"`
 }
 
 // StateFile is the top-level JSON structure.

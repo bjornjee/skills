@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -137,6 +138,350 @@ func parseAssistantEntry(entry jsonlEntry) *ConversationEntry {
 		Content:   truncate(content, 2000),
 		Timestamp: entry.Timestamp,
 	}
+}
+
+// -- Activity Log (includes tool_use entries) --
+
+// ActivityEntry represents a single line in the activity log.
+type ActivityEntry struct {
+	Timestamp string
+	Kind      string // "human", "assistant", "tool"
+	Content   string
+}
+
+// toolUseBlock is the structure of a tool_use content block.
+type toolUseBlock struct {
+	Type  string          `json:"type"`
+	Name  string          `json:"name"`
+	Input json.RawMessage `json:"input"`
+	Text  string          `json:"text"`
+}
+
+// ReadActivityLog reads a JSONL file and returns activity entries including tool uses.
+func ReadActivityLog(jsonlPath string, limit int) []ActivityEntry {
+	f, err := os.Open(jsonlPath)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var all []ActivityEntry
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var entry jsonlEntry
+		if err := json.Unmarshal(line, &entry); err != nil {
+			continue
+		}
+
+		switch entry.Type {
+		case "user":
+			if e := parseUserEntry(entry); e != nil {
+				all = append(all, ActivityEntry{
+					Timestamp: entry.Timestamp,
+					Kind:      "human",
+					Content:   e.Content,
+				})
+			}
+		case "assistant":
+			entries := parseAssistantActivity(entry)
+			all = append(all, entries...)
+		}
+	}
+
+	if limit > 0 && len(all) > limit {
+		all = all[len(all)-limit:]
+	}
+	return all
+}
+
+// parseAssistantActivity extracts text + tool_use entries from an assistant message.
+func parseAssistantActivity(entry jsonlEntry) []ActivityEntry {
+	var env messageEnvelope
+	if err := json.Unmarshal(entry.Message, &env); err != nil {
+		return nil
+	}
+
+	var blocks []toolUseBlock
+	if err := json.Unmarshal(env.Content, &blocks); err != nil {
+		return nil
+	}
+
+	var result []ActivityEntry
+	for _, b := range blocks {
+		switch b.Type {
+		case "text":
+			text := strings.TrimSpace(b.Text)
+			if text != "" {
+				result = append(result, ActivityEntry{
+					Timestamp: entry.Timestamp,
+					Kind:      "assistant",
+					Content:   truncate(text, 2000),
+				})
+			}
+		case "tool_use":
+			summary := toolSummary(b.Name, b.Input)
+			result = append(result, ActivityEntry{
+				Timestamp: entry.Timestamp,
+				Kind:      "tool",
+				Content:   summary,
+			})
+		}
+	}
+	return result
+}
+
+// toolSummary returns a compact summary like "→ Read: cmd/dashboard/model.go".
+func toolSummary(name string, input json.RawMessage) string {
+	var m map[string]interface{}
+	_ = json.Unmarshal(input, &m)
+
+	detail := ""
+	switch name {
+	case "Read":
+		if fp, ok := m["file_path"].(string); ok {
+			detail = shortPath(fp)
+		}
+	case "Write":
+		if fp, ok := m["file_path"].(string); ok {
+			detail = shortPath(fp)
+		}
+	case "Edit":
+		if fp, ok := m["file_path"].(string); ok {
+			detail = shortPath(fp)
+		}
+	case "Bash":
+		if cmd, ok := m["command"].(string); ok {
+			detail = truncate(cmd, 80)
+		}
+	case "Grep":
+		if pat, ok := m["pattern"].(string); ok {
+			detail = truncate(pat, 60)
+		}
+	case "Glob":
+		if pat, ok := m["pattern"].(string); ok {
+			detail = pat
+		}
+	case "Agent":
+		if desc, ok := m["description"].(string); ok {
+			detail = desc
+		}
+	default:
+		// Generic: show first string value
+		for _, v := range m {
+			if s, ok := v.(string); ok && s != "" {
+				detail = truncate(s, 60)
+				break
+			}
+		}
+	}
+
+	if detail != "" {
+		return "→ " + name + ": " + detail
+	}
+	return "→ " + name
+}
+
+// shortPath trims home directory prefix for display.
+func shortPath(p string) string {
+	home, _ := os.UserHomeDir()
+	if home != "" && strings.HasPrefix(p, home) {
+		return "~" + p[len(home):]
+	}
+	return p
+}
+
+// -- Subagent Discovery --
+
+// SubagentInfo describes a discovered subagent.
+type SubagentInfo struct {
+	AgentID     string
+	AgentType   string
+	Description string
+}
+
+// subagentMeta is the JSON structure of agent-<id>.meta.json.
+type subagentMeta struct {
+	AgentType   string `json:"agentType"`
+	Description string `json:"description"`
+}
+
+// FindSubagents discovers subagents for a session by scanning the subagents directory.
+func FindSubagents(projDir, sessionID string) []SubagentInfo {
+	subDir := filepath.Join(projDir, sessionID, "subagents")
+	entries, err := os.ReadDir(subDir)
+	if err != nil {
+		// Also try flat layout: projDir/subagents/
+		subDir = filepath.Join(projDir, "subagents")
+		entries, err = os.ReadDir(subDir)
+		if err != nil {
+			return nil
+		}
+	}
+
+	var agents []SubagentInfo
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".meta.json") {
+			continue
+		}
+
+		agentID := strings.TrimPrefix(name, "agent-")
+		agentID = strings.TrimSuffix(agentID, ".meta.json")
+
+		data, err := os.ReadFile(filepath.Join(subDir, name))
+		if err != nil {
+			continue
+		}
+
+		var meta subagentMeta
+		if json.Unmarshal(data, &meta) != nil {
+			continue
+		}
+
+		// Verify this subagent belongs to our session by checking JSONL
+		jsonlPath := filepath.Join(subDir, "agent-"+agentID+".jsonl")
+		if belongsToSession(jsonlPath, sessionID) {
+			agents = append(agents, SubagentInfo{
+				AgentID:     agentID,
+				AgentType:   meta.AgentType,
+				Description: meta.Description,
+			})
+		}
+	}
+	return agents
+}
+
+// SubagentJSONLPath returns the path to a subagent's JSONL file.
+func SubagentJSONLPath(projDir, sessionID, agentID string) string {
+	// Try session-scoped first, then flat
+	p := filepath.Join(projDir, sessionID, "subagents", "agent-"+agentID+".jsonl")
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	return filepath.Join(projDir, "subagents", "agent-"+agentID+".jsonl")
+}
+
+// belongsToSession checks if a subagent JSONL's sessionId matches the parent.
+func belongsToSession(jsonlPath, sessionID string) bool {
+	f, err := os.Open(jsonlPath)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	if scanner.Scan() {
+		var entry struct {
+			SessionID string `json:"sessionId"`
+		}
+		if json.Unmarshal(scanner.Bytes(), &entry) == nil {
+			return entry.SessionID == sessionID
+		}
+	}
+	return false
+}
+
+// HasPendingToolUse checks if the last assistant message in the session JSONL
+// contains a tool_use block with no subsequent tool_result from the user.
+// This indicates the agent is waiting for permission approval.
+func HasPendingToolUse(projDir, sessionID string) bool {
+	path := filepath.Join(projDir, sessionID+".jsonl")
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	// Read the tail of the file (last 32KB should contain recent entries)
+	const tailSize = 32 * 1024
+	stat, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	offset := int64(0)
+	if stat.Size() > tailSize {
+		offset = stat.Size() - tailSize
+	}
+	if offset > 0 {
+		if _, err := f.Seek(offset, io.SeekStart); err != nil {
+			return false
+		}
+	}
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, tailSize), tailSize)
+
+	// Track last assistant tool_use and whether a subsequent tool_result appeared
+	hasToolUse := false
+	toolResultAfter := false
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var entry jsonlEntry
+		if json.Unmarshal(line, &entry) != nil {
+			continue
+		}
+
+		switch entry.Type {
+		case "assistant":
+			// Check if this assistant message contains tool_use blocks
+			var env messageEnvelope
+			if json.Unmarshal(entry.Message, &env) != nil {
+				continue
+			}
+			var blocks []toolUseBlock
+			if json.Unmarshal(env.Content, &blocks) != nil {
+				continue
+			}
+			found := false
+			for _, b := range blocks {
+				if b.Type == "tool_use" {
+					found = true
+					break
+				}
+			}
+			if found {
+				hasToolUse = true
+				toolResultAfter = false // reset — new tool_use seen
+			} else {
+				hasToolUse = false // text-only assistant message resets
+				toolResultAfter = false
+			}
+
+		case "user":
+			if hasToolUse {
+				// Check if this user message contains tool_result
+				var env messageEnvelope
+				if json.Unmarshal(entry.Message, &env) != nil {
+					continue
+				}
+				// tool_result messages have array content; only need the type field
+				var blocks []contentBlock
+				if json.Unmarshal(env.Content, &blocks) == nil {
+					for _, b := range blocks {
+						if b.Type == "tool_result" {
+							toolResultAfter = true
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return hasToolUse && !toolResultAfter
 }
 
 func truncate(s string, maxLen int) string {

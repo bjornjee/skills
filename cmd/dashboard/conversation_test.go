@@ -128,6 +128,75 @@ func TestReadConversation_HandlesUserContentArray(t *testing.T) {
 	}
 }
 
+func TestHasPendingToolUse_NoPending(t *testing.T) {
+	dir := t.TempDir()
+	projDir := filepath.Join(dir, "proj")
+	os.MkdirAll(projDir, 0755)
+	sessionID := "sess-1"
+
+	// Assistant sends tool_use, then user sends tool_result → not pending
+	jsonl := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"ls"}}]},"timestamp":"2026-03-28T10:00:00Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":[{"type":"text","text":"file.go"}]}]},"timestamp":"2026-03-28T10:00:01Z"}
+`
+	os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(jsonl), 0644)
+
+	if HasPendingToolUse(projDir, sessionID) {
+		t.Error("expected no pending tool_use, but got true")
+	}
+}
+
+func TestHasPendingToolUse_Pending(t *testing.T) {
+	dir := t.TempDir()
+	projDir := filepath.Join(dir, "proj")
+	os.MkdirAll(projDir, 0755)
+	sessionID := "sess-1"
+
+	// Assistant sends tool_use with no subsequent tool_result → pending
+	jsonl := `{"type":"user","message":{"role":"user","content":"fix the bug"},"timestamp":"2026-03-28T10:00:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll fix it."},{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"foo.go"}}]},"timestamp":"2026-03-28T10:00:01Z"}
+`
+	os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(jsonl), 0644)
+
+	if !HasPendingToolUse(projDir, sessionID) {
+		t.Error("expected pending tool_use, but got false")
+	}
+}
+
+func TestHasPendingToolUse_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	projDir := filepath.Join(dir, "proj")
+	os.MkdirAll(projDir, 0755)
+	sessionID := "sess-1"
+
+	os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(""), 0644)
+
+	if HasPendingToolUse(projDir, sessionID) {
+		t.Error("expected false for empty file")
+	}
+}
+
+func TestHasPendingToolUse_MissingFile(t *testing.T) {
+	if HasPendingToolUse("/nonexistent", "no-such") {
+		t.Error("expected false for missing file")
+	}
+}
+
+func TestHasPendingToolUse_TextOnlyAssistant(t *testing.T) {
+	dir := t.TempDir()
+	projDir := filepath.Join(dir, "proj")
+	os.MkdirAll(projDir, 0755)
+	sessionID := "sess-1"
+
+	// Last assistant message has only text, no tool_use → not pending
+	jsonl := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"All done!"}]},"timestamp":"2026-03-28T10:00:00Z"}
+`
+	os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(jsonl), 0644)
+
+	if HasPendingToolUse(projDir, sessionID) {
+		t.Error("expected no pending tool_use for text-only assistant message")
+	}
+}
+
 func TestReadConversation_SkipsMalformedLines(t *testing.T) {
 	dir := t.TempDir()
 	slug := "test-project"

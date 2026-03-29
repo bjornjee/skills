@@ -70,14 +70,13 @@ function report(input) {
   const hookEvent = input.hook_event_name;
   const lastMessage = input.last_assistant_message || null;
 
-  // SessionStart/PreToolUse → agent is actively working
-  // PreToolUse AskUserQuestion → agent is waiting for user input
-  // Stop → detect whether waiting for input or done
+  // Determine agent state based on hook event
   let state;
   const toolName = input.tool_name || '';
   if (hookEvent === 'PreToolUse' && toolName === 'AskUserQuestion') {
     state = 'input';
-  } else if (hookEvent === 'SessionStart' || hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse') {
+  } else if (hookEvent === 'SessionStart' || hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse'
+      || hookEvent === 'SubagentStart' || hookEvent === 'SubagentStop') {
     state = 'running';
   } else {
     const paneBuffer = capture(target, 15);
@@ -92,9 +91,25 @@ function report(input) {
     ? lastMessage.split('\n').filter(l => l.trim()).slice(-3).join(' ').substring(0, 200)
     : null;
 
-  // Preserve started_at and session_id if already set
+  // Preserve started_at, session_id, and metadata if already set
   const existing = readState().agents[target] || {};
   const sessionId = input.session_id || existing.session_id || findSessionId();
+
+  // Model: capture on SessionStart, preserve otherwise
+  const model = (hookEvent === 'SessionStart' && input.model)
+    ? input.model
+    : (existing.model || '');
+
+  // Permission mode: always update from hook input
+  const permissionMode = input.permission_mode || existing.permission_mode || '';
+
+  // Subagent count: increment on start, decrement on stop
+  let subagentCount = existing.subagent_count || 0;
+  if (hookEvent === 'SubagentStart') {
+    subagentCount++;
+  } else if (hookEvent === 'SubagentStop') {
+    subagentCount = Math.max(0, subagentCount - 1);
+  }
 
   writeState(target, {
     target,
@@ -108,5 +123,9 @@ function report(input) {
     last_message_preview: preview,
     session_id: sessionId,
     started_at: existing.started_at || new Date().toISOString(),
+    model,
+    permission_mode: permissionMode,
+    subagent_count: subagentCount,
+    last_hook_event: hookEvent || '',
   });
 }

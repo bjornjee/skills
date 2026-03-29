@@ -67,6 +67,15 @@ type usageMsg struct {
 }
 type persistResultMsg struct{ err error }
 type dbCostMsg struct{ total float64 }
+type activityMsg struct{ entries []ActivityEntry }
+type subagentsMsg struct {
+	parentTarget string
+	agents       []SubagentInfo
+}
+type pendingInputMsg struct {
+	target  string
+	pending bool
+}
 
 // -- Modes --
 
@@ -93,11 +102,20 @@ const (
 	sectionGaps     = 6 // gaps between sections (labels + blank-line buffers)
 )
 
+// -- Tree node --
+
+// treeNode is a flat entry in the navigation tree (agent or subagent).
+type treeNode struct {
+	AgentIdx int           // index into m.agents
+	Sub      *SubagentInfo // nil for parent agent nodes
+}
+
 // -- Model --
 
 type model struct {
 	agents        []Agent
-	selected      int
+	selected      int // index into treeNodes
+	treeNodes     []treeNode
 	width, height int
 	mode          int
 	textInput     textinput.Model
@@ -123,6 +141,48 @@ type model struct {
 	// Layout cache (for mouse routing)
 	leftWidth  int
 	rightWidth int
+
+	// Subagent tree
+	agentSubagents map[string][]SubagentInfo // parentTarget → subagents
+	collapsed      map[string]bool           // parentTarget → collapsed state
+	subActivity    []ActivityEntry           // activity log for selected subagent
+
+	// Pending input detection (permission prompts)
+	pendingInput map[string]bool // agentTarget → has pending tool_use
+}
+
+// buildTree rebuilds the flat tree node list from agents and their subagents.
+func (m *model) buildTree() {
+	m.treeNodes = nil
+	for i, agent := range m.agents {
+		m.treeNodes = append(m.treeNodes, treeNode{AgentIdx: i})
+		if !m.collapsed[agent.Target] {
+			for _, sub := range m.agentSubagents[agent.Target] {
+				s := sub // copy
+				m.treeNodes = append(m.treeNodes, treeNode{AgentIdx: i, Sub: &s})
+			}
+		}
+	}
+}
+
+// selectedAgent returns the parent agent for the current selection.
+func (m model) selectedAgent() *Agent {
+	if m.selected >= len(m.treeNodes) {
+		return nil
+	}
+	idx := m.treeNodes[m.selected].AgentIdx
+	if idx >= len(m.agents) {
+		return nil
+	}
+	return &m.agents[idx]
+}
+
+// selectedSubagent returns the subagent for the current selection, or nil if parent is selected.
+func (m model) selectedSubagent() *SubagentInfo {
+	if m.selected >= len(m.treeNodes) {
+		return nil
+	}
+	return m.treeNodes[m.selected].Sub
 }
 
 func newModel(statePath, selfTarget string, db *DB) model {
@@ -131,18 +191,21 @@ func newModel(statePath, selfTarget string, db *DB) model {
 	ti.CharLimit = 4096
 
 	return model{
-		agents:      nil,
-		statePath:   statePath,
-		selfTarget:  selfTarget,
-		tmuxAvailable: TmuxIsAvailable(),
-		textInput:   ti,
-		mode:        modeNormal,
-		db:          db,
-		agentListVP: viewport.New(0, 0),
-		filesVP:     viewport.New(0, 0),
-		historyVP:   viewport.New(0, 0),
-		messageVP:   viewport.New(0, 0),
-		focusedVP:   focusAgentList,
+		agents:         nil,
+		statePath:      statePath,
+		selfTarget:     selfTarget,
+		tmuxAvailable:  TmuxIsAvailable(),
+		textInput:      ti,
+		mode:           modeNormal,
+		db:             db,
+		agentListVP:    viewport.New(0, 0),
+		filesVP:        viewport.New(0, 0),
+		historyVP:      viewport.New(0, 0),
+		messageVP:      viewport.New(0, 0),
+		focusedVP:      focusAgentList,
+		agentSubagents: make(map[string][]SubagentInfo),
+		collapsed:      make(map[string]bool),
+		pendingInput:   make(map[string]bool),
 	}
 }
 
@@ -170,10 +233,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case stateUpdatedMsg:
 		m.agents = SortedAgents(msg.state, m.selfTarget)
-		if m.selected >= len(m.agents) {
-			m.selected = max(0, len(m.agents)-1)
+		// Prune pendingInput for agents no longer present
+		live := make(map[string]bool, len(m.agents))
+		for _, a := range m.agents {
+			live[a.Target] = true
 		}
-		return m, tea.Batch(m.captureSelected(), m.loadConversation(), loadUsage(m.agents))
+		for target := range m.pendingInput {
+			if !live[target] {
+				delete(m.pendingInput, target)
+			}
+		}
+		m.buildTree()
+		if m.selected >= len(m.treeNodes) {
+			m.selected = max(0, len(m.treeNodes)-1)
+		}
+		m.updateLeftContent()
+		m.updateRightContent()
+		cmds := []tea.Cmd{m.captureSelected(), m.loadConversation(), loadUsage(m.agents)}
+		cmds = append(cmds, m.loadAllSubagents()...)
+		return m, tea.Batch(cmds...)
 
 	case conversationMsg:
 		prevLen := len(m.conversation)
@@ -188,6 +266,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.tickCount++
 		cmds := []tea.Cmd{tickEvery(), m.captureSelected(), m.loadConversation()}
+		if m.selectedSubagent() != nil {
+			cmds = append(cmds, m.loadSubagentActivity())
+		}
+		// Check for pending tool_use every 2 ticks (2s)
+		if m.tickCount%2 == 0 {
+			if cmd := m.checkPendingInput(); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		if m.tickCount%5 == 0 {
+			cmds = append(cmds, m.loadAllSubagents()...)
+		}
 		if m.tickCount%10 == 0 {
 			cmds = append(cmds, pruneDead(m.statePath), loadUsage(m.agents))
 		}
@@ -212,6 +302,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dbCostMsg:
 		m.dbTotalCost = msg.total
+		return m, nil
+
+	case activityMsg:
+		if m.selectedSubagent() != nil {
+			m.subActivity = msg.entries
+			m.updateRightContent()
+		}
+		return m, nil
+
+	case pendingInputMsg:
+		m.pendingInput[msg.target] = msg.pending
+		m.updateLeftContent()
+		m.updateRightContent()
+		return m, nil
+
+	case subagentsMsg:
+		m.agentSubagents[msg.parentTarget] = msg.agents
+		m.buildTree()
+		if m.selected >= len(m.treeNodes) {
+			m.selected = max(0, len(m.treeNodes)-1)
+		}
+		m.updateLeftContent()
 		return m, nil
 
 	case pruneDeadMsg:
@@ -295,7 +407,7 @@ func (m model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	// Header takes ~headerLines rows + 1 border
 	rightStart := 1 // top border
 	filesStart := rightStart + headerLines
-	historyStart := filesStart + filesVPHeight + 2 // +1 label +1 buffer
+	historyStart := filesStart + filesVPHeight + 2     // +1 label +1 buffer
 	messageStart := historyStart + historyVPHeight + 2 // +1 label +1 buffer
 
 	var cmd tea.Cmd
@@ -319,9 +431,10 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			text := m.textInput.Value()
 			m.mode = modeNormal
 			m.textInput.Reset()
-			if text != "" && m.selected < len(m.agents) {
-				target := m.agents[m.selected].Target
-				return m, sendReply(target, text)
+			if text != "" {
+				if agent := m.selectedAgent(); agent != nil {
+					return m, sendReply(agent.Target, text)
+				}
 			}
 			return m, nil
 		case "esc":
@@ -344,16 +457,31 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.selected--
 			m.statusMsg = ""
 			m.conversation = nil
+			m.subActivity = nil
 			m.updateLeftContent()
-			return m, tea.Batch(m.captureSelected(), m.loadConversation())
+			m.updateRightContent()
+			return m, m.loadSelectionData()
 		}
 	case "down", "j":
-		if m.selected < len(m.agents)-1 {
+		if m.selected < len(m.treeNodes)-1 {
 			m.selected++
 			m.statusMsg = ""
 			m.conversation = nil
+			m.subActivity = nil
 			m.updateLeftContent()
-			return m, tea.Batch(m.captureSelected(), m.loadConversation())
+			m.updateRightContent()
+			return m, m.loadSelectionData()
+		}
+	case "c":
+		// Toggle collapse on current agent's subagent tree
+		if agent := m.selectedAgent(); agent != nil {
+			m.collapsed[agent.Target] = !m.collapsed[agent.Target]
+			m.buildTree()
+			if m.selected >= len(m.treeNodes) {
+				m.selected = max(0, len(m.treeNodes)-1)
+			}
+			m.updateLeftContent()
+			return m, nil
 		}
 	case "tab":
 		m.focusedVP = (m.focusedVP + 1) % focusCount
@@ -370,31 +498,30 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Cannot jump: tmux not detected"
 			return m, nil
 		}
-		if m.selected < len(m.agents) {
-			target := m.agents[m.selected].Target
-			return m, jumpToAgent(target)
+		if agent := m.selectedAgent(); agent != nil {
+			return m, jumpToAgent(agent.Target)
 		}
 	case "r":
 		if !m.tmuxAvailable {
 			m.statusMsg = "Cannot reply: tmux not detected"
 			return m, nil
 		}
-		if m.selected < len(m.agents) {
+		if m.selectedAgent() != nil && m.selectedSubagent() == nil {
 			m.mode = modeReply
 			m.textInput.Focus()
 			return m, textinput.Blink
 		}
 	case "y", "n":
-		if m.tmuxAvailable && m.selected < len(m.agents) {
-			agent := m.agents[m.selected]
-			if agent.State == "input" || agent.State == "error" {
+		if agent := m.selectedAgent(); m.tmuxAvailable && agent != nil && m.selectedSubagent() == nil {
+			es := m.effectiveState(*agent)
+			if es == "input" || es == "error" {
 				return m, sendRawKey(agent.Target, key)
 			}
 		}
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-		if m.tmuxAvailable && m.selected < len(m.agents) {
-			agent := m.agents[m.selected]
-			if agent.State == "input" || agent.State == "error" {
+		if agent := m.selectedAgent(); m.tmuxAvailable && agent != nil && m.selectedSubagent() == nil {
+			es := m.effectiveState(*agent)
+			if es == "input" || es == "error" {
 				return m, sendRawKey(agent.Target, key)
 			}
 		}
@@ -425,20 +552,30 @@ func (m *model) updateLeftContent() {
 }
 
 func (m *model) updateRightContent() {
-	if m.selected >= len(m.agents) || len(m.agents) == 0 {
+	agent := m.selectedAgent()
+	if agent == nil {
 		m.filesVP.SetContent("")
 		m.historyVP.SetContent("")
 		m.messageVP.SetContent("  No agents found")
 		return
 	}
 
-	agent := m.agents[m.selected]
+	sub := m.selectedSubagent()
+	if sub != nil {
+		// Subagent right panel: files touched + activity + output
+		m.filesVP.SetContent(m.subagentFilesContent())
+		m.historyVP.SetContent(m.subagentActivityContent())
+		m.messageVP.SetContent(m.subagentOutputContent())
+		return
+	}
 
-	m.filesVP.SetContent(m.filesContent(agent))
+	// Parent agent right panel (unchanged)
+	m.filesVP.SetContent(m.filesContent(*agent))
 	m.historyVP.SetContent(m.historyContent())
 
-	needsAttention := agent.State == "input" || agent.State == "error"
-	isDone := agent.State == "done" || agent.State == "idle"
+	effState := m.effectiveState(*agent)
+	needsAttention := effState == "input" || effState == "error"
+	isDone := effState == "done" || effState == "idle"
 
 	if needsAttention {
 		m.messageVP.SetContent(m.waitingMessageContent())
@@ -458,14 +595,57 @@ func (m *model) updateRightContent() {
 func (m model) agentListContent() string {
 	var lines []string
 
-	if len(m.agents) == 0 {
+	if len(m.treeNodes) == 0 {
 		lines = append(lines, "  No agents found")
 		return strings.Join(lines, "\n")
 	}
 
 	lastGroup := -1
-	for i, agent := range m.agents {
-		group := stateGroup(agent.State)
+	for nodeIdx, node := range m.treeNodes {
+		agent := m.agents[node.AgentIdx]
+
+		if node.Sub != nil {
+			// Subagent node
+			isLast := true
+			// Check if this is the last subagent in the list
+			for nextIdx := nodeIdx + 1; nextIdx < len(m.treeNodes); nextIdx++ {
+				next := m.treeNodes[nextIdx]
+				if next.AgentIdx != node.AgentIdx {
+					break
+				}
+				if next.Sub != nil {
+					isLast = false
+					break
+				}
+			}
+
+			prefix := "├─"
+			if isLast {
+				prefix = "└─"
+			}
+
+			subIcon := lipgloss.NewStyle().Foreground(runningColor).Render("▶")
+			subLabel := node.Sub.AgentType
+			if node.Sub.Description != "" {
+				maxDesc := m.leftWidth - 12 - len(subLabel)
+				desc := node.Sub.Description
+				if maxDesc > 0 && len(desc) > maxDesc {
+					desc = desc[:maxDesc-1] + "…"
+				}
+				subLabel += ": " + desc
+			}
+
+			line := fmt.Sprintf("       %s %s %s", helpStyle.Render(prefix), subIcon, subLabel)
+			if nodeIdx == m.selected {
+				line = selectedStyle.Render(fmt.Sprintf("       %s ▶ %s", prefix, subLabel))
+			}
+			lines = append(lines, line)
+			continue
+		}
+
+		// Parent agent node
+		effState := m.effectiveState(agent)
+		group := stateGroup(effState)
 		if group == 0 {
 			group = 3
 		}
@@ -480,7 +660,7 @@ func (m model) agentListContent() string {
 			lastGroup = group
 		}
 
-		si := stateIcons[agent.State]
+		si := stateIcons[effState]
 		if si.icon == "" {
 			si = stateIcons["idle"]
 		}
@@ -502,7 +682,7 @@ func (m model) agentListContent() string {
 		}
 
 		duration := ""
-		if agent.State == "running" {
+		if effState == "running" {
 			duration = FormatDuration(agent.UpdatedAt)
 		}
 
@@ -514,11 +694,22 @@ func (m model) agentListContent() string {
 		icon := lipgloss.NewStyle().Foreground(si.color).Render(si.icon)
 		line := fmt.Sprintf("   %s %s %s  %s", icon, paneID, label, duration)
 
-		if i == m.selected {
+		if nodeIdx == m.selected {
 			line = selectedStyle.Render(fmt.Sprintf("  %s %s %s  %s", si.icon, paneID, label, duration))
 		}
 
 		lines = append(lines, line)
+
+		// Metadata badges
+		badges := agentBadges(agent)
+		if badges != "" {
+			lines = append(lines, "       "+badges)
+		}
+
+		// Collapse indicator if has subagents
+		if subs := m.agentSubagents[agent.Target]; len(subs) > 0 && m.collapsed[agent.Target] {
+			lines = append(lines, helpStyle.Render(fmt.Sprintf("       ▸ %d subagents (c to expand)", len(subs))))
+		}
 	}
 
 	return strings.Join(lines, "\n")
@@ -625,6 +816,103 @@ func (m model) finalMessageContent() string {
 	return strings.Join(lines, "\n")
 }
 
+// -- Subagent content builders --
+
+func (m model) subagentFilesContent() string {
+	// Extract unique files from tool activity
+	seen := make(map[string]bool)
+	var files []string
+	for _, e := range m.subActivity {
+		if e.Kind != "tool" {
+			continue
+		}
+		// Parse "→ ToolName: path" format
+		content := e.Content
+		if !strings.HasPrefix(content, "→ ") {
+			continue
+		}
+		content = content[len("→ "):]
+		parts := strings.SplitN(content, ": ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		tool, detail := parts[0], parts[1]
+		if tool == "Read" || tool == "Edit" || tool == "Write" {
+			if !seen[detail] {
+				seen[detail] = true
+				files = append(files, detail)
+			}
+		}
+	}
+	if len(files) == 0 {
+		return helpStyle.Render("  No files touched")
+	}
+	var lines []string
+	for _, f := range files {
+		lines = append(lines, "  "+lipgloss.NewStyle().Foreground(inputColor).Render(f))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m model) subagentActivityContent() string {
+	if len(m.subActivity) == 0 {
+		return helpStyle.Render("  No activity yet")
+	}
+	var lines []string
+	for _, e := range m.subActivity {
+		ts := ""
+		if t, err := time.Parse(time.RFC3339, e.Timestamp); err == nil {
+			ts = t.Local().Format("15:04")
+		}
+		switch e.Kind {
+		case "tool":
+			lines = append(lines, fmt.Sprintf(" %s %s",
+				helpStyle.Render("["+ts+"]"),
+				lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render(e.Content)))
+		case "human":
+			lines = append(lines, fmt.Sprintf(" %s %s %s",
+				helpStyle.Render("["+ts+"]"),
+				lipgloss.NewStyle().Foreground(inputColor).Bold(true).Render("prompt:"),
+				truncateLineStr(e.Content, m.rightWidth-20)))
+		case "assistant":
+			preview := strings.Split(e.Content, "\n")[0]
+			lines = append(lines, fmt.Sprintf(" %s %s %s",
+				helpStyle.Render("["+ts+"]"),
+				lipgloss.NewStyle().Foreground(runningColor).Bold(true).Render("text:"),
+				truncateLineStr(preview, m.rightWidth-20)))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m model) subagentOutputContent() string {
+	// Find the last assistant text block
+	var lastText string
+	for i := len(m.subActivity) - 1; i >= 0; i-- {
+		if m.subActivity[i].Kind == "assistant" {
+			lastText = m.subActivity[i].Content
+			break
+		}
+	}
+	if lastText == "" {
+		return helpStyle.Render("  No output yet")
+	}
+	var lines []string
+	for _, wl := range wrapText(lastText, m.rightWidth-3) {
+		lines = append(lines, "  "+wl)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func truncateLineStr(s string, maxLen int) string {
+	if maxLen > 0 && len(s) > maxLen {
+		return s[:maxLen-1] + "…"
+	}
+	return s
+}
+
+// formatActivityLog renders activity entries for the inspect viewport.
+// Shows full conversation with wrapped text — like reading the actual logs.
 // -- View --
 
 func (m model) View() string {
@@ -643,7 +931,11 @@ func (m model) View() string {
 
 func (m model) renderLeftPanel() string {
 	panelHeight := m.height - 5
-	return borderStyle.
+	style := borderStyle
+	if m.focusedVP == focusAgentList {
+		style = style.BorderForeground(lipgloss.Color("86"))
+	}
+	return style.
 		Width(m.leftWidth).
 		Height(panelHeight).
 		Render(m.agentListVP.View())
@@ -652,74 +944,134 @@ func (m model) renderLeftPanel() string {
 func (m model) renderRightPanel() string {
 	panelHeight := m.height - 5
 
-	if m.selected >= len(m.agents) || len(m.agents) == 0 {
+	agent := m.selectedAgent()
+	if agent == nil {
 		return borderStyle.
 			Width(m.rightWidth).
 			Height(panelHeight).
 			Render(m.messageVP.View())
 	}
 
-	agent := m.agents[m.selected]
-	si := stateIcons[agent.State]
-	if si.icon == "" {
-		si = stateIcons["idle"]
-	}
+	sub := m.selectedSubagent()
 
 	// Header (not in a viewport — static)
 	var header []string
 
-	name := agent.Session
-	if name == "" {
-		name = agent.Target
-	}
-	header = append(header, titleStyle.Render(fmt.Sprintf(" PEEK: %s ", name)))
-	header = append(header, "")
+	if sub != nil {
+		// Subagent header
+		header = append(header, titleStyle.Render(fmt.Sprintf(" %s: %s ", sub.AgentType, sub.Description)))
+		header = append(header, "")
+		header = append(header, fmt.Sprintf(" Parent: %d.%d %s", agent.Window, agent.Pane, agent.Branch))
+		header = append(header, "")
+	} else {
+		// Parent agent header
+		name := agent.Session
+		if name == "" {
+			name = agent.Target
+		}
+		header = append(header, titleStyle.Render(fmt.Sprintf(" PEEK: %s ", name)))
+		header = append(header, "")
 
-	stateLabel := map[string]string{
-		"input": "Waiting for input", "error": "Error",
-		"running": "Running", "done": "Done", "idle": "Idle",
-	}[agent.State]
-	if stateLabel == "" {
-		stateLabel = agent.State
-	}
-	stateStr := lipgloss.NewStyle().Foreground(si.color).Bold(true).
-		Render(fmt.Sprintf("%s %s", si.icon, stateLabel))
-	header = append(header, fmt.Sprintf(" %s", stateStr))
-	header = append(header, "")
+		effState := m.effectiveState(*agent)
+		si := stateIcons[effState]
+		if si.icon == "" {
+			si = stateIcons["idle"]
+		}
+		stateLabel := map[string]string{
+			"input": "Waiting for input", "error": "Error",
+			"running": "Running", "done": "Done", "idle": "Idle",
+		}[effState]
+		if stateLabel == "" {
+			stateLabel = agent.State
+		}
+		stateStr := lipgloss.NewStyle().Foreground(si.color).Bold(true).
+			Render(fmt.Sprintf("%s %s", si.icon, stateLabel))
 
-	if agent.Branch != "" {
-		header = append(header, fmt.Sprintf(" Branch: %s", boldStyle.Render(agent.Branch)))
-	}
-	if agent.Cwd != "" {
-		header = append(header, fmt.Sprintf(" Dir: %s", agent.Cwd))
-	}
+		metaParts := []string{stateStr}
+		if agent.Model != "" {
+			metaParts = append(metaParts, helpStyle.Render(agent.Model))
+		}
+		if agent.PermissionMode != "" && agent.PermissionMode != "default" {
+			metaParts = append(metaParts, lipgloss.NewStyle().Foreground(inputColor).Render(agent.PermissionMode))
+		}
+		header = append(header, " "+strings.Join(metaParts, helpStyle.Render(" │ ")))
+		header = append(header, "")
 
-	// Usage / cost
-	if u, ok := m.agentUsage[agent.Target]; ok && u.OutputTokens > 0 {
-		header = append(header, fmt.Sprintf(" Cost: %s  (in: %s  out: %s  cache: %s)",
-			boldStyle.Render(FormatCost(u.CostUSD)),
-			FormatTokens(u.InputTokens),
-			FormatTokens(u.OutputTokens),
-			FormatTokens(u.CacheReadTokens+u.CacheWriteTokens)))
+		if agent.Branch != "" {
+			header = append(header, fmt.Sprintf(" Branch: %s", boldStyle.Render(agent.Branch)))
+		}
+		if agent.Cwd != "" {
+			header = append(header, fmt.Sprintf(" Dir: %s", agent.Cwd))
+		}
+
+		if u, ok := m.agentUsage[agent.Target]; ok && u.OutputTokens > 0 {
+			header = append(header, fmt.Sprintf(" Cost: %s  (in: %s  out: %s  cache: %s)",
+				boldStyle.Render(FormatCost(u.CostUSD)),
+				FormatTokens(u.InputTokens),
+				FormatTokens(u.OutputTokens),
+				FormatTokens(u.CacheReadTokens+u.CacheWriteTokens)))
+		}
+
+		if agent.SubagentCount > 0 {
+			header = append(header, fmt.Sprintf(" Subagents: %s active",
+				lipgloss.NewStyle().Foreground(runningColor).Bold(true).
+					Render(fmt.Sprintf("%d", agent.SubagentCount))))
+		}
+		header = append(header, "")
 	}
-	header = append(header, "")
 
 	// Section labels + viewports
-	needsAttention := agent.State == "input" || agent.State == "error"
-	isDone := agent.State == "done" || agent.State == "idle"
+	focusMarker := func(vp int) string {
+		if m.focusedVP == vp {
+			return lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Render(" ◆")
+		}
+		return ""
+	}
 
-	filesLabel := " " + boldStyle.Render("Files:")
-	historyLabel := " " + boldStyle.Render("── History ───────────────────")
+	scrollHint := func(vp viewport.Model) string {
+		var hints []string
+		if !vp.AtTop() {
+			hints = append(hints, "▲")
+		}
+		if !vp.AtBottom() {
+			hints = append(hints, "▼")
+		}
+		if len(hints) == 0 {
+			return ""
+		}
+		return " " + helpStyle.Render(strings.Join(hints, " "))
+	}
 
-	var messageLabel string
-	if needsAttention {
-		messageLabel = " " + lipgloss.NewStyle().Foreground(inputColor).Bold(true).
-			Render("── Agent is waiting ──────────")
-	} else if isDone {
-		messageLabel = " " + lipgloss.NewStyle().Foreground(doneColor).Bold(true).
-			Render("── Final message ─────────────")
+	var filesLabel, historyLabel, messageLabel string
+
+	if sub != nil {
+		filesLabel = " " + boldStyle.Render("── Files Touched") + focusMarker(focusFiles) + scrollHint(m.filesVP) +
+			" " + helpStyle.Render(strings.Repeat("─", 12))
+		historyLabel = " " + boldStyle.Render("── Activity") + focusMarker(focusHistory) + scrollHint(m.historyVP) +
+			" " + helpStyle.Render(strings.Repeat("─", 17))
+		messageLabel = " " + boldStyle.Render("── Output") + focusMarker(focusMessage) + scrollHint(m.messageVP) +
+			" " + helpStyle.Render(strings.Repeat("─", 19))
 	} else {
-		messageLabel = " " + boldStyle.Render("── Live ──────────────────────")
+		rpEffState := m.effectiveState(*agent)
+		needsAttention := rpEffState == "input" || rpEffState == "error"
+		isDone := rpEffState == "done" || rpEffState == "idle"
+
+		filesLabel = " " + boldStyle.Render("Files:") + focusMarker(focusFiles) + scrollHint(m.filesVP)
+		historyLabel = " " + boldStyle.Render("── History") + focusMarker(focusHistory) + scrollHint(m.historyVP) +
+			" " + helpStyle.Render(strings.Repeat("─", 18))
+
+		if needsAttention {
+			messageLabel = " " + lipgloss.NewStyle().Foreground(inputColor).Bold(true).
+				Render("── Agent is waiting") + focusMarker(focusMessage) + scrollHint(m.messageVP) +
+				" " + helpStyle.Render(strings.Repeat("─", 9))
+		} else if isDone {
+			messageLabel = " " + lipgloss.NewStyle().Foreground(doneColor).Bold(true).
+				Render("── Final message") + focusMarker(focusMessage) + scrollHint(m.messageVP) +
+				" " + helpStyle.Render(strings.Repeat("─", 12))
+		} else {
+			messageLabel = " " + boldStyle.Render("── Live") + focusMarker(focusMessage) + scrollHint(m.messageVP) +
+				" " + helpStyle.Render(strings.Repeat("─", 21))
+		}
 	}
 
 	// Status message
@@ -790,9 +1142,9 @@ func (m model) renderHelpBar() string {
 	if m.tmuxAvailable {
 		parts = append(parts, boldStyle.Render("enter")+" jump")
 		parts = append(parts, boldStyle.Render("r")+" reply")
-		if m.selected < len(m.agents) {
-			agent := m.agents[m.selected]
-			if agent.State == "input" || agent.State == "error" {
+		if agent := m.selectedAgent(); agent != nil && m.selectedSubagent() == nil {
+			es := m.effectiveState(*agent)
+			if es == "input" || es == "error" {
 				parts = append(parts, boldStyle.Render("y/n")+" quick answer")
 			}
 		}
@@ -800,6 +1152,7 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("enter")+" "+helpStyle.Render("jump"))
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
+	parts = append(parts, boldStyle.Render("c")+" collapse")
 	parts = append(parts, boldStyle.Render("tab")+" focus")
 	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
 	parts = append(parts, boldStyle.Render("q")+" quit")
@@ -810,10 +1163,11 @@ func (m model) renderHelpBar() string {
 // -- Commands --
 
 func (m model) captureSelected() tea.Cmd {
-	if !m.tmuxAvailable || m.selected >= len(m.agents) {
+	agent := m.selectedAgent()
+	if !m.tmuxAvailable || agent == nil {
 		return nil
 	}
-	target := m.agents[m.selected].Target
+	target := agent.Target
 	return func() tea.Msg {
 		lines, err := TmuxCapture(target, 15)
 		if err != nil {
@@ -824,10 +1178,10 @@ func (m model) captureSelected() tea.Cmd {
 }
 
 func (m model) loadConversation() tea.Cmd {
-	if m.selected >= len(m.agents) {
-		return nil
+	agent := m.selectedAgent()
+	if agent == nil || m.selectedSubagent() != nil {
+		return nil // don't load conversation for subagent nodes
 	}
-	agent := m.agents[m.selected]
 	if agent.Cwd == "" {
 		return nil
 	}
@@ -846,6 +1200,58 @@ func (m model) loadConversation() tea.Cmd {
 		entries := ReadConversation(projDir, sessionID, 50)
 		return conversationMsg{entries: entries}
 	}
+}
+
+// loadSelectionData loads the right data for the current tree selection.
+func (m model) loadSelectionData() tea.Cmd {
+	if m.selectedSubagent() != nil {
+		return m.loadSubagentActivity()
+	}
+	return tea.Batch(m.captureSelected(), m.loadConversation())
+}
+
+// loadSubagentActivity loads activity log for the selected subagent.
+func (m model) loadSubagentActivity() tea.Cmd {
+	agent := m.selectedAgent()
+	sub := m.selectedSubagent()
+	if agent == nil || sub == nil || agent.Cwd == "" {
+		return nil
+	}
+	slug := ProjectSlug(agent.Cwd)
+	projDir := filepath.Join(ConversationsDir(), slug)
+	sessionID := agent.SessionID
+	cwd := agent.Cwd
+	agentID := sub.AgentID
+
+	return func() tea.Msg {
+		if sessionID == "" {
+			sessionID = FindSessionID(cwd)
+		}
+		if sessionID == "" {
+			return activityMsg{entries: nil}
+		}
+		jsonlPath := SubagentJSONLPath(projDir, sessionID, agentID)
+		entries := ReadActivityLog(jsonlPath, 500)
+		return activityMsg{entries: entries}
+	}
+}
+
+// loadAllSubagents loads subagent info for all agents.
+func (m model) loadAllSubagents() []tea.Cmd {
+	var cmds []tea.Cmd
+	for _, agent := range m.agents {
+		if agent.Cwd == "" || agent.SessionID == "" {
+			continue
+		}
+		a := agent // copy for closure
+		cmds = append(cmds, func() tea.Msg {
+			slug := ProjectSlug(a.Cwd)
+			projDir := filepath.Join(ConversationsDir(), slug)
+			subs := FindSubagents(projDir, a.SessionID)
+			return subagentsMsg{parentTarget: a.Target, agents: subs}
+		})
+	}
+	return cmds
 }
 
 func pruneDead(statePath string) tea.Cmd {
@@ -968,6 +1374,96 @@ func watchStateFile(path string, p *tea.Program) (*fsnotify.Watcher, error) {
 }
 
 // -- Helpers --
+
+// modelShort returns a single-letter model indicator with color.
+func modelShort(model string) string {
+	m := strings.ToLower(model)
+	switch {
+	case strings.Contains(m, "opus"):
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("213")).Render("O")
+	case strings.Contains(m, "sonnet"):
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("117")).Render("S")
+	case strings.Contains(m, "haiku"):
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("114")).Render("H")
+	}
+	return ""
+}
+
+// agentBadges returns a compact metadata string like "S auto [2]".
+func agentBadges(agent Agent) string {
+	var parts []string
+	if ms := modelShort(agent.Model); ms != "" {
+		parts = append(parts, ms)
+	}
+	if agent.PermissionMode != "" && agent.PermissionMode != "default" {
+		parts = append(parts, helpStyle.Render(agent.PermissionMode))
+	}
+	if agent.SubagentCount > 0 {
+		parts = append(parts, lipgloss.NewStyle().Foreground(runningColor).
+			Render(fmt.Sprintf("[%d]", agent.SubagentCount)))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, " ")
+}
+
+// effectiveState returns the display state for an agent, overriding "running"
+// to "input" when there's a pending tool_use and the last hook event is not
+// PreToolUse or PostToolUse (which would indicate actual tool execution).
+func (m model) effectiveState(agent Agent) string {
+	if agent.State == "running" && m.pendingInput[agent.Target] {
+		// If last hook was PreToolUse or PostToolUse, the tool is actively executing
+		if agent.LastHookEvent != "PreToolUse" && agent.LastHookEvent != "PostToolUse" {
+			return "input"
+		}
+	}
+	return agent.State
+}
+
+// checkPendingInput checks if agents have pending tool_use in their JSONL.
+func (m model) checkPendingInput() tea.Cmd {
+	type agentCheck struct {
+		target    string
+		projDir   string
+		sessionID string
+		cwd       string
+	}
+	var checks []agentCheck
+	for _, agent := range m.agents {
+		if agent.State != "running" || agent.Cwd == "" {
+			continue
+		}
+		sid := agent.SessionID
+		if sid == "" {
+			sid = FindSessionID(agent.Cwd)
+		}
+		if sid == "" {
+			continue
+		}
+		slug := ProjectSlug(agent.Cwd)
+		checks = append(checks, agentCheck{
+			target:    agent.Target,
+			projDir:   filepath.Join(ConversationsDir(), slug),
+			sessionID: sid,
+			cwd:       agent.Cwd,
+		})
+	}
+	if len(checks) == 0 {
+		return nil
+	}
+
+	// Return a batch of individual check commands
+	var cmds []tea.Cmd
+	for _, c := range checks {
+		c := c
+		cmds = append(cmds, func() tea.Msg {
+			pending := HasPendingToolUse(c.projDir, c.sessionID)
+			return pendingInputMsg{target: c.target, pending: pending}
+		})
+	}
+	return tea.Batch(cmds...)
+}
 
 func hasContent(lines []string) bool {
 	for _, l := range lines {

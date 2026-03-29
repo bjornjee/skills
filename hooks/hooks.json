@@ -61,6 +61,34 @@
         "description": "Block git commit unless make test passes (set SKIP_TEST_GATE=1 to bypass)"
       }
     ],
+    "SubagentStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-reporter.js\"",
+            "async": true,
+            "timeout": 5
+          }
+        ],
+        "description": "Track subagent spawn in dashboard"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-reporter.js\"",
+            "async": true,
+            "timeout": 5
+          }
+        ],
+        "description": "Track subagent completion in dashboard"
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",
