@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -286,6 +287,113 @@ func jumpToAgent(target string) tea.Cmd {
 func sendReply(target, text string) tea.Cmd {
 	return func() tea.Msg {
 		return sendResultMsg{err: TmuxSendKeys(target, text)}
+	}
+}
+
+// findWindowForRepo finds an existing tmux session:window for a given folder
+// by scanning existing agents' working directories.
+func findWindowForRepo(agents []Agent, folder, selfTarget string) (string, bool) {
+	for _, agent := range agents {
+		if agent.Target == selfTarget {
+			continue
+		}
+		if agent.Cwd == folder {
+			return fmt.Sprintf("%s:%d", agent.Session, agent.Window), true
+		}
+	}
+	return "", false
+}
+
+// expandPath expands ~ and resolves to an absolute path.
+func expandPath(path string) (string, error) {
+	if strings.HasPrefix(path, "~/") || path == "~" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot expand ~: %w", err)
+		}
+		path = filepath.Join(home, path[1:])
+	}
+	return filepath.Abs(path)
+}
+
+const maxPanesPerWindow = 4
+
+// createSession creates a new Claude Code session in a tmux pane.
+func createSession(folder string, agents []Agent, selfTarget string) tea.Cmd {
+	return func() tea.Msg {
+		// Expand and validate path
+		absFolder, err := expandPath(folder)
+		if err != nil {
+			return createSessionMsg{err: fmt.Errorf("invalid path: %w", err)}
+		}
+
+		info, err := os.Stat(absFolder)
+		if err != nil {
+			return createSessionMsg{err: fmt.Errorf("folder not found: %s", absFolder)}
+		}
+		if !info.IsDir() {
+			return createSessionMsg{err: fmt.Errorf("not a directory: %s", absFolder)}
+		}
+
+		session := extractSession(selfTarget)
+		repoName := sanitizeWindowName(repoFromCwd(absFolder))
+		if repoName == "" {
+			repoName = "claude"
+		}
+
+		var newTarget string
+
+		// Check for existing window
+		sw, found := findWindowForRepo(agents, absFolder, selfTarget)
+		if !found {
+			// Fallback: check window names
+			windows, wErr := TmuxListWindows(session)
+			if wErr == nil {
+				for _, w := range windows {
+					if w.Name == repoName {
+						sw = fmt.Sprintf("%s:%d", session, w.Index)
+						found = true
+						break
+					}
+				}
+			}
+		}
+
+		if found {
+			// Check pane limit
+			count, cErr := TmuxCountPanes(sw)
+			if cErr != nil {
+				return createSessionMsg{err: fmt.Errorf("cannot count panes: %w", cErr)}
+			}
+			if count >= maxPanesPerWindow {
+				return createSessionMsg{err: fmt.Errorf("4-pane limit reached for %s", repoName)}
+			}
+			newTarget, err = TmuxSplitWindow(sw, absFolder)
+		} else {
+			newTarget, err = TmuxNewWindow(session, repoName, absFolder)
+		}
+
+		if err != nil {
+			return createSessionMsg{err: err}
+		}
+
+		// Launch Claude in the new pane
+		if sendErr := TmuxSendKeys(newTarget, "claude"); sendErr != nil {
+			return createSessionMsg{err: fmt.Errorf("failed to launch claude: %w", sendErr)}
+		}
+
+		return createSessionMsg{target: newTarget}
+	}
+}
+
+// captureInteractive captures more lines from a pane for interactive mode.
+func captureInteractive(target string, lines int) tea.Cmd {
+	return func() tea.Msg {
+		captured, err := TmuxCapture(target, lines)
+		if err != nil {
+			return captureResultMsg{lines: nil}
+		}
+		return captureResultMsg{lines: captured}
 	}
 }
 

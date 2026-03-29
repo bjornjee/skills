@@ -141,6 +141,33 @@ func TestPermissionModeColor(t *testing.T) {
 	}
 }
 
+func TestSanitizeWindowName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"safe name", "skills", "skills"},
+		{"with dash", "my-repo", "my-repo"},
+		{"with dot", "my.repo", "my.repo"},
+		{"with colon", "foo:bar", "foo_bar"},
+		{"with spaces", "foo bar", "foo_bar"},
+		{"with shell chars", "$(evil)", "__evil_"},
+		{"with semicolon", "foo;bar", "foo_bar"},
+		{"empty", "", "claude"},
+		{"all unsafe", ":::", "___"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeWindowName(tt.input)
+			if got != tt.want {
+				t.Errorf("sanitizeWindowName(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPermissionModeStyle(t *testing.T) {
 	// permissionModeStyle should preserve the original mode text in its output
 	modes := []string{"plan", "auto-edit", "full-auto", "custom"}

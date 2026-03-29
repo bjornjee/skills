@@ -3,11 +3,25 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// safeWindowNameRe matches characters safe for tmux window names.
+var safeWindowNameRe = regexp.MustCompile(`[^a-zA-Z0-9_.\-]`)
+
+// sanitizeWindowName strips unsafe characters from a tmux window name.
+// Characters like : would break target parsing (session:window.pane).
+func sanitizeWindowName(name string) string {
+	safe := safeWindowNameRe.ReplaceAllString(name, "_")
+	if safe == "" {
+		return "claude"
+	}
+	return safe
+}
 
 // repoFromCwd extracts the repo name from a working directory path.
 // For worktree paths like /foo/worktrees/skills/branch-name, returns "skills".

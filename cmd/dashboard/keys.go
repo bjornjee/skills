@@ -37,6 +37,58 @@ func (m model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
+	// Create folder mode
+	if m.mode == modeCreateFolder {
+		switch key {
+		case "enter":
+			folder := m.textInput.Value()
+			m.mode = modeNormal
+			m.textInput.Reset()
+			m.textInput.Placeholder = "Type reply..."
+			if folder != "" {
+				return m, createSession(folder, m.agents, m.selfTarget)
+			}
+			return m, nil
+		case "esc":
+			m.mode = modeNormal
+			m.textInput.Reset()
+			m.textInput.Placeholder = "Type reply..."
+			m.updateRightContent()
+			return m, nil
+		default:
+			var cmd tea.Cmd
+			m.textInput, cmd = m.textInput.Update(msg)
+			m.updateRightContent()
+			return m, cmd
+		}
+	}
+
+	// Interactive mode
+	if m.mode == modeInteractive {
+		switch key {
+		case "enter":
+			text := m.textInput.Value()
+			m.textInput.Reset()
+			m.updateRightContent()
+			if text != "" && m.interactTarget != "" {
+				return m, sendReply(m.interactTarget, text)
+			}
+			return m, nil
+		case "esc":
+			m.mode = modeNormal
+			m.interactTarget = ""
+			m.textInput.Reset()
+			m.textInput.Placeholder = "Type reply..."
+			m.updateRightContent()
+			return m, nil
+		default:
+			var cmd tea.Cmd
+			m.textInput, cmd = m.textInput.Update(msg)
+			m.updateRightContent()
+			return m, cmd
+		}
+	}
+
 	// Reply mode
 	if m.mode == modeReply {
 		switch key {
@@ -204,6 +256,34 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeUsage
 			m.updateRightContent()
 		}
+		return m, nil
+	case "a":
+		if !m.tmuxAvailable {
+			m.statusMsg = "Cannot create session: tmux not detected"
+			m.statusMsgTick = m.tickCount
+			return m, nil
+		}
+		m.mode = modeCreateFolder
+		m.textInput.Placeholder = "Git folder path (e.g. ~/code/myrepo)..."
+		m.textInput.Focus()
+		m.updateRightContent()
+		return m, textinput.Blink
+	case "i":
+		if !m.tmuxAvailable {
+			m.statusMsg = "Cannot interact: tmux not detected"
+			m.statusMsgTick = m.tickCount
+			return m, nil
+		}
+		if agent := m.selectedAgent(); agent != nil && m.selectedSubagent() == nil {
+			m.mode = modeInteractive
+			m.interactTarget = agent.Target
+			m.textInput.Placeholder = "Type message..."
+			m.textInput.Focus()
+			m.updateRightContent()
+			return m, tea.Batch(textinput.Blink, captureInteractive(agent.Target, 40))
+		}
+		m.statusMsg = "Select an agent to interact"
+		m.statusMsgTick = m.tickCount
 		return m, nil
 	case "y", "n":
 		if agent := m.selectedAgent(); m.tmuxAvailable && agent != nil && m.selectedSubagent() == nil {

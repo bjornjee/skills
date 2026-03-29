@@ -16,6 +16,42 @@ func (m *model) updateLeftContent() {
 }
 
 func (m *model) updateRightContent() {
+	// Create folder mode overrides right panel (works even with no agents)
+	if m.mode == modeCreateFolder {
+		var lines []string
+		lines = append(lines, "")
+		lines = append(lines, "  "+titleStyle.Render(" CREATE NEW SESSION "))
+		lines = append(lines, "")
+		lines = append(lines, "  "+boldStyle.Render("Git folder path:"))
+		lines = append(lines, "  "+m.textInput.View())
+		lines = append(lines, "")
+		lines = append(lines, "  "+helpStyle.Render("Enter to create │ Esc to cancel"))
+		m.filesVP.SetContent("")
+		m.historyVP.SetContent("")
+		m.messageVP.SetContent(strings.Join(lines, "\n"))
+		return
+	}
+
+	// Interactive mode overrides right panel
+	if m.mode == modeInteractive {
+		var lines []string
+		if hasContent(m.capturedLines) {
+			for _, l := range m.capturedLines {
+				lines = append(lines, " "+l)
+			}
+		} else {
+			lines = append(lines, "")
+			lines = append(lines, helpStyle.Render("  Waiting for pane output..."))
+		}
+		lines = append(lines, "")
+		lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
+			Render("Reply: ")+m.textInput.View())
+		m.filesVP.SetContent("")
+		m.historyVP.SetContent("")
+		m.messageVP.SetContent(strings.Join(lines, "\n"))
+		return
+	}
+
 	agent := m.selectedAgent()
 	if agent == nil {
 		m.filesVP.SetContent("")
@@ -487,6 +523,24 @@ func (m model) renderLeftPanel() string {
 func (m model) renderRightPanel() string {
 	panelHeight := m.height - 5
 
+	// Create folder mode: simple form
+	if m.mode == modeCreateFolder {
+		return borderStyle.
+			Width(m.rightWidth).
+			Height(panelHeight).
+			Render(m.messageVP.View())
+	}
+
+	// Interactive mode: full panel pane mirror
+	if m.mode == modeInteractive {
+		header := " " + titleStyle.Render(fmt.Sprintf(" INTERACTIVE: %s ", m.interactTarget))
+		content := header + "\n\n" + m.messageVP.View()
+		return borderStyle.
+			Width(m.rightWidth).
+			Height(panelHeight).
+			Render(content)
+	}
+
 	agent := m.selectedAgent()
 	if agent == nil {
 		return borderStyle.
@@ -688,6 +742,18 @@ func (m model) renderHelpBar() string {
 
 	parts = append(parts, boldStyle.Render("↑/↓")+" navigate")
 
+	if m.mode == modeCreateFolder {
+		parts = append(parts, boldStyle.Render("enter")+" create")
+		parts = append(parts, boldStyle.Render("esc")+" cancel")
+		return helpStyle.Render("  " + strings.Join(parts, "  "))
+	}
+
+	if m.mode == modeInteractive {
+		parts = append(parts, boldStyle.Render("enter")+" send")
+		parts = append(parts, boldStyle.Render("esc")+" exit")
+		return helpStyle.Render("  " + strings.Join(parts, "  "))
+	}
+
 	if m.mode == modeReply {
 		parts = append(parts, boldStyle.Render("enter")+" send")
 		parts = append(parts, boldStyle.Render("esc")+" cancel")
@@ -707,6 +773,8 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("enter")+" "+helpStyle.Render("jump"))
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
+	parts = append(parts, boldStyle.Render("a")+" new")
+	parts = append(parts, boldStyle.Render("i")+" interact")
 	parts = append(parts, boldStyle.Render("u")+" usage")
 	parts = append(parts, boldStyle.Render("c")+" collapse")
 	parts = append(parts, boldStyle.Render("x")+" close/dismiss")
