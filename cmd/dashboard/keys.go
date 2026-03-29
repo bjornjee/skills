@@ -44,6 +44,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			text := m.textInput.Value()
 			m.mode = modeNormal
 			m.textInput.Reset()
+			m.updateRightContent()
 			if text != "" {
 				if agent := m.selectedAgent(); agent != nil {
 					return m, sendReply(agent.Target, text)
@@ -53,10 +54,12 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.mode = modeNormal
 			m.textInput.Reset()
+			m.updateRightContent()
 			return m, nil
 		default:
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
+			m.updateRightContent()
 			return m, cmd
 		}
 	}
@@ -190,6 +193,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selectedAgent() != nil && m.selectedSubagent() == nil {
 			m.mode = modeReply
 			m.textInput.Focus()
+			m.updateRightContent()
 			return m, textinput.Blink
 		}
 	case "u":

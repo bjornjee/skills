@@ -267,7 +267,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Pane closed"
 		}
 		m.statusMsgTick = m.tickCount
-		return m, loadState(m.statePath)
+		return m, tea.Batch(loadState(m.statePath), pruneDead(m.statePath))
 
 	case pruneDeadMsg:
 		if msg.removed > 0 {
