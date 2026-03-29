@@ -35,19 +35,27 @@ function hasMakefile(cwd) {
   return existsSync(path.join(cwd, 'Makefile'));
 }
 
-function hasMakeTestTarget(cwd) {
-  if (!hasMakefile(cwd)) return false;
-  try {
-    execSync('make -n test 2>/dev/null', { stdio: 'pipe', cwd });
-    return true;
-  } catch {
-    return false;
+/**
+ * Find the best test target: prefer test-fast, fall back to test, null if neither.
+ * @param {string} cwd
+ * @returns {string|null}
+ */
+function getTestTarget(cwd) {
+  if (!hasMakefile(cwd)) return null;
+  for (const target of ['test-fast', 'test']) {
+    try {
+      execSync(`make -n ${target} 2>/dev/null`, { stdio: 'pipe', cwd });
+      return target;
+    } catch { /* target doesn't exist, try next */ }
   }
+  return null;
 }
 
 function runMakeTest(cwd) {
+  const target = getTestTarget(cwd);
+  if (!target) return { passed: true };
   try {
-    execSync('make test', { stdio: 'pipe', timeout: 300000, cwd });
+    execSync(`make ${target}`, { stdio: 'pipe', timeout: 60000, cwd });
     return { passed: true };
   } catch (err) {
     const stdout = (err.stdout || '').toString();
@@ -58,10 +66,10 @@ function runMakeTest(cwd) {
 }
 
 // Export for testing
-module.exports = { isGitCommit, shouldSkip, getRepoRoot, hasMakefile, hasMakeTestTarget, runMakeTest };
+module.exports = { isGitCommit, shouldSkip, getRepoRoot, hasMakefile, getTestTarget, runMakeTest };
 
-// Only run as hook when executed directly (stdin is piped)
-if (!process.stdin.isTTY) {
+// Only run as hook when executed directly (not imported by test runner)
+if (require.main === module && !process.stdin.isTTY) {
   let data = '';
 
   process.stdin.setEncoding('utf8');
@@ -82,22 +90,12 @@ if (!process.stdin.isTTY) {
       }
 
       const repoRoot = getRepoRoot();
+      const testTarget = getTestTarget(repoRoot);
 
-      if (!hasMakefile(repoRoot)) {
+      if (!testTarget) {
         process.stderr.write(
-          `Warning: No Makefile found at project root. ` +
-          `Add a Makefile with a "test" target (and "fmt" for formatting) ` +
-          `to enable pre-commit test gating.\n`
-        );
-        process.stdout.write(data);
-        return;
-      }
-
-      if (!hasMakeTestTarget(repoRoot)) {
-        process.stderr.write(
-          `Warning: Makefile exists but has no "test" target. ` +
-          `Add a "test" target to enable pre-commit test gating. ` +
-          `Consider also adding a "fmt" target for formatting.\n`
+          `Warning: No Makefile with a "test" or "test-fast" target found. ` +
+          `Add one to enable pre-commit test gating.\n`
         );
         process.stdout.write(data);
         return;

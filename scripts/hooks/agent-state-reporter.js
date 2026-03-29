@@ -2,8 +2,8 @@
 /**
  * Agent state reporter hook.
  *
- * Writes agent state to ~/.claude/agent-dashboard/state.json on every
- * Stop, PreToolUse, and PostToolUse event. Uses packages/agent-state,
+ * Writes agent state to ~/.claude/agent-dashboard/state.json on lifecycle
+ * events (SessionStart, SubagentStart/Stop, Stop). Uses packages/agent-state,
  * packages/tmux, and packages/git-status for core logic.
  *
  * Stdin: JSON from Claude Code hook system
@@ -111,7 +111,7 @@ function report(input) {
     subagentCount = Math.max(0, subagentCount - 1);
   }
 
-  writeState(target, {
+  const entry = {
     target,
     session,
     window,
@@ -127,5 +127,17 @@ function report(input) {
     permission_mode: permissionMode,
     subagent_count: subagentCount,
     last_hook_event: hookEvent || '',
-  });
+  };
+
+  // Debounce: skip write if nothing meaningful changed
+  const changed = existing.state !== state
+    || existing.branch !== branch
+    || existing.subagent_count !== subagentCount
+    || existing.last_message_preview !== preview
+    || existing.permission_mode !== permissionMode
+    || (existing.files_changed || []).join() !== filesChanged.join();
+
+  if (changed || !existing.state) {
+    writeState(target, entry);
+  }
 }

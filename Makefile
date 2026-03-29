@@ -7,6 +7,9 @@ test: ## Run all tests
 	node --test packages/*/test.js scripts/hooks/*.test.js
 	go test ./cmd/dashboard/...
 
+test-fast: ## Run fast tests only (Node unit tests, no Go build)
+	node --test packages/*/test.js scripts/hooks/*.test.js
+
 build-dashboard: ## Build the Go dashboard binary
 	go build -o bin/agent-dashboard ./cmd/dashboard/
 

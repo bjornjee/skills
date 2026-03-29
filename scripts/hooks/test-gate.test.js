@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { mkdtempSync, writeFileSync, rmSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { isGitCommit, shouldSkip, hasMakefile, hasMakeTestTarget, runMakeTest } = require('./test-gate');
+const { isGitCommit, shouldSkip, hasMakefile, getTestTarget, runMakeTest } = require('./test-gate');
 
 describe('isGitCommit', () => {
   it('matches simple git commit', () => {
@@ -78,24 +78,38 @@ describe('hasMakefile', () => {
   });
 });
 
-describe('hasMakeTestTarget', () => {
-  it('returns false when no Makefile exists', () => {
+describe('getTestTarget', () => {
+  it('returns null when no Makefile exists', () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'test-gate-'));
-    assert.equal(hasMakeTestTarget(tmp), false);
+    assert.equal(getTestTarget(tmp), null);
     rmSync(tmp, { recursive: true });
   });
 
-  it('returns false when Makefile has no test target', () => {
+  it('returns null when Makefile has no test target', () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'test-gate-'));
     writeFileSync(path.join(tmp, 'Makefile'), 'build:\n\techo build\n');
-    assert.equal(hasMakeTestTarget(tmp), false);
+    assert.equal(getTestTarget(tmp), null);
     rmSync(tmp, { recursive: true });
   });
 
-  it('returns true when Makefile has a test target', () => {
+  it('returns test-fast when both targets exist', () => {
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'test-gate-'));
-    writeFileSync(path.join(tmp, 'Makefile'), 'test:\n\techo ok\n');
-    assert.equal(hasMakeTestTarget(tmp), true);
+    writeFileSync(path.join(tmp, 'Makefile'), 'test-fast:\n\t@echo ok\ntest:\n\t@echo ok\n');
+    assert.equal(getTestTarget(tmp), 'test-fast');
+    rmSync(tmp, { recursive: true });
+  });
+
+  it('falls back to test when test-fast missing', () => {
+    const tmp = mkdtempSync(path.join(os.tmpdir(), 'test-gate-'));
+    writeFileSync(path.join(tmp, 'Makefile'), 'test:\n\t@echo ok\n');
+    assert.equal(getTestTarget(tmp), 'test');
+    rmSync(tmp, { recursive: true });
+  });
+
+  it('returns test-fast when only test-fast exists', () => {
+    const tmp = mkdtempSync(path.join(os.tmpdir(), 'test-gate-'));
+    writeFileSync(path.join(tmp, 'Makefile'), 'test-fast:\n\techo ok\n');
+    assert.equal(getTestTarget(tmp), 'test-fast');
     rmSync(tmp, { recursive: true });
   });
 });
