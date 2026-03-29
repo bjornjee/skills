@@ -149,6 +149,17 @@ func PruneDead(path string, livePanes map[string]bool) int {
 	return removed
 }
 
+// RemoveAgent removes an agent from the state file by target.
+func RemoveAgent(path, target string) error {
+	sf := ReadState(path)
+	delete(sf.Agents, target)
+	data, err := json.Marshal(sf)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
 // FormatDuration returns a human-readable duration since the given ISO8601 timestamp.
 func FormatDuration(iso string) string {
 	if iso == "" {

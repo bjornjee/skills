@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -59,6 +61,23 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Confirm close mode
+	if m.mode == modeConfirmClose {
+		switch key {
+		case "y":
+			target := m.confirmTarget
+			m.confirmTarget = ""
+			m.mode = modeNormal
+			return m, closePane(target, m.statePath)
+		case "n", "esc":
+			m.confirmTarget = ""
+			m.mode = modeNormal
+			m.statusMsg = ""
+			return m, nil
+		}
+		return m, nil
+	}
+
 	// Normal mode
 	switch key {
 	case "q", "ctrl+c":
@@ -97,8 +116,8 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	case "x":
-		// Dismiss selected subagent from tree
 		if sub := m.selectedSubagent(); sub != nil {
+			// Dismiss selected subagent from tree
 			agent := m.selectedAgent()
 			if agent != nil {
 				dismissKey := agent.Target + ":" + sub.AgentID
@@ -111,6 +130,13 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.updateRightContent()
 				return m, m.loadSelectionData()
 			}
+		} else if agent := m.selectedAgent(); agent != nil && m.tmuxAvailable {
+			// Parent agent: confirm close
+			m.mode = modeConfirmClose
+			m.confirmTarget = agent.Target
+			m.statusMsg = fmt.Sprintf("Close pane %s? (y/n)", agent.Target)
+			m.statusMsgTick = -1 // pinned: don't auto-clear
+			return m, nil
 		}
 	case "ctrl+down":
 		// Jump to next parent agent (skip subagents)
