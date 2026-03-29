@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -189,6 +190,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				delete(m.prevEffState, target)
 			}
 		}
+		for target := range m.agentSubagents {
+			if !live[target] {
+				delete(m.agentSubagents, target)
+			}
+		}
+		for target := range m.collapsed {
+			if !live[target] {
+				delete(m.collapsed, target)
+			}
+		}
+		for key := range m.dismissed {
+			// dismissed keys are "session:window.pane:agentID" (constructed in keys.go).
+			// parentTarget is "session:window.pane" — extract by finding the last colon,
+			// which is safe as long as agentID contains no colons (UUIDs don't).
+			parentTarget := key
+			if idx := strings.LastIndex(key, ":"); idx > 0 {
+				parentTarget = key[:idx]
+			}
+			if !live[parentTarget] {
+				delete(m.dismissed, key)
+			}
+		}
 		// Exit interactive mode if the mirrored pane died
 		if m.mode == modeInteractive && m.interactTarget != "" && !live[m.interactTarget] {
 			m.mode = modeNormal
@@ -324,6 +347,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Pane closed"
 		}
 		m.statusMsgTick = m.tickCount
+		// Renames already applied to state file inside closePane; pruneDead
+		// only needs to catch agents that were already dead before this kill.
 		return m, tea.Batch(loadState(m.statePath), pruneDead(m.statePath))
 
 	case pruneDeadMsg:

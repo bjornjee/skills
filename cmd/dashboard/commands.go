@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -115,12 +116,16 @@ func (m model) loadAllSubagents() []tea.Cmd {
 }
 
 func pruneDead(statePath string) tea.Cmd {
+	return pruneDeadWithRenames(statePath, nil)
+}
+
+func pruneDeadWithRenames(statePath string, renames map[string]string) tea.Cmd {
 	return func() tea.Msg {
 		livePanes := TmuxListPanes()
 		if livePanes == nil {
 			return pruneDeadMsg{removed: 0}
 		}
-		removed := PruneDead(statePath, livePanes)
+		removed := PruneDead(statePath, livePanes, renames)
 		return pruneDeadMsg{removed: removed}
 	}
 }
@@ -194,14 +199,35 @@ func loadDBCost(db *DB) tea.Cmd {
 
 func closePane(target, statePath string) tea.Cmd {
 	return func() tea.Msg {
+		// Snapshot pane IDs before kill to detect window renumbering
+		beforePanes := TmuxListPanesWithID()
+
 		err := TmuxKillPane(target)
 		if err != nil {
 			return closeResultMsg{err: err}
 		}
-		// Best-effort: pane is already killed; ignore state file errors.
-		// PruneDead will clean it up on the next cycle if this fails.
-		_ = RemoveAgent(statePath, target)
-		return closeResultMsg{err: nil}
+
+		// Snapshot after kill to detect renumbered targets
+		afterPanes := TmuxListPanesWithID()
+		// If beforePanes is nil (tmux timeout), no renames will be detected.
+		// PruneDead will clean up stale targets on the next tick.
+		renames := BuildTargetRenames(beforePanes, afterPanes, target)
+
+		// Remove killed agent and apply renames for surviving agents.
+		// Best-effort: if the write fails, PruneDead on the next tick will clean up.
+		sf := ReadState(statePath)
+		delete(sf.Agents, target)
+		for oldTarget, newTarget := range renames {
+			if agent, ok := sf.Agents[oldTarget]; ok {
+				delete(sf.Agents, oldTarget)
+				agent.Target = newTarget
+				sf.Agents[newTarget] = agent
+			}
+		}
+		data, _ := json.Marshal(sf)
+		_ = os.WriteFile(statePath, data, 0644)
+
+		return closeResultMsg{err: nil, renames: renames}
 	}
 }
 

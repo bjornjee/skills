@@ -130,11 +130,28 @@ func CleanStale(path string, maxAgeSecs int) {
 }
 
 // PruneDead removes agents whose tmux panes no longer exist.
+// renames maps oldTarget → newTarget for panes that were renumbered
+// (e.g., due to tmux renumber-windows). Renamed agents are updated
+// in-place rather than deleted. Pass nil if no renames are known.
 // Returns the number of agents removed.
-func PruneDead(path string, livePanes map[string]bool) int {
+func PruneDead(path string, livePanes map[string]bool, renames map[string]string) int {
 	sf := ReadState(path)
+	changed := false
 	removed := 0
 
+	// First pass: apply renames for agents whose targets changed
+	for oldTarget, newTarget := range renames {
+		agent, exists := sf.Agents[oldTarget]
+		if !exists {
+			continue
+		}
+		delete(sf.Agents, oldTarget)
+		agent.Target = newTarget
+		sf.Agents[newTarget] = agent
+		changed = true
+	}
+
+	// Second pass: remove truly dead agents
 	for id := range sf.Agents {
 		if !livePanes[id] {
 			delete(sf.Agents, id)
@@ -142,7 +159,7 @@ func PruneDead(path string, livePanes map[string]bool) int {
 		}
 	}
 
-	if removed > 0 {
+	if removed > 0 || changed {
 		data, _ := json.Marshal(sf)
 		_ = os.WriteFile(path, data, 0644)
 	}
