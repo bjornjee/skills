@@ -18,7 +18,7 @@ func (m model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 	// Route to inner right viewport based on Y position
 	// Header takes ~headerLines rows + 1 border
-	rightStart := 1 // top border
+	rightStart := 1 + bannerHeight // top border + banner
 	filesStart := rightStart + headerLines
 	historyStart := filesStart + filesVPHeight + 2     // +1 label +1 buffer
 	messageStart := historyStart + historyVPHeight + 2 // +1 label +1 buffer

@@ -18,7 +18,7 @@ func (m *model) updateLeftContent() {
 func (m *model) updateRightContent() {
 	// Override modes use the full panel height since they replace all three viewports.
 	// Normal mode restores the standard message viewport height.
-	panelHeight := m.height - 5 // matches resizeViewports
+	panelHeight := m.height - 5 - bannerHeight // matches resizeViewports
 	if m.mode == modeCreateFolder {
 		fullHeight := panelHeight - 2 // minus panel border
 		if fullHeight < 3 {
@@ -508,17 +508,18 @@ func (m model) View() string {
 		return "Loading..."
 	}
 
+	banner := m.renderBanner()
 	left := m.renderLeftPanel()
 	right := m.renderRightPanel()
 	main := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	help := m.renderHelpBar()
 
-	return lipgloss.JoinVertical(lipgloss.Left, main, help)
+	return lipgloss.JoinVertical(lipgloss.Left, banner, main, help)
 }
 
 func (m model) renderLeftPanel() string {
-	panelHeight := m.height - 5
+	panelHeight := m.height - 5 - bannerHeight
 	style := borderStyle
 	if m.focusedVP == focusAgentList {
 		style = style.BorderForeground(lipgloss.Color("86"))
@@ -530,7 +531,7 @@ func (m model) renderLeftPanel() string {
 }
 
 func (m model) renderRightPanel() string {
-	panelHeight := m.height - 5
+	panelHeight := m.height - 5 - bannerHeight
 
 	// Create folder mode: simple form
 	if m.mode == modeCreateFolder {
