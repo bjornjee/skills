@@ -58,6 +58,14 @@ type tickMsg time.Time
 type jumpResultMsg struct{ err error }
 type sendResultMsg struct{ err error }
 type captureResultMsg struct{ lines []string }
+type conversationMsg struct{ entries []ConversationEntry }
+type pruneDeadMsg struct{ removed int }
+type usageMsg struct {
+	perAgent map[string]Usage
+	total    Usage
+}
+type persistResultMsg struct{ err error }
+type dbCostMsg struct{ total float64 }
 
 // -- Modes --
 
@@ -76,11 +84,19 @@ type model struct {
 	textInput     textinput.Model
 	tmuxAvailable bool
 	statePath     string
+	selfTarget    string // dashboard's own pane — excluded from list
 	statusMsg     string
 	capturedLines []string
+	conversation  []ConversationEntry
+	convOffset    int // scroll offset for conversation
+	tickCount     int // counts 1s ticks for less frequent tasks
+	agentUsage    map[string]Usage
+	totalUsage    Usage
+	db            *DB
+	dbTotalCost   float64 // all-time cost from DB
 }
 
-func newModel(statePath string) model {
+func newModel(statePath, selfTarget string, db *DB) model {
 	ti := textinput.New()
 	ti.Placeholder = "Type reply..."
 	ti.CharLimit = 4096
@@ -88,18 +104,25 @@ func newModel(statePath string) model {
 	return model{
 		agents:        nil,
 		statePath:     statePath,
+		selfTarget:    selfTarget,
 		tmuxAvailable: TmuxIsAvailable(),
 		textInput:     ti,
 		mode:          modeNormal,
+		db:            db,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		loadState(m.statePath),
 		tickEvery(),
 		m.captureSelected(),
-	)
+		loadUsage(m.agents),
+	}
+	if m.db != nil {
+		cmds = append(cmds, loadDBCost(m.db))
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -111,14 +134,62 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stateUpdatedMsg:
-		m.agents = SortedAgents(msg.state)
+		m.agents = SortedAgents(msg.state, m.selfTarget)
 		if m.selected >= len(m.agents) {
 			m.selected = max(0, len(m.agents)-1)
 		}
-		return m, m.captureSelected()
+		return m, tea.Batch(m.captureSelected(), m.loadConversation(), loadUsage(m.agents))
+
+	case conversationMsg:
+		prevLen := len(m.conversation)
+		m.conversation = msg.entries
+		// On first load, jump to the end
+		if prevLen == 0 {
+			if len(m.conversation) > 10 {
+				m.convOffset = len(m.conversation) - 10
+			}
+		}
+		// Clamp if conversation shrunk
+		maxOffset := max(0, len(m.conversation)-10)
+		if m.convOffset > maxOffset {
+			m.convOffset = maxOffset
+		}
+		return m, nil
 
 	case tickMsg:
-		return m, tea.Batch(tickEvery(), m.captureSelected())
+		m.tickCount++
+		cmds := []tea.Cmd{tickEvery(), m.captureSelected(), m.loadConversation()}
+		if m.tickCount%10 == 0 {
+			cmds = append(cmds, pruneDead(m.statePath), loadUsage(m.agents))
+		}
+		return m, tea.Batch(cmds...)
+
+	case usageMsg:
+		m.agentUsage = msg.perAgent
+		m.totalUsage = msg.total
+		var cmds []tea.Cmd
+		if m.db != nil {
+			cmds = append(cmds, persistUsage(m.db, m.agents, msg.perAgent))
+			cmds = append(cmds, loadDBCost(m.db))
+		}
+		if len(cmds) > 0 {
+			return m, tea.Batch(cmds...)
+		}
+		return m, nil
+
+	case persistResultMsg:
+		return m, nil
+
+	case dbCostMsg:
+		m.dbTotalCost = msg.total
+		return m, nil
+
+	case pruneDeadMsg:
+		if msg.removed > 0 {
+			// Reload state to reflect removals
+			return m, loadState(m.statePath)
+		}
+		return m, nil
 
 	case captureResultMsg:
 		m.capturedLines = msg.lines
@@ -127,9 +198,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case jumpResultMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Jump failed: %v", msg.err)
-			return m, nil
+		} else {
+			m.statusMsg = "Jumped — switch back to this window for dashboard"
 		}
-		return m, tea.Quit
+		return m, nil
 
 	case sendResultMsg:
 		if msg.err != nil {
@@ -186,14 +258,35 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selected > 0 {
 			m.selected--
 			m.statusMsg = ""
-			return m, m.captureSelected()
+			m.conversation = nil // trigger jump-to-end on next load
+			m.convOffset = 0
+			return m, tea.Batch(m.captureSelected(), m.loadConversation())
 		}
 	case "down", "j":
 		if m.selected < len(m.agents)-1 {
 			m.selected++
 			m.statusMsg = ""
-			return m, m.captureSelected()
+			m.conversation = nil // trigger jump-to-end on next load
+			m.convOffset = 0
+			return m, tea.Batch(m.captureSelected(), m.loadConversation())
 		}
+	case "ctrl+u":
+		if m.convOffset > 0 {
+			m.convOffset -= 5
+			if m.convOffset < 0 {
+				m.convOffset = 0
+			}
+		}
+		return m, nil
+	case "ctrl+d":
+		maxOffset := max(0, len(m.conversation)-10)
+		if m.convOffset < maxOffset {
+			m.convOffset += 5
+			if m.convOffset > maxOffset {
+				m.convOffset = maxOffset
+			}
+		}
+		return m, nil
 	case "enter":
 		if !m.tmuxAvailable {
 			m.statusMsg = "Cannot jump: tmux not detected"
@@ -213,6 +306,22 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.textInput.Focus()
 			return m, textinput.Blink
 		}
+	case "y", "n":
+		// Quick yes/no for needs-attention agents
+		if m.tmuxAvailable && m.selected < len(m.agents) {
+			agent := m.agents[m.selected]
+			if agent.State == "input" || agent.State == "error" {
+				return m, sendRawKey(agent.Target, key)
+			}
+		}
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		// Quick number selection for needs-attention agents
+		if m.tmuxAvailable && m.selected < len(m.agents) {
+			agent := m.agents[m.selected]
+			if agent.State == "input" || agent.State == "error" {
+				return m, sendRawKey(agent.Target, key)
+			}
+		}
 	}
 
 	return m, nil
@@ -223,17 +332,32 @@ func (m model) View() string {
 		return "Loading..."
 	}
 
-	leftWidth := m.width * 30 / 100
-	rightWidth := m.width - leftWidth - 2 // account for borders
-	contentHeight := m.height - 3          // help bar
+	// Width/Height set content area; borders add +2 each dimension
+	leftWidth := m.width*30/100 - 2       // content width (total = leftWidth+2)
+	rightWidth := m.width - leftWidth - 4 // remaining content width (total = rightWidth+2)
+	panelHeight := m.height - 5           // content height (total = panelHeight+2, +1 help bar, +2 bottom buffer)
 
-	left := m.renderAgentList(leftWidth, contentHeight)
-	right := m.renderPeekPanel(rightWidth, contentHeight)
+	left := m.renderAgentList(leftWidth, panelHeight)
+	right := m.renderPeekPanel(rightWidth, panelHeight)
 	main := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	help := m.renderHelpBar()
 
 	return lipgloss.JoinVertical(lipgloss.Left, main, help)
+}
+
+// stateGroup returns the priority group for a state.
+func stateGroup(state string) int {
+	return statePriority[state]
+}
+
+var groupHeaders = map[int]struct {
+	label string
+	color lipgloss.Color
+}{
+	1: {"NEEDS ATTENTION", inputColor},
+	2: {"RUNNING", runningColor},
+	3: {"COMPLETED", doneColor},
 }
 
 func (m model) renderAgentList(width, height int) string {
@@ -242,50 +366,72 @@ func (m model) renderAgentList(width, height int) string {
 	if len(m.agents) == 0 {
 		lines = append(lines, "  No agents found")
 	} else {
+		lastGroup := -1
 		for i, agent := range m.agents {
+			group := stateGroup(agent.State)
+			if group == 0 {
+				group = 3
+			}
+
+			// Insert group header when group changes
+			if group != lastGroup {
+				if lastGroup != -1 {
+					lines = append(lines, "") // spacer between groups
+				}
+				hdr := groupHeaders[group]
+				lines = append(lines, " "+lipgloss.NewStyle().
+					Foreground(hdr.color).Bold(true).Render(hdr.label))
+				lastGroup = group
+			}
+
 			si := stateIcons[agent.State]
 			if si.icon == "" {
 				si = stateIcons["idle"]
 			}
 
-			name := agent.Session
-			if name == "" {
-				name = agent.Target
-			}
-			branch := ""
+			paneID := fmt.Sprintf("%d.%d", agent.Window, agent.Pane)
+
+			label := ""
 			if agent.Branch != "" {
 				b := agent.Branch
 				b = strings.TrimPrefix(b, "feat/")
-				branch = ":" + b
+				b = strings.TrimPrefix(b, "fix/")
+				label = b
 			}
-			duration := FormatDuration(agent.UpdatedAt)
+			if label == "" && agent.Cwd != "" {
+				label = filepath.Base(agent.Cwd)
+			}
+			if label == "" {
+				label = agent.Session
+			}
+			duration := ""
+			if agent.State == "running" {
+				duration = FormatDuration(agent.UpdatedAt)
+			}
+
+			overhead := 5 + len(paneID) + 2 + len(duration) // indent+icon+spaces+paneID+gap+duration
+			maxLabel := width - overhead
+			if maxLabel > 0 && len(label) > maxLabel {
+				label = label[:maxLabel-1] + "…"
+			}
 
 			icon := lipgloss.NewStyle().Foreground(si.color).Render(si.icon)
-			label := fmt.Sprintf("%s%s", name, branch)
-			line := fmt.Sprintf(" %s %s  %s", icon, label, duration)
+			line := fmt.Sprintf("   %s %s %s  %s", icon, paneID, label, duration)
 
 			if i == m.selected {
-				line = selectedStyle.Render(fmt.Sprintf(">%s %s  %s", si.icon, label, duration))
+				line = selectedStyle.Render(fmt.Sprintf("  %s %s %s  %s", si.icon, paneID, label, duration))
 			}
 
 			lines = append(lines, line)
 		}
 	}
 
-	content := strings.Join(lines, "\n")
-
-	innerHeight := height - 2 // border
-	// Pad to fill height
-	lineCount := len(lines)
-	for lineCount < innerHeight {
-		content += "\n"
-		lineCount++
-	}
+	agentContent := fitContent(lines, width, height)
 
 	return borderStyle.
 		Width(width).
-		Height(height - 2).
-		Render(titleStyle.Render(" AGENTS ") + "\n" + content)
+		Height(height).
+		Render(agentContent)
 }
 
 func (m model) renderPeekPanel(width, height int) string {
@@ -331,6 +477,16 @@ func (m model) renderPeekPanel(width, height int) string {
 		}
 		lines = append(lines, "")
 
+		// Usage / cost
+		if u, ok := m.agentUsage[agent.Target]; ok && u.OutputTokens > 0 {
+			lines = append(lines, fmt.Sprintf(" Cost: %s  (in: %s  out: %s  cache: %s)",
+				boldStyle.Render(FormatCost(u.CostUSD)),
+				FormatTokens(u.InputTokens),
+				FormatTokens(u.OutputTokens),
+				FormatTokens(u.CacheReadTokens+u.CacheWriteTokens)))
+			lines = append(lines, "")
+		}
+
 		// Files changed
 		if len(agent.FilesChanged) > 0 {
 			lines = append(lines, " "+boldStyle.Render("Files:"))
@@ -349,17 +505,127 @@ func (m model) renderPeekPanel(width, height int) string {
 			lines = append(lines, "")
 		}
 
-		// Conversation (cached tmux capture) or last message
-		if m.tmuxAvailable && hasContent(m.capturedLines) {
-			lines = append(lines, " "+boldStyle.Render("── Conversation ──────────────"))
+		needsAttention := agent.State == "input" || agent.State == "error"
+
+		if needsAttention && len(m.conversation) > 0 {
+			// Show the last assistant message in full so user can read and reply
+			lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
+				Render("── Agent is waiting ──────────"))
+
+			// Find last assistant message
+			var lastAssistant *ConversationEntry
+			for i := len(m.conversation) - 1; i >= 0; i-- {
+				if m.conversation[i].Role == "assistant" {
+					lastAssistant = &m.conversation[i]
+					break
+				}
+			}
+
+			if lastAssistant != nil {
+				lines = append(lines, "")
+				// Word-wrap the full content to panel width
+				wrapped := wrapText(lastAssistant.Content, width-3)
+				for _, wl := range wrapped {
+					lines = append(lines, "  "+wl)
+				}
+			}
+
+			lines = append(lines, "")
+
+			// Reply prompt
+			if m.mode == modeReply {
+				lines = append(lines, " "+lipgloss.NewStyle().Foreground(inputColor).Bold(true).
+					Render("Reply: ")+m.textInput.View())
+			} else {
+				lines = append(lines, " "+helpStyle.Render("Press r to reply, y/n for quick answer"))
+			}
+		} else if len(m.conversation) > 0 {
+			isDone := agent.State == "done" || agent.State == "idle"
+
+			// Fixed-height scrollable history viewport (10 lines)
+			const historyRows = 10
+
+			lines = append(lines, " "+boldStyle.Render("── History ───────────────────"))
+
+			// Build all compact history lines
+			var histLines []string
+			for _, entry := range m.conversation {
+				ts := ""
+				if t, err := time.Parse(time.RFC3339, entry.Timestamp); err == nil {
+					ts = t.Local().Format("15:04")
+				}
+
+				roleStyle := lipgloss.NewStyle().Foreground(runningColor).Bold(true)
+				if entry.Role == "human" {
+					roleStyle = lipgloss.NewStyle().Foreground(inputColor).Bold(true)
+				}
+
+				preview := strings.Split(entry.Content, "\n")[0]
+				if len(preview) > 120 {
+					preview = preview[:119] + "…"
+				}
+
+				histLines = append(histLines, fmt.Sprintf(" %s %s %s",
+					helpStyle.Render("["+ts+"]"),
+					roleStyle.Render(entry.Role+":"),
+					preview))
+			}
+
+			// Apply scroll offset within fixed viewport
+			viewStart := m.convOffset
+			if viewStart > len(histLines) {
+				viewStart = max(0, len(histLines)-historyRows)
+			}
+			viewEnd := viewStart + historyRows
+			if viewEnd > len(histLines) {
+				viewEnd = len(histLines)
+			}
+
+			if viewStart > 0 {
+				lines = append(lines, " "+helpStyle.Render(fmt.Sprintf("  ▲ %d more (ctrl+u)", viewStart)))
+			}
+			for i := viewStart; i < viewEnd; i++ {
+				lines = append(lines, histLines[i])
+			}
+			// Pad to fixed height so content below doesn't shift
+			for i := viewEnd - viewStart; i < historyRows; i++ {
+				lines = append(lines, "")
+			}
+			if viewEnd < len(histLines) {
+				lines = append(lines, " "+helpStyle.Render(fmt.Sprintf("  ▼ %d more (ctrl+d)", len(histLines)-viewEnd)))
+			} else {
+				lines = append(lines, "") // keep consistent height
+			}
+
+			// For done agents, always show last assistant message in full at the bottom
+			if isDone {
+				var lastAssistant *ConversationEntry
+				for i := len(m.conversation) - 1; i >= 0; i-- {
+					if m.conversation[i].Role == "assistant" {
+						lastAssistant = &m.conversation[i]
+						break
+					}
+				}
+				if lastAssistant != nil {
+					lines = append(lines, "")
+					lines = append(lines, " "+lipgloss.NewStyle().Foreground(doneColor).Bold(true).
+						Render("── Final message ─────────────"))
+					lines = append(lines, "")
+					wrapped := wrapText(lastAssistant.Content, width-3)
+					for _, wl := range wrapped {
+						lines = append(lines, "  "+wl)
+					}
+				}
+			}
+		} else if m.tmuxAvailable && hasContent(m.capturedLines) {
+			// Fallback to tmux capture
+			lines = append(lines, " "+boldStyle.Render("── Live ──────────────────────"))
 			for _, l := range m.capturedLines {
 				lines = append(lines, " "+l)
 			}
-			lines = append(lines, " "+boldStyle.Render("──────────────────────────────"))
 		} else if agent.LastMessagePreview != "" {
 			lines = append(lines, " "+boldStyle.Render("── Last Message ──────────────"))
 			lines = append(lines, " "+agent.LastMessagePreview)
-			lines = append(lines, " "+boldStyle.Render("──────────────────────────────"))
 		}
 
 		if !m.tmuxAvailable {
@@ -374,33 +640,52 @@ func (m model) renderPeekPanel(width, height int) string {
 		}
 	}
 
-	content := strings.Join(lines, "\n")
+	content := fitContent(lines, width, height)
 
 	return borderStyle.
 		Width(width).
-		Height(height - 2).
+		Height(height).
 		Render(content)
 }
 
 func (m model) renderHelpBar() string {
 	var parts []string
 
+	// Total cost on the left — DB total (all-time) or in-memory fallback
+	totalCost := m.dbTotalCost
+	if totalCost == 0 {
+		totalCost = m.totalUsage.CostUSD
+	}
+	if totalCost > 0 {
+		costStr := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).
+			Render(FormatCost(totalCost))
+		parts = append(parts, fmt.Sprintf("Total: %s", costStr))
+		parts = append(parts, "│")
+	}
+
 	parts = append(parts, boldStyle.Render("↑/↓")+" navigate")
 
 	if m.mode == modeReply {
 		parts = append(parts, boldStyle.Render("enter")+" send")
 		parts = append(parts, boldStyle.Render("esc")+" cancel")
-		input := m.textInput.View()
-		return helpStyle.Render("  "+strings.Join(parts, "  ")) + "  " + input
+		return helpStyle.Render("  " + strings.Join(parts, "  "))
 	}
 
 	if m.tmuxAvailable {
 		parts = append(parts, boldStyle.Render("enter")+" jump")
 		parts = append(parts, boldStyle.Render("r")+" reply")
+		// Show quick-action hints for needs-attention agents
+		if m.selected < len(m.agents) {
+			agent := m.agents[m.selected]
+			if agent.State == "input" || agent.State == "error" {
+				parts = append(parts, boldStyle.Render("y/n")+" quick answer")
+			}
+		}
 	} else {
 		parts = append(parts, helpStyle.Render("enter")+" "+helpStyle.Render("jump"))
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
+	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
 	parts = append(parts, boldStyle.Render("q")+" quit")
 
 	return helpStyle.Render("  " + strings.Join(parts, "  "))
@@ -419,6 +704,88 @@ func (m model) captureSelected() tea.Cmd {
 			return captureResultMsg{lines: nil}
 		}
 		return captureResultMsg{lines: lines}
+	}
+}
+
+func (m model) loadConversation() tea.Cmd {
+	if m.selected >= len(m.agents) {
+		return nil
+	}
+	agent := m.agents[m.selected]
+	if agent.Cwd == "" {
+		return nil
+	}
+	slug := ProjectSlug(agent.Cwd)
+	projDir := filepath.Join(ConversationsDir(), slug)
+	sessionID := agent.SessionID
+	cwd := agent.Cwd
+
+	return func() tea.Msg {
+		// Fallback: if no session_id in state, find by cwd
+		if sessionID == "" {
+			sessionID = FindSessionID(cwd)
+		}
+		if sessionID == "" {
+			return conversationMsg{entries: nil}
+		}
+		entries := ReadConversation(projDir, sessionID, 50)
+		return conversationMsg{entries: entries}
+	}
+}
+
+func pruneDead(statePath string) tea.Cmd {
+	return func() tea.Msg {
+		livePanes := TmuxListPanes()
+		if livePanes == nil {
+			return pruneDeadMsg{removed: 0}
+		}
+		removed := PruneDead(statePath, livePanes)
+		return pruneDeadMsg{removed: removed}
+	}
+}
+
+func persistUsage(db *DB, agents []Agent, perAgent map[string]Usage) tea.Cmd {
+	today := time.Now().Format("2006-01-02")
+	// Copy data for goroutine
+	type entry struct {
+		sessionID string
+		model     string
+		usage     Usage
+	}
+	var entries []entry
+	for _, agent := range agents {
+		u, ok := perAgent[agent.Target]
+		if !ok || u.OutputTokens == 0 {
+			continue
+		}
+		sid := agent.SessionID
+		if sid == "" {
+			continue
+		}
+		entries = append(entries, entry{sessionID: sid, model: u.Model, usage: u})
+	}
+
+	return func() tea.Msg {
+		for _, e := range entries {
+			_ = db.UpsertUsage(today, e.sessionID, e.model, e.usage)
+		}
+		return persistResultMsg{}
+	}
+}
+
+func loadDBCost(db *DB) tea.Cmd {
+	return func() tea.Msg {
+		return dbCostMsg{total: db.TotalCost()}
+	}
+}
+
+func loadUsage(agents []Agent) tea.Cmd {
+	// Copy to avoid race
+	agentsCopy := make([]Agent, len(agents))
+	copy(agentsCopy, agents)
+	return func() tea.Msg {
+		perAgent, total := ReadAllUsage(agentsCopy)
+		return usageMsg{perAgent: perAgent, total: total}
 	}
 }
 
@@ -443,6 +810,12 @@ func jumpToAgent(target string) tea.Cmd {
 func sendReply(target, text string) tea.Cmd {
 	return func() tea.Msg {
 		return sendResultMsg{err: TmuxSendKeys(target, text)}
+	}
+}
+
+func sendRawKey(target, key string) tea.Cmd {
+	return func() tea.Msg {
+		return sendResultMsg{err: TmuxSendRaw(target, key)}
 	}
 }
 
@@ -493,3 +866,77 @@ func hasContent(lines []string) bool {
 	return false
 }
 
+// wrapText wraps a string to the given width, breaking on word boundaries.
+func wrapText(s string, width int) []string {
+	if width <= 0 {
+		return []string{s}
+	}
+	var result []string
+	for _, paragraph := range strings.Split(s, "\n") {
+		if paragraph == "" {
+			result = append(result, "")
+			continue
+		}
+		words := strings.Fields(paragraph)
+		if len(words) == 0 {
+			result = append(result, "")
+			continue
+		}
+		line := words[0]
+		for _, w := range words[1:] {
+			if len(line)+1+len(w) > width {
+				result = append(result, line)
+				line = w
+			} else {
+				line += " " + w
+			}
+		}
+		result = append(result, line)
+	}
+	return result
+}
+
+// fitContent constrains lines to exactly width x height (visual chars).
+// Truncates long lines, truncates excess lines, pads short content.
+func fitContent(lines []string, width, height int) string {
+	out := make([]string, height)
+	for i := 0; i < height; i++ {
+		if i < len(lines) {
+			out[i] = truncateLine(lines[i], width)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// truncateLine truncates a string to maxWidth visual characters,
+// accounting for ANSI escape sequences (which have zero width).
+func truncateLine(s string, maxWidth int) string {
+	if lipgloss.Width(s) <= maxWidth {
+		return s
+	}
+	// Walk runes, track visual width, preserve ANSI sequences
+	var b strings.Builder
+	w := 0
+	inEsc := false
+	for _, r := range s {
+		if r == '\x1b' {
+			inEsc = true
+			b.WriteRune(r)
+			continue
+		}
+		if inEsc {
+			b.WriteRune(r)
+			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+				inEsc = false
+			}
+			continue
+		}
+		rw := lipgloss.Width(string(r))
+		if w+rw > maxWidth {
+			break
+		}
+		b.WriteRune(r)
+		w += rw
+	}
+	return b.String()
+}

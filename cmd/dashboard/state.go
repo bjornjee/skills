@@ -18,6 +18,7 @@ type Agent struct {
 	State              string   `json:"state"`
 	Cwd                string   `json:"cwd"`
 	Branch             string   `json:"branch"`
+	SessionID          string   `json:"session_id"`
 	StartedAt          string   `json:"started_at"`
 	UpdatedAt          string   `json:"updated_at"`
 	LastMessagePreview string   `json:"last_message_preview"`
@@ -29,12 +30,13 @@ type StateFile struct {
 	Agents map[string]Agent `json:"agents"`
 }
 
+// State groups: needs attention → running → completed
 var statePriority = map[string]int{
-	"input":   1,
-	"error":   2,
-	"running": 3,
-	"idle":    4,
-	"done":    5,
+	"input":   1, // needs attention
+	"error":   1, // needs attention
+	"running": 2,
+	"idle":    3, // completed
+	"done":    3, // completed
 }
 
 // DefaultStatePath returns ~/.claude/agent-dashboard/state.json.
@@ -65,13 +67,17 @@ func ReadState(path string) StateFile {
 }
 
 // SortedAgents returns agents sorted by state priority, then by updated_at.
-func SortedAgents(sf StateFile) []Agent {
+// selfTarget is excluded from the list (the dashboard's own pane).
+func SortedAgents(sf StateFile, selfTarget string) []Agent {
 	agents := make([]Agent, 0, len(sf.Agents))
 	for _, a := range sf.Agents {
 		if a.Target == "" || a.State == "" {
 			continue
 		}
 		if ValidateTarget(a.Target) != nil {
+			continue
+		}
+		if selfTarget != "" && a.Target == selfTarget {
 			continue
 		}
 		agents = append(agents, a)
@@ -89,10 +95,54 @@ func SortedAgents(sf StateFile) []Agent {
 		if pi != pj {
 			return pi < pj
 		}
-		return agents[i].UpdatedAt < agents[j].UpdatedAt
+		// Stable sort by window, then pane within same priority group
+		if agents[i].Window != agents[j].Window {
+			return agents[i].Window < agents[j].Window
+		}
+		return agents[i].Pane < agents[j].Pane
 	})
 
 	return agents
+}
+
+// CleanStale removes agents that haven't been updated within maxAgeSecs.
+func CleanStale(path string, maxAgeSecs int) {
+	sf := ReadState(path)
+	now := time.Now()
+	changed := false
+
+	for id, agent := range sf.Agents {
+		t, err := time.Parse(time.RFC3339, agent.UpdatedAt)
+		if err != nil || now.Sub(t).Seconds() > float64(maxAgeSecs) {
+			delete(sf.Agents, id)
+			changed = true
+		}
+	}
+
+	if changed {
+		data, _ := json.Marshal(sf)
+		_ = os.WriteFile(path, data, 0644)
+	}
+}
+
+// PruneDead removes agents whose tmux panes no longer exist.
+// Returns the number of agents removed.
+func PruneDead(path string, livePanes map[string]bool) int {
+	sf := ReadState(path)
+	removed := 0
+
+	for id := range sf.Agents {
+		if !livePanes[id] {
+			delete(sf.Agents, id)
+			removed++
+		}
+	}
+
+	if removed > 0 {
+		data, _ := json.Marshal(sf)
+		_ = os.WriteFile(path, data, 0644)
+	}
+	return removed
 }
 
 // FormatDuration returns a human-readable duration since the given ISO8601 timestamp.

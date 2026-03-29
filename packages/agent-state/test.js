@@ -130,8 +130,10 @@ describe('detect/detectState', () => {
     assert.equal(detectState('Which one?', ['still running...']), 'input');
   });
 
-  it('returns done when pane shows prompt but no question', () => {
-    assert.equal(detectState('Task complete.', ['$']), 'done');
+  it('returns input when pane shows prompt even without question', () => {
+    // Prompt visible = agent is waiting for user, regardless of message content
+    assert.equal(detectState('Task complete.', ['$']), 'input');
+    assert.equal(detectState('Here is my plan.', ['\u276f']), 'input');
   });
 
   it('returns done when no signals', () => {

@@ -14,10 +14,33 @@
 
 const path = require('path');
 
+const fs = require('fs');
+const os = require('os');
+
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 const { readState, writeState, detectState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget, capture, parseTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
 const { getChangedFiles, getBranch } = require(path.join(pluginRoot, 'packages', 'git-status'));
+
+function findSessionId() {
+  const sessDir = path.join(os.homedir(), '.claude', 'sessions');
+  // Walk up PID tree: hook → (possible sh) → claude
+  let pid = process.ppid;
+  for (let i = 0; i < 3 && pid > 1; i++) {
+    try {
+      const file = path.join(sessDir, `${pid}.json`);
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (data.sessionId) return data.sessionId;
+    } catch { /* not found, try parent */ }
+    try {
+      const { spawnSync } = require('child_process');
+      const r = spawnSync('ps', ['-o', 'ppid=', '-p', String(pid)], { timeout: 1000 });
+      pid = parseInt(r.stdout.toString().trim(), 10);
+      if (isNaN(pid)) break;
+    } catch { break; }
+  }
+  return null;
+}
 
 const MAX_STDIN = 1024 * 1024;
 let data = '';
@@ -47,10 +70,10 @@ function report(input) {
   const hookEvent = input.hook_event_name;
   const lastMessage = input.last_assistant_message || null;
 
-  // PreToolUse → agent is actively working
+  // SessionStart/PreToolUse → agent is actively working
   // Stop → detect whether waiting for input or done
   let state;
-  if (hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse') {
+  if (hookEvent === 'SessionStart' || hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse') {
     state = 'running';
   } else {
     const paneBuffer = capture(target, 15);
@@ -65,8 +88,9 @@ function report(input) {
     ? lastMessage.split('\n').filter(l => l.trim()).slice(-3).join(' ').substring(0, 200)
     : null;
 
-  // Preserve started_at if already set, otherwise initialize
+  // Preserve started_at and session_id if already set
   const existing = readState().agents[target] || {};
+  const sessionId = input.session_id || existing.session_id || findSessionId();
 
   writeState(target, {
     target,
@@ -78,6 +102,7 @@ function report(input) {
     branch,
     files_changed: filesChanged,
     last_message_preview: preview,
+    session_id: sessionId,
     started_at: existing.started_at || new Date().toISOString(),
   });
 }

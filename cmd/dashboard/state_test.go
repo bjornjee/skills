@@ -46,16 +46,20 @@ func TestReadState_ValidState(t *testing.T) {
 func TestSortedAgents_Priority(t *testing.T) {
 	sf := StateFile{
 		Agents: map[string]Agent{
-			"a": {Target: "a", State: "done"},
-			"b": {Target: "b", State: "input"},
-			"c": {Target: "c", State: "running"},
-			"d": {Target: "d", State: "error"},
-			"e": {Target: "e", State: "idle"},
+			"a:3.0": {Target: "a:3.0", State: "done", Window: 3, Pane: 0},
+			"a:1.0": {Target: "a:1.0", State: "input", Window: 1, Pane: 0},
+			"a:2.0": {Target: "a:2.0", State: "running", Window: 2, Pane: 0},
+			"a:0.0": {Target: "a:0.0", State: "error", Window: 0, Pane: 0},
+			"a:4.0": {Target: "a:4.0", State: "idle", Window: 4, Pane: 0},
 		},
 	}
 
-	sorted := SortedAgents(sf)
-	expected := []string{"input", "error", "running", "idle", "done"}
+	sorted := SortedAgents(sf, "")
+
+	// Group 1: needs attention (input, error) sorted by window
+	// Group 2: running
+	// Group 3: completed (idle, done) sorted by window
+	expected := []string{"error", "input", "running", "done", "idle"}
 
 	if len(sorted) != 5 {
 		t.Fatalf("expected 5 agents, got %d", len(sorted))
@@ -76,7 +80,7 @@ func TestSortedAgents_SkipsInvalid(t *testing.T) {
 		},
 	}
 
-	sorted := SortedAgents(sf)
+	sorted := SortedAgents(sf, "")
 	if len(sorted) != 1 {
 		t.Errorf("expected 1 valid agent, got %d", len(sorted))
 	}

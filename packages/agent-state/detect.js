@@ -30,18 +30,14 @@ function detectState(lastMessage, paneBuffer) {
   const messageScore = scoreMessage(lastMessage);
   const paneScore = scorePaneBuffer(paneBuffer);
 
-  // Both signals agree → high confidence
-  if (messageScore > 0 && paneScore > 0) return 'input';
+  // Pane shows a prompt → agent is waiting for user input.
+  // This covers: questions, plan approval, permission prompts, idle at prompt.
+  if (paneScore > 0) return 'input';
 
-  // Only message suggests a question but pane doesn't show prompt
-  // Could be Claude asking a rhetorical question while still working
+  // Message looks like a question but pane doesn't show prompt yet
   if (messageScore > 0) return 'input';
 
-  // Pane shows a prompt but message doesn't look like a question
-  // Agent is done and idle at the prompt
-  if (paneScore > 0) return 'done';
-
-  // Neither signal → assume done (Stop hook fired, so Claude finished)
+  // Neither signal → assume done (Stop hook fired, Claude finished)
   return 'done';
 }
 
