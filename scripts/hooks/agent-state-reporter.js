@@ -70,15 +70,13 @@ function report(input) {
   const hookEvent = input.hook_event_name;
   const lastMessage = input.last_assistant_message || null;
 
-  // Determine agent state based on hook event
+  // Determine agent state based on hook event.
+  // PreToolUse/PostToolUse/PermissionRequest are handled by agent-state-fast.js.
   let state;
-  const toolName = input.tool_name || '';
-  if (hookEvent === 'PreToolUse' && toolName === 'AskUserQuestion') {
-    state = 'input';
-  } else if (hookEvent === 'SessionStart' || hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse'
-      || hookEvent === 'SubagentStart' || hookEvent === 'SubagentStop') {
+  if (hookEvent === 'SessionStart' || hookEvent === 'SubagentStart' || hookEvent === 'SubagentStop') {
     state = 'running';
   } else {
+    // Stop event — detect from pane buffer + last message
     const paneBuffer = capture(target, 15);
     state = detectState(lastMessage, paneBuffer);
   }

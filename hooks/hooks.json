@@ -25,6 +25,18 @@
           }
         ],
         "description": "Block destructive shell commands (rm -rf, git reset --hard, DROP TABLE, etc.)"
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-fast.js\"",
+            "async": true,
+            "timeout": 3
+          }
+        ],
+        "description": "Fast state sync for dashboard (state, permission_mode, current_tool)"
       }
     ],
     "PostToolUse": [
@@ -47,6 +59,32 @@
           }
         ],
         "description": "Block git commit unless make test passes (set SKIP_TEST_GATE=1 to bypass)"
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-fast.js\"",
+            "async": true,
+            "timeout": 3
+          }
+        ],
+        "description": "Fast state sync for dashboard"
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-fast.js\"",
+            "async": true,
+            "timeout": 3
+          }
+        ],
+        "description": "Instant needs-attention detection for dashboard"
       }
     ],
     "SubagentStart": [

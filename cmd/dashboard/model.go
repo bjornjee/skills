@@ -58,9 +58,6 @@ type model struct {
 	dismissed      map[string]bool           // "parentTarget:agentID" → dismissed
 	subActivity    []ActivityEntry           // activity log for selected subagent
 
-	// Pending input detection (permission prompts)
-	pendingInput map[string]bool // agentTarget → has pending tool_use
-
 	// Previous effective state per agent — used to detect transitions
 	// and fire desktop notifications on needs-attention.
 	prevEffState map[string]string // agentTarget → last effectiveState result
@@ -148,7 +145,6 @@ func newModel(statePath, selfTarget string, db *DB) model {
 		agentSubagents: make(map[string][]SubagentInfo),
 		collapsed:      make(map[string]bool),
 		dismissed:      make(map[string]bool),
-		pendingInput:   make(map[string]bool),
 		prevEffState:   make(map[string]string),
 		quote:          pickQuote(db),
 		nowFunc:        time.Now,
@@ -179,15 +175,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case stateUpdatedMsg:
 		m.agents = SortedAgents(msg.state, m.selfTarget)
-		// Prune pendingInput and prevEffState for agents no longer present
+		// Prune maps for agents no longer present
 		live := make(map[string]bool, len(m.agents))
 		for _, a := range m.agents {
 			live[a.Target] = true
-		}
-		for target := range m.pendingInput {
-			if !live[target] {
-				delete(m.pendingInput, target)
-			}
 		}
 		for target := range m.prevEffState {
 			if !live[target] {
@@ -249,15 +240,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedSubagent() != nil {
 			cmds = append(cmds, m.loadSubagentActivity())
 		}
-		// Check for pending tool_use and done-agent prompts every 2 ticks (2s)
-		if m.tickCount%2 == 0 {
-			if cmd := m.checkPendingInput(); cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-			if cmd := m.recheckDoneAgents(); cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-		}
 		if m.tickCount%5 == 0 {
 			cmds = append(cmds, m.loadAllSubagents()...)
 		}
@@ -292,15 +274,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedSubagent() != nil {
 			m.subActivity = msg.entries
 			m.updateRightContent()
-		}
-		return m, nil
-
-	case pendingInputMsg:
-		m.pendingInput[msg.target] = msg.pending
-		m.updateLeftContent()
-		m.updateRightContent()
-		if cmd := m.checkNeedsAttentionTransition(); cmd != nil {
-			return m, cmd
 		}
 		return m, nil
 
