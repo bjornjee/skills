@@ -45,34 +45,38 @@ func greeting(now time.Time) string {
 	}
 }
 
-// Pixel art colors matching the reference image
+// Pixel art colors — soft kawaii palette (no black outlines)
 var (
-	pxBlack      = lipgloss.Color("#000000")
-	pxBodyPink   = lipgloss.Color("#FFD5D0")
-	pxAccentPink = lipgloss.Color("#E88B8B")
+	pxHotPink    = lipgloss.Color("#D946A8")
+	pxMedPink    = lipgloss.Color("#F472B6")
+	pxLightPink  = lipgloss.Color("#FBCFE8")
+	pxPalePink   = lipgloss.Color("#FDF2F8")
+	pxDarkPurple = lipgloss.Color("#312E81")
+	pxLavender   = lipgloss.Color("#D8B4FE")
 )
 
-// axolotlPixels: 0=empty, 1=black, 2=bodyPink, 3=accentPink
-// Head-only version traced from 32x32 reference grid, scaled to 16x12.
+// axolotlPixels: 0=empty, 1=hotpink, 2=medpink, 3=lightpink, 4=palepink, 5=darkpurple, 6=lavender
+// Traced from kawaii pixel axolotl face reference grid.
 var axolotlPixels = [][]int{
-	{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0}, // gill tips
-	{0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0},
-	{0, 0, 1, 3, 1, 0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 0}, // pink gills
-	{0, 1, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 1, 3, 3, 1},
-	{1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 3, 3, 1}, // gills meet head
-	{1, 3, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 1, 1, 0}, // head starts
-	{0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-	{0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-	{0, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 1, 0, 0, 0}, // eyes
-	{0, 0, 1, 2, 3, 2, 2, 2, 3, 2, 2, 1, 0, 0, 0, 0}, // cheeks
-	{0, 0, 0, 1, 2, 2, 2, 1, 2, 2, 1, 0, 0, 0, 0, 0}, // mouth
-	{0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0}, // chin
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 3, 0, 1, 0, 1},
+	{0, 0, 3, 0, 0, 1, 0, 1, 0, 1, 0, 0, 3, 0, 1, 3, 0, 3, 1},
+	{0, 2, 0, 0, 3, 1, 0, 1, 3, 0, 0, 3, 0, 0, 3, 1, 3, 0, 0},
+	{0, 2, 0, 2, 1, 0, 2, 3, 2, 0, 2, 0, 0, 1, 2, 1, 2, 0, 0},
+	{0, 1, 2, 0, 2, 3, 4, 4, 4, 3, 2, 0, 1, 0, 2, 1, 2, 0, 0},
+	{0, 0, 1, 3, 4, 6, 4, 6, 4, 6, 4, 3, 1, 2, 0, 2, 1, 0, 0},
+	{0, 0, 2, 3, 5, 3, 6, 4, 6, 3, 5, 3, 2, 1, 0, 0, 0, 0, 0},
+	{0, 0, 0, 2, 3, 3, 4, 4, 4, 3, 3, 2, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 3, 1, 3, 0, 3, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0},
 }
 
 var pxColors = map[int]lipgloss.Color{
-	1: pxBlack,
-	2: pxBodyPink,
-	3: pxAccentPink,
+	1: pxHotPink,
+	2: pxMedPink,
+	3: pxLightPink,
+	4: pxPalePink,
+	5: pxDarkPurple,
+	6: pxLavender,
 }
 
 // renderAxolotl renders the pixel art using half-block characters with true colors.
