@@ -11,12 +11,9 @@ const QUESTION_PATTERNS = [
   /waiting\s+for\s+(your|input|response)/i,
 ];
 
-const PROMPT_INDICATORS = [
-  /^>\s*$/m,
-  /^\$\s*$/m,
-  /\u276f\s*$/m,  // ❯ prompt character
-  /^human:/im,
-];
+// Claude Code's interactive prompt character (U+276F). Present in idle prompts,
+// plan approval menus, tool permission dialogs, and option selectors.
+const PROMPT_CHAR = '\u276f';
 
 /**
  * Detect whether an agent is waiting for input, done, or running.
@@ -54,15 +51,22 @@ function scoreMessage(message) {
 function scorePaneBuffer(lines) {
   if (!Array.isArray(lines) || lines.length === 0) return 0;
 
-  // Check last 3 lines for prompt indicators
-  const tail = lines.slice(-3);
-  let score = 0;
+  // Check last 5 lines for Claude Code's interactive prompt character.
+  // Covers: idle prompt (❯), plan approval (❯ 1. Yes...), tool permissions.
+  const tail = lines.slice(-5);
   for (const line of tail) {
-    for (const pattern of PROMPT_INDICATORS) {
-      if (pattern.test(line)) score++;
-    }
+    if (line.includes(PROMPT_CHAR)) return 1;
   }
-  return score;
+
+  // Check last 3 lines for bare shell prompts (string checks, no regex).
+  const shellTail = lines.slice(-3);
+  for (const line of shellTail) {
+    const trimmed = line.trim();
+    if (trimmed === '>' || trimmed === '$') return 1;
+    if (trimmed.toLowerCase().startsWith('human:')) return 1;
+  }
+
+  return 0;
 }
 
-module.exports = { detectState, scoreMessage, scorePaneBuffer, QUESTION_PATTERNS, PROMPT_INDICATORS };
+module.exports = { detectState, scoreMessage, scorePaneBuffer, QUESTION_PATTERNS, PROMPT_CHAR };
