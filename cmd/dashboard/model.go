@@ -1409,12 +1409,14 @@ func agentBadges(agent Agent) string {
 }
 
 // effectiveState returns the display state for an agent, overriding "running"
-// to "input" when there's a pending tool_use and the last hook event is not
-// PreToolUse or PostToolUse (which would indicate actual tool execution).
+// to "input" when there's a pending tool_use and the last hook event is Stop.
+// Stop is the only event where the agent has finished its turn — a pending
+// tool_use at that point means the agent is waiting for user permission.
+// During PreToolUse/PostToolUse/SessionStart/SubagentStart/SubagentStop,
+// tools are actively being processed (hooks may still be running).
 func (m model) effectiveState(agent Agent) string {
 	if agent.State == "running" && m.pendingInput[agent.Target] {
-		// If last hook was PreToolUse or PostToolUse, the tool is actively executing
-		if agent.LastHookEvent != "PreToolUse" && agent.LastHookEvent != "PostToolUse" {
+		if agent.LastHookEvent == "Stop" {
 			return "input"
 		}
 	}
