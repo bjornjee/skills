@@ -16,7 +16,10 @@ type usageMsg struct {
 	total    Usage
 }
 type persistResultMsg struct{ err error }
-type dbCostMsg struct{ total float64 }
+type dbCostMsg struct {
+	total     float64
+	todayCost float64
+}
 type activityMsg struct{ entries []ActivityEntry }
 type subagentsMsg struct {
 	parentTarget string

@@ -175,6 +175,20 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.updateRightContent()
 		}
 		return m, nil
+	case "S":
+		if !m.tmuxAvailable {
+			m.statusMsg = "Cannot send /usage: tmux not detected"
+			m.statusMsgTick = m.tickCount
+			return m, nil
+		}
+		if agent := m.selectedAgent(); agent != nil && m.selectedSubagent() == nil {
+			m.statusMsg = "Sent /usage to " + agent.Target
+			m.statusMsgTick = m.tickCount
+			return m, sendUsageCommand(agent.Target)
+		}
+		m.statusMsg = "Select an agent to send /usage"
+		m.statusMsgTick = m.tickCount
+		return m, nil
 	case "y", "n":
 		if agent := m.selectedAgent(); m.tmuxAvailable && agent != nil && m.selectedSubagent() == nil {
 			es := m.effectiveState(*agent)

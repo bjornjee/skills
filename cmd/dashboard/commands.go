@@ -143,7 +143,36 @@ func persistUsage(db *DB, agents []Agent, perAgent map[string]Usage) tea.Cmd {
 
 	return func() tea.Msg {
 		for _, e := range entries {
-			_ = db.UpsertUsage(today, e.sessionID, e.model, e.usage)
+			// Calculate delta: cumulative cost from JSONL minus what's already
+			// stored for this session on previous days. This prevents double-counting
+			// when a session spans multiple days.
+			prevCost, err := db.SessionCostExcludingDate(e.sessionID, today)
+			if err != nil {
+				// Skip this entry — writing the full cumulative would cause double-counting
+				continue
+			}
+
+			ratio := 1.0
+			if e.usage.CostUSD > 0 && prevCost > 0 {
+				ratio = (e.usage.CostUSD - prevCost) / e.usage.CostUSD
+				if ratio < 0 {
+					ratio = 0
+				}
+			}
+
+			deltaUsage := Usage{
+				InputTokens:      int(float64(e.usage.InputTokens) * ratio),
+				OutputTokens:     int(float64(e.usage.OutputTokens) * ratio),
+				CacheReadTokens:  int(float64(e.usage.CacheReadTokens) * ratio),
+				CacheWriteTokens: int(float64(e.usage.CacheWriteTokens) * ratio),
+				CostUSD:          e.usage.CostUSD - prevCost,
+				Model:            e.usage.Model,
+			}
+			if deltaUsage.CostUSD < 0 {
+				deltaUsage.CostUSD = 0
+			}
+
+			_ = db.UpsertUsage(today, e.sessionID, e.model, deltaUsage)
 		}
 		return persistResultMsg{}
 	}
@@ -151,7 +180,17 @@ func persistUsage(db *DB, agents []Agent, perAgent map[string]Usage) tea.Cmd {
 
 func loadDBCost(db *DB) tea.Cmd {
 	return func() tea.Msg {
-		return dbCostMsg{total: db.TotalCost()}
+		today := time.Now().Format("2006-01-02")
+		return dbCostMsg{
+			total:     db.TotalCost(),
+			todayCost: db.CostForDate(today),
+		}
+	}
+}
+
+func sendUsageCommand(target string) tea.Cmd {
+	return func() tea.Msg {
+		return sendResultMsg{err: TmuxSendKeys(target, "/usage")}
 	}
 }
 
