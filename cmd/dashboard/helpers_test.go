@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 func TestRepoFromCwd(t *testing.T) {
 	tests := []struct {
@@ -105,6 +110,45 @@ func TestAgentLabel(t *testing.T) {
 			got := agentLabel(tt.agent)
 			if got != tt.want {
 				t.Errorf("agentLabel() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPermissionModeColor(t *testing.T) {
+	tests := []struct {
+		name string
+		mode string
+		want lipgloss.Color
+	}{
+		{"plan mode gets blue/purple", "plan", lipgloss.Color("105")},
+		{"auto-edit gets yellow", "auto-edit", lipgloss.Color("220")},
+		{"autoEdit gets yellow", "autoEdit", lipgloss.Color("220")},
+		{"full-auto gets green", "full-auto", lipgloss.Color("82")},
+		{"fullAuto gets green", "fullAuto", lipgloss.Color("82")},
+		{"unknown mode gets gray", "custom", lipgloss.Color("242")},
+		{"case insensitive Plan", "Plan", lipgloss.Color("105")},
+		{"default fallback", "default", lipgloss.Color("242")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := permissionModeColor(tt.mode)
+			if got != tt.want {
+				t.Errorf("permissionModeColor(%q) = %q, want %q", tt.mode, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPermissionModeStyle(t *testing.T) {
+	// permissionModeStyle should preserve the original mode text in its output
+	modes := []string{"plan", "auto-edit", "full-auto", "custom"}
+	for _, mode := range modes {
+		t.Run(mode, func(t *testing.T) {
+			got := permissionModeStyle(mode)
+			if !strings.Contains(got, mode) {
+				t.Errorf("permissionModeStyle(%q) = %q, want text %q present", mode, got, mode)
 			}
 		})
 	}

@@ -66,6 +66,28 @@ func modelShort(model string) string {
 	return ""
 }
 
+// permissionModeColor returns the ANSI 256 color for a permission mode,
+// matching Claude Code's visual language.
+func permissionModeColor(mode string) lipgloss.Color {
+	m := strings.ToLower(mode)
+	switch {
+	case strings.Contains(m, "plan"):
+		return lipgloss.Color("105") // blue/purple
+	case strings.Contains(m, "auto") && strings.Contains(m, "edit"):
+		return lipgloss.Color("220") // yellow/amber
+	case strings.Contains(m, "full") && strings.Contains(m, "auto"):
+		return lipgloss.Color("82") // green
+	default:
+		return lipgloss.Color("242") // gray
+	}
+}
+
+// permissionModeStyle returns the permission mode string rendered with a
+// color that matches Claude Code's visual language.
+func permissionModeStyle(mode string) string {
+	return lipgloss.NewStyle().Foreground(permissionModeColor(mode)).Render(mode)
+}
+
 // agentBadges returns a compact metadata string like "S auto [2]".
 func agentBadges(agent Agent) string {
 	var parts []string
@@ -73,7 +95,7 @@ func agentBadges(agent Agent) string {
 		parts = append(parts, ms)
 	}
 	if agent.PermissionMode != "" && agent.PermissionMode != "default" {
-		parts = append(parts, helpStyle.Render(agent.PermissionMode))
+		parts = append(parts, permissionModeStyle(agent.PermissionMode))
 	}
 	if agent.SubagentCount > 0 {
 		parts = append(parts, lipgloss.NewStyle().Foreground(runningColor).
