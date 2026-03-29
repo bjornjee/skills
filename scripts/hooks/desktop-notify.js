@@ -21,9 +21,50 @@ const { basename, resolve } = require('path');
 
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || resolve(__dirname, '..', '..');
 const tmuxPkg = require(resolve(pluginRoot, 'packages', 'tmux'));
+const { detectState } = require(resolve(pluginRoot, 'packages', 'agent-state', 'detect'));
 
 const TITLE = 'Claude Code';
 const MAX_BODY = 100;
+
+// Plan review — requires 'input' state (plan approval UI shows ❯ prompt)
+const PLAN_PATTERNS = [
+  /\bplan\b.*\b(review|approve|approval)\b/i,
+  /\breview\b.*\bplan\b/i,
+  /\bplease\s+(review|approve)\b/i,
+  /\bimplementation\s+plan\b/i,
+  /\bplan\s+is\s+ready\b/i,
+];
+
+// Feature completion — allows 'input' or 'done' (declarative, not questions)
+const COMPLETION_PATTERNS = [
+  /\b(feature|implementation|work)\s+(is\s+)?(complete|done|finished)\b/i,
+  /\bsuccessfully\s+(implemented|completed|finished)\b/i,
+  /\ball\s+(changes|tests)\b.*\b(pass|complete|implemented)\b/i,
+  /\bready\s+for\s+(your\s+)?(review|input)\b/i,
+];
+
+const NOTIFICATION_PATTERNS = [...PLAN_PATTERNS, ...COMPLETION_PATTERNS];
+
+/**
+ * Determine whether a notification should fire.
+ * Plan review: requires 'input' state (plan approval UI shows prompt).
+ * Completion: allows 'input' or 'done' (declarative statements, not questions).
+ *
+ * @param {'input'|'done'|'running'} state - Agent state from detectState()
+ * @param {string|null} message - The last assistant message
+ * @returns {boolean}
+ */
+function shouldNotify(state, message) {
+  if (state !== 'input' && state !== 'done') return false;
+  if (!message || typeof message !== 'string') return false;
+
+  if (state === 'input') {
+    return NOTIFICATION_PATTERNS.some(p => p.test(message));
+  }
+
+  // state === 'done': only completion patterns fire
+  return COMPLETION_PATTERNS.some(p => p.test(message));
+}
 
 function stripMarkdown(text) {
   return text
@@ -134,7 +175,7 @@ function notify(title, subtitle, body) {
 
 // Export for testing
 if (typeof module !== 'undefined') {
-  module.exports = { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg };
+  module.exports = { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldNotify, PLAN_PATTERNS, COMPLETION_PATTERNS, NOTIFICATION_PATTERNS };
 }
 
 // Only run stdin reader when executed directly (not when require()'d by tests)
@@ -149,7 +190,17 @@ if (require.main === module) {
   process.stdin.on('end', () => {
     try {
       const input = data.trim() ? JSON.parse(data) : {};
-      const body = extractSummary(input.last_assistant_message);
+      const message = input.last_assistant_message;
+
+      // Detect agent state from message content + tmux pane buffer
+      const tmuxPane = process.env.TMUX_PANE;
+      const paneTarget = tmuxPane ? tmuxPkg.getTarget(tmuxPane) : null;
+      const paneBuffer = paneTarget ? tmuxPkg.capture(paneTarget, 15) : [];
+      const state = detectState(message, paneBuffer);
+
+      if (!shouldNotify(state, message)) return;
+
+      const body = extractSummary(message);
       const subtitle = getSubtitle(input.cwd);
       notify(TITLE, subtitle, body);
     } catch {
