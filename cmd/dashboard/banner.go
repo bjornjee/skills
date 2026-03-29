@@ -44,7 +44,7 @@ func greeting(now time.Time) string {
 	}
 }
 
-var axolotlArt = " ◠◡◠\n(◠ᴥ◠)"
+var axolotlArt = " ▐▌ ▄██████▄ ▐▌\n▐██▌█ ◕  ◕ █▐██▌\n ▀▀  ▀▄▄▄▀  ▀▀\n      █▌▐█"
 
 var axolotlStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("86")).

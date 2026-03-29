@@ -111,7 +111,7 @@ func TestRenderBanner_ContainsAxolotl(t *testing.T) {
 	}
 	m.quote = "Test"
 	out := m.renderBanner()
-	if !strings.Contains(out, "◠ᴥ◠") {
+	if !strings.Contains(out, "◕") {
 		t.Fatalf("banner missing axolotl art, got:\n%s", out)
 	}
 }
