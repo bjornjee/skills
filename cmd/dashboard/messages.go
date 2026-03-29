@@ -29,6 +29,7 @@ type pendingInputMsg struct {
 	target  string
 	pending bool
 }
+type closeResultMsg struct{ err error }
 
 // -- Modes --
 
@@ -36,6 +37,7 @@ const (
 	modeNormal = iota
 	modeReply
 	modeUsage
+	modeConfirmClose
 )
 
 // -- Viewport focus --

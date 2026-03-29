@@ -188,6 +188,19 @@ func loadDBCost(db *DB) tea.Cmd {
 	}
 }
 
+func closePane(target, statePath string) tea.Cmd {
+	return func() tea.Msg {
+		err := TmuxKillPane(target)
+		if err != nil {
+			return closeResultMsg{err: err}
+		}
+		// Best-effort: pane is already killed; ignore state file errors.
+		// PruneDead will clean it up on the next cycle if this fails.
+		_ = RemoveAgent(statePath, target)
+		return closeResultMsg{err: nil}
+	}
+}
+
 func loadUsage(agents []Agent) tea.Cmd {
 	agentsCopy := make([]Agent, len(agents))
 	copy(agentsCopy, agents)

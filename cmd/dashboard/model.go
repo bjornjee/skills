@@ -59,6 +59,9 @@ type model struct {
 	// Pending input detection (permission prompts)
 	pendingInput map[string]bool // agentTarget → has pending tool_use
 
+	// Close confirmation
+	confirmTarget string // tmux target pending close confirmation
+
 }
 
 // buildTree rebuilds the flat tree node list from agents and their subagents.
@@ -192,7 +195,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.tickCount++
 		// Auto-clear status message after 3 seconds
-		if m.statusMsg != "" && m.tickCount-m.statusMsgTick >= 3 {
+		if m.statusMsg != "" && m.statusMsgTick >= 0 && m.tickCount-m.statusMsgTick >= 3 {
 			m.statusMsg = ""
 		}
 		cmds := []tea.Cmd{tickEvery(), m.captureSelected(), m.loadConversation()}
@@ -256,6 +259,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.updateLeftContent()
 		return m, nil
+
+	case closeResultMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Close failed: %v", msg.err)
+		} else {
+			m.statusMsg = "Pane closed"
+		}
+		m.statusMsgTick = m.tickCount
+		return m, tea.Batch(loadState(m.statePath), pruneDead(m.statePath))
 
 	case pruneDeadMsg:
 		if msg.removed > 0 {
