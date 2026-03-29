@@ -58,9 +58,13 @@ Start two tracks in parallel:
 4. On success, write a sentinel file: `touch .env-setup-done`
    On failure, write the error: `echo "<error message>" > .env-setup-failed`
 
-**Foreground — Planning:** Research the codebase and design the implementation approach. Do not wait for environment setup to finish.
+**Foreground — Planning:**
 
-**Gate:** User has approved the approach. No code has been written yet.
+1. Research the codebase and design the implementation approach. Do not wait for environment setup to finish.
+2. **Enter plan mode** using the `EnterPlanMode` tool. Present the plan and wait for user approval.
+3. Once the user approves, **exit plan mode** using `ExitPlanMode` before proceeding.
+
+**Gate:** User has approved the approach in plan mode. No code has been written yet.
 
 ---
 
