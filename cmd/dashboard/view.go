@@ -531,7 +531,7 @@ func (m model) renderRightPanel() string {
 			metaParts = append(metaParts, helpStyle.Render(agent.Model))
 		}
 		if agent.PermissionMode != "" && agent.PermissionMode != "default" {
-			metaParts = append(metaParts, lipgloss.NewStyle().Foreground(inputColor).Render(agent.PermissionMode))
+			metaParts = append(metaParts, permissionModeStyle(agent.PermissionMode))
 		}
 		header = append(header, " "+strings.Join(metaParts, helpStyle.Render(" │ ")))
 		header = append(header, "")
