@@ -86,6 +86,49 @@ func TestSortedAgents_SkipsInvalid(t *testing.T) {
 	}
 }
 
+func TestRemoveAgent(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "state.json")
+	os.WriteFile(path, []byte(`{
+		"agents": {
+			"a:0.1": {"target":"a:0.1","state":"running","session":"a"},
+			"b:1.0": {"target":"b:1.0","state":"input","session":"b"}
+		}
+	}`), 0644)
+
+	err := RemoveAgent(path, "a:0.1")
+	if err != nil {
+		t.Fatalf("RemoveAgent failed: %v", err)
+	}
+
+	sf := ReadState(path)
+	if len(sf.Agents) != 1 {
+		t.Fatalf("expected 1 agent after removal, got %d", len(sf.Agents))
+	}
+	if _, ok := sf.Agents["a:0.1"]; ok {
+		t.Error("agent a:0.1 should have been removed")
+	}
+	if _, ok := sf.Agents["b:1.0"]; !ok {
+		t.Error("agent b:1.0 should still exist")
+	}
+}
+
+func TestRemoveAgent_NonExistent(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "state.json")
+	os.WriteFile(path, []byte(`{"agents":{"a:0.1":{"target":"a:0.1","state":"running"}}}`), 0644)
+
+	err := RemoveAgent(path, "nonexistent:0.0")
+	if err != nil {
+		t.Fatalf("RemoveAgent should not fail on nonexistent target: %v", err)
+	}
+
+	sf := ReadState(path)
+	if len(sf.Agents) != 1 {
+		t.Errorf("expected 1 agent unchanged, got %d", len(sf.Agents))
+	}
+}
+
 func TestFormatDuration(t *testing.T) {
 	if FormatDuration("") != "" {
 		t.Error("expected empty for empty input")

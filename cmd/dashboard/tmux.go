@@ -82,6 +82,13 @@ func TmuxSendRaw(target, key string) error {
 	return exec.CommandContext(ctx, "tmux", "send-keys", "-t", target, key).Run()
 }
 
+// TmuxKillPane kills a tmux pane by target.
+func TmuxKillPane(target string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, "tmux", "kill-pane", "-t", target).Run()
+}
+
 // TmuxListPanes returns the set of all live tmux pane targets (session:window.pane).
 func TmuxListPanes() map[string]bool {
 	ctx, cancel := context.WithTimeout(context.Background(), tmuxTimeout)

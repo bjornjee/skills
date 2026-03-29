@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -145,19 +144,7 @@ func (m model) agentListContent() string {
 
 		paneID := fmt.Sprintf("%d.%d", agent.Window, agent.Pane)
 
-		label := ""
-		if agent.Branch != "" {
-			b := agent.Branch
-			b = strings.TrimPrefix(b, "feat/")
-			b = strings.TrimPrefix(b, "fix/")
-			label = b
-		}
-		if label == "" && agent.Cwd != "" {
-			label = filepath.Base(agent.Cwd)
-		}
-		if label == "" {
-			label = agent.Session
-		}
+		label := agentLabel(agent)
 
 		duration := ""
 		if effState == "running" {
@@ -306,10 +293,7 @@ func (m model) usageContent() string {
 			continue
 		}
 
-		label := agent.Branch
-		if label == "" {
-			label = filepath.Base(agent.Cwd)
-		}
+		label := agentLabel(agent)
 		paneID := fmt.Sprintf("%d.%d", agent.Window, agent.Pane)
 
 		lines = append(lines, fmt.Sprintf("  %s %s %s",
@@ -520,7 +504,7 @@ func (m model) renderRightPanel() string {
 		header = append(header, "")
 	} else {
 		// Parent agent header
-		name := agent.Session
+		name := agentLabel(*agent)
 		if name == "" {
 			name = agent.Target
 		}
@@ -722,7 +706,7 @@ func (m model) renderHelpBar() string {
 	parts = append(parts, boldStyle.Render("u")+" usage")
 	parts = append(parts, boldStyle.Render("S")+" /usage")
 	parts = append(parts, boldStyle.Render("c")+" collapse")
-	parts = append(parts, boldStyle.Render("x")+" dismiss")
+	parts = append(parts, boldStyle.Render("x")+" close/dismiss")
 	parts = append(parts, boldStyle.Render("^↑/^↓")+" next agent")
 	parts = append(parts, boldStyle.Render("tab")+" focus")
 	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
