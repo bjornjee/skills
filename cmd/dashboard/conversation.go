@@ -12,9 +12,10 @@ import (
 
 // ConversationEntry represents a single turn in the conversation.
 type ConversationEntry struct {
-	Role      string // "human" or "assistant"
-	Content   string
-	Timestamp string
+	Role           string // "human" or "assistant"
+	Content        string
+	Timestamp      string
+	IsNotification bool // true for task-notification messages and their responses
 }
 
 // ProjectSlug derives the Claude Code project slug from a cwd path.
@@ -78,10 +79,28 @@ func ReadConversation(projDir, sessionID string, limit int) []ConversationEntry 
 		}
 	}
 
+	markNotifications(all)
+
 	if limit > 0 && len(all) > limit {
 		all = all[len(all)-limit:]
 	}
 	return all
+}
+
+// markNotifications tags task-notification user messages and
+// the assistant response that immediately follows each one.
+func markNotifications(entries []ConversationEntry) {
+	for i := range entries {
+		if entries[i].Role == "human" && strings.Contains(entries[i].Content, "<task-notification>") {
+			entries[i].IsNotification = true
+			for j := i + 1; j < len(entries); j++ {
+				if entries[j].Role == "assistant" {
+					entries[j].IsNotification = true
+					break
+				}
+			}
+		}
+	}
 }
 
 func parseUserEntry(entry jsonlEntry) *ConversationEntry {

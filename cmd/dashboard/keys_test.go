@@ -49,17 +49,16 @@ func TestShiftUpJumpsToPrevParent(t *testing.T) {
 
 func TestCtrlDownDoesNotJump(t *testing.T) {
 	m := newTestModelWithAgents()
-	// Start at parent1 (idx 2) — if ctrl+down still worked, it would stay at 2
-	// (no more parents), but starting non-zero ensures this isn't a trivial no-op.
-	m.selected = 2
+	// Start at parent0 (idx 0) — old code would jump to parent1 (idx 2)
+	m.selected = 0
 
 	msg := tea.KeyMsg{Type: tea.KeyCtrlDown}
 	result, _ := m.handleKey(msg)
 	rm := result.(model)
 
-	// ctrl+down should NOT jump (feature removed), selection stays at 2
-	if rm.selected != 2 {
-		t.Errorf("ctrl+down should not change selection, expected 2, got %d", rm.selected)
+	// ctrl+down should NOT jump (feature removed), selection stays at 0
+	if rm.selected != 0 {
+		t.Errorf("ctrl+down should not change selection, expected 0, got %d", rm.selected)
 	}
 }
 

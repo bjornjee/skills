@@ -270,6 +270,97 @@ func TestFindSubagents_SortedByStartTimeDescending(t *testing.T) {
 	}
 }
 
+func TestMarkNotifications_TagsTaskNotificationPair(t *testing.T) {
+	entries := []ConversationEntry{
+		{Role: "human", Content: "fix the bug"},
+		{Role: "assistant", Content: "I fixed it. Here's the summary of changes."},
+		{Role: "human", Content: "<task-notification>\n<task-id>abc123</task-id>\n<status>completed</status>\n</task-notification>"},
+		{Role: "assistant", Content: "Background agent completed."},
+	}
+	markNotifications(entries)
+
+	if entries[0].IsNotification {
+		t.Error("regular user message should not be marked as notification")
+	}
+	if entries[1].IsNotification {
+		t.Error("regular assistant message should not be marked as notification")
+	}
+	if !entries[2].IsNotification {
+		t.Error("task-notification user message should be marked as notification")
+	}
+	if !entries[3].IsNotification {
+		t.Error("assistant response after task-notification should be marked as notification")
+	}
+}
+
+func TestMarkNotifications_MultipleConsecutive(t *testing.T) {
+	entries := []ConversationEntry{
+		{Role: "human", Content: "do the thing"},
+		{Role: "assistant", Content: "Done. All changes committed."},
+		{Role: "human", Content: "<task-notification><task-id>a1</task-id></task-notification>"},
+		{Role: "assistant", Content: "Agent A completed."},
+		{Role: "human", Content: "<task-notification><task-id>b2</task-id></task-notification>"},
+		{Role: "assistant", Content: "Agent B completed."},
+	}
+	markNotifications(entries)
+
+	if entries[0].IsNotification || entries[1].IsNotification {
+		t.Error("substantive entries should not be marked")
+	}
+	for i := 2; i <= 5; i++ {
+		if !entries[i].IsNotification {
+			t.Errorf("entry %d should be marked as notification", i)
+		}
+	}
+}
+
+func TestMarkNotifications_NotificationAtEnd(t *testing.T) {
+	entries := []ConversationEntry{
+		{Role: "human", Content: "hello"},
+		{Role: "assistant", Content: "Hi there!"},
+		{Role: "human", Content: "<task-notification><task-id>x</task-id></task-notification>"},
+	}
+	markNotifications(entries)
+
+	if !entries[2].IsNotification {
+		t.Error("trailing task-notification should still be marked")
+	}
+	if entries[0].IsNotification || entries[1].IsNotification {
+		t.Error("substantive entries should not be marked")
+	}
+}
+
+func TestReadConversation_MarksNotifications(t *testing.T) {
+	dir := t.TempDir()
+	slug := "test-project"
+	sessionID := "abc-123"
+
+	projDir := filepath.Join(dir, slug)
+	os.MkdirAll(projDir, 0755)
+
+	jsonl := `{"type":"user","message":{"role":"user","content":"fix the bug"},"timestamp":"2026-03-28T10:15:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Fixed!"}]},"timestamp":"2026-03-28T10:15:30Z"}
+{"type":"user","message":{"role":"user","content":"<task-notification><task-id>bg1</task-id><status>completed</status></task-notification>"},"timestamp":"2026-03-28T10:16:00Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Background done."}]},"timestamp":"2026-03-28T10:16:30Z"}
+`
+	os.WriteFile(filepath.Join(projDir, sessionID+".jsonl"), []byte(jsonl), 0644)
+
+	entries := ReadConversation(filepath.Join(dir, slug), sessionID, 10)
+	if len(entries) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(entries))
+	}
+
+	if entries[0].IsNotification || entries[1].IsNotification {
+		t.Error("substantive entries should not be notifications")
+	}
+	if !entries[2].IsNotification {
+		t.Error("task-notification user entry should be marked")
+	}
+	if !entries[3].IsNotification {
+		t.Error("assistant response to task-notification should be marked")
+	}
+}
+
 func TestIsSubagentCompleted_EndTurn(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agent.jsonl")

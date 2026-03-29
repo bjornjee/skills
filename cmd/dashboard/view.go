@@ -225,8 +225,12 @@ func (m model) historyContent() string {
 			ts = t.Local().Format("15:04")
 		}
 
+		role := entry.Role
 		roleStyle := lipgloss.NewStyle().Foreground(runningColor).Bold(true)
-		if entry.Role == "human" {
+		if entry.IsNotification {
+			role = "sub-agent"
+			roleStyle = lipgloss.NewStyle().Foreground(doneColor)
+		} else if entry.Role == "human" {
 			roleStyle = lipgloss.NewStyle().Foreground(inputColor).Bold(true)
 		}
 
@@ -237,7 +241,7 @@ func (m model) historyContent() string {
 
 		lines = append(lines, fmt.Sprintf(" %s %s %s",
 			helpStyle.Render("["+ts+"]"),
-			roleStyle.Render(entry.Role+":"),
+			roleStyle.Render(role+":"),
 			preview))
 	}
 	return strings.Join(lines, "\n")
@@ -246,7 +250,7 @@ func (m model) historyContent() string {
 func (m model) waitingMessageContent() string {
 	var lastAssistant *ConversationEntry
 	for i := len(m.conversation) - 1; i >= 0; i-- {
-		if m.conversation[i].Role == "assistant" {
+		if m.conversation[i].Role == "assistant" && !m.conversation[i].IsNotification {
 			lastAssistant = &m.conversation[i]
 			break
 		}
@@ -276,7 +280,7 @@ func (m model) waitingMessageContent() string {
 func (m model) finalMessageContent() string {
 	var lastAssistant *ConversationEntry
 	for i := len(m.conversation) - 1; i >= 0; i-- {
-		if m.conversation[i].Role == "assistant" {
+		if m.conversation[i].Role == "assistant" && !m.conversation[i].IsNotification {
 			lastAssistant = &m.conversation[i]
 			break
 		}
