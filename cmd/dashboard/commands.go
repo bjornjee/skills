@@ -201,12 +201,6 @@ func closePane(target, statePath string) tea.Cmd {
 	}
 }
 
-func sendUsageCommand(target string) tea.Cmd {
-	return func() tea.Msg {
-		return sendResultMsg{err: TmuxSendKeys(target, "/usage")}
-	}
-}
-
 func loadUsage(agents []Agent) tea.Cmd {
 	agentsCopy := make([]Agent, len(agents))
 	copy(agentsCopy, agents)
