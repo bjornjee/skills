@@ -123,7 +123,7 @@ func parseUserEntry(entry jsonlEntry) *ConversationEntry {
 
 	return &ConversationEntry{
 		Role:      "human",
-		Content:   truncate(strContent, 500),
+		Content:   truncate(strContent, 2000),
 		Timestamp: entry.Timestamp,
 	}
 }
@@ -155,7 +155,7 @@ func parseAssistantEntry(entry jsonlEntry) *ConversationEntry {
 	content := strings.Join(texts, "\n")
 	return &ConversationEntry{
 		Role:      "assistant",
-		Content:   truncate(content, 8000),
+		Content:   truncate(content, 64000),
 		Timestamp: entry.Timestamp,
 	}
 }
@@ -405,8 +405,8 @@ func isSubagentCompleted(jsonlPath string) bool {
 	}
 	defer f.Close()
 
-	// Read last 4KB to find the final lines
-	const tailSize = 4 * 1024
+	// Read last 32KB to find the final lines
+	const tailSize = 32 * 1024
 	stat, err := f.Stat()
 	if err != nil {
 		return false
