@@ -135,7 +135,7 @@ func parseAssistantEntry(entry jsonlEntry) *ConversationEntry {
 	content := strings.Join(texts, "\n")
 	return &ConversationEntry{
 		Role:      "assistant",
-		Content:   truncate(content, 2000),
+		Content:   truncate(content, 8000),
 		Timestamp: entry.Timestamp,
 	}
 }
@@ -304,6 +304,7 @@ type SubagentInfo struct {
 	AgentID     string
 	AgentType   string
 	Description string
+	Completed   bool // true if last JSONL entry has stop_reason=end_turn
 }
 
 // subagentMeta is the JSON structure of agent-<id>.meta.json.
@@ -335,6 +336,11 @@ func FindSubagents(projDir, sessionID string) []SubagentInfo {
 		agentID := strings.TrimPrefix(name, "agent-")
 		agentID = strings.TrimSuffix(agentID, ".meta.json")
 
+		// Skip compaction entries (not real subagents)
+		if strings.HasPrefix(agentID, "compact-") {
+			continue
+		}
+
 		data, err := os.ReadFile(filepath.Join(subDir, name))
 		if err != nil {
 			continue
@@ -352,6 +358,7 @@ func FindSubagents(projDir, sessionID string) []SubagentInfo {
 				AgentID:     agentID,
 				AgentType:   meta.AgentType,
 				Description: meta.Description,
+				Completed:   isSubagentCompleted(jsonlPath),
 			})
 		}
 	}
@@ -366,6 +373,50 @@ func SubagentJSONLPath(projDir, sessionID, agentID string) string {
 		return p
 	}
 	return filepath.Join(projDir, "subagents", "agent-"+agentID+".jsonl")
+}
+
+// isSubagentCompleted checks the last JSONL entry for stop_reason=end_turn.
+func isSubagentCompleted(jsonlPath string) bool {
+	f, err := os.Open(jsonlPath)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	// Read last 4KB to find the final line
+	const tailSize = 4 * 1024
+	stat, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	if stat.Size() > tailSize {
+		if _, err := f.Seek(stat.Size()-tailSize, io.SeekStart); err != nil {
+			return false
+		}
+	}
+
+	var lastLine []byte
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, tailSize), tailSize)
+	for scanner.Scan() {
+		if len(scanner.Bytes()) > 0 {
+			lastLine = make([]byte, len(scanner.Bytes()))
+			copy(lastLine, scanner.Bytes())
+		}
+	}
+	if len(lastLine) == 0 {
+		return false
+	}
+
+	var entry struct {
+		Message struct {
+			StopReason string `json:"stop_reason"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(lastLine, &entry) != nil {
+		return false
+	}
+	return entry.Message.StopReason == "end_turn"
 }
 
 // belongsToSession checks if a subagent JSONL's sessionId matches the parent.
@@ -482,6 +533,80 @@ func HasPendingToolUse(projDir, sessionID string) bool {
 	}
 
 	return hasToolUse && !toolResultAfter
+}
+
+// RateLimitStatus holds the most recent rate limit info from a session JSONL.
+type RateLimitStatus struct {
+	Limited   bool
+	Message   string // e.g. "You've hit your limit · resets 2pm (Asia/Singapore)"
+	Timestamp string
+}
+
+// ReadRateLimitStatus scans the tail of a session JSONL for rate_limit errors.
+func ReadRateLimitStatus(projDir, sessionID string) RateLimitStatus {
+	path := filepath.Join(projDir, sessionID+".jsonl")
+	f, err := os.Open(path)
+	if err != nil {
+		return RateLimitStatus{}
+	}
+	defer f.Close()
+
+	const tailSize = 64 * 1024
+	stat, err := f.Stat()
+	if err != nil {
+		return RateLimitStatus{}
+	}
+	if stat.Size() > tailSize {
+		if _, err := f.Seek(stat.Size()-tailSize, io.SeekStart); err != nil {
+			return RateLimitStatus{}
+		}
+	}
+
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, tailSize), tailSize)
+
+	var last RateLimitStatus
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		// Quick check before full parse
+		if !strings.Contains(string(line), "rate_limit") {
+			continue
+		}
+
+		var entry struct {
+			Type      string `json:"type"`
+			Error     string `json:"error"`
+			Timestamp string `json:"timestamp"`
+			Message   struct {
+				Content json.RawMessage `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(line, &entry) != nil {
+			continue
+		}
+		if entry.Error != "rate_limit" {
+			continue
+		}
+
+		// Extract text from content blocks
+		var blocks []contentBlock
+		if json.Unmarshal(entry.Message.Content, &blocks) == nil {
+			for _, b := range blocks {
+				if b.Type == "text" && b.Text != "" {
+					last = RateLimitStatus{
+						Limited:   true,
+						Message:   b.Text,
+						Timestamp: entry.Timestamp,
+					}
+					break
+				}
+			}
+		}
+	}
+	return last
 }
 
 func truncate(s string, maxLen int) string {

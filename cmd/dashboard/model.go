@@ -37,6 +37,7 @@ var (
 
 	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("242"))
 	boldStyle = lipgloss.NewStyle().Bold(true)
+	costStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
 )
 
 type stateIcon struct {
@@ -76,12 +77,17 @@ type pendingInputMsg struct {
 	target  string
 	pending bool
 }
+type rateLimitMsg struct {
+	target string
+	status RateLimitStatus
+}
 
 // -- Modes --
 
 const (
 	modeNormal = iota
 	modeReply
+	modeUsage
 )
 
 // -- Viewport focus --
@@ -123,6 +129,7 @@ type model struct {
 	statePath     string
 	selfTarget    string
 	statusMsg     string
+	statusMsgTick int // tick when statusMsg was set; clears after 3s
 	capturedLines []string
 	conversation  []ConversationEntry
 	tickCount     int
@@ -149,6 +156,9 @@ type model struct {
 
 	// Pending input detection (permission prompts)
 	pendingInput map[string]bool // agentTarget → has pending tool_use
+
+	// Rate limit status per agent
+	rateLimits map[string]RateLimitStatus // agentTarget → last rate limit
 }
 
 // buildTree rebuilds the flat tree node list from agents and their subagents.
@@ -265,6 +275,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		m.tickCount++
+		// Auto-clear status message after 3 seconds
+		if m.statusMsg != "" && m.tickCount-m.statusMsgTick >= 3 {
+			m.statusMsg = ""
+		}
 		cmds := []tea.Cmd{tickEvery(), m.captureSelected(), m.loadConversation()}
 		if m.selectedSubagent() != nil {
 			cmds = append(cmds, m.loadSubagentActivity())
@@ -343,6 +357,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.statusMsg = "Jumped — switch back to this window for dashboard"
 		}
+		m.statusMsgTick = m.tickCount
 		return m, nil
 
 	case sendResultMsg:
@@ -351,6 +366,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.statusMsg = "Reply sent"
 		}
+		m.statusMsgTick = m.tickCount
 		return m, nil
 
 	case tea.MouseMsg:
@@ -456,6 +472,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selected > 0 {
 			m.selected--
 			m.statusMsg = ""
+			m.mode = modeNormal
 			m.conversation = nil
 			m.subActivity = nil
 			m.updateLeftContent()
@@ -466,6 +483,7 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selected < len(m.treeNodes)-1 {
 			m.selected++
 			m.statusMsg = ""
+			m.mode = modeNormal
 			m.conversation = nil
 			m.subActivity = nil
 			m.updateLeftContent()
@@ -511,6 +529,15 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.textInput.Focus()
 			return m, textinput.Blink
 		}
+	case "u":
+		if m.mode == modeUsage {
+			m.mode = modeNormal
+			m.updateRightContent()
+		} else {
+			m.mode = modeUsage
+			m.updateRightContent()
+		}
+		return m, nil
 	case "y", "n":
 		if agent := m.selectedAgent(); m.tmuxAvailable && agent != nil && m.selectedSubagent() == nil {
 			es := m.effectiveState(*agent)
@@ -560,6 +587,14 @@ func (m *model) updateRightContent() {
 		return
 	}
 
+	// Usage mode overrides right panel content
+	if m.mode == modeUsage {
+		m.filesVP.SetContent("")
+		m.historyVP.SetContent("")
+		m.messageVP.SetContent(m.usageContent())
+		return
+	}
+
 	sub := m.selectedSubagent()
 	if sub != nil {
 		// Subagent right panel: files touched + activity + output
@@ -569,7 +604,7 @@ func (m *model) updateRightContent() {
 		return
 	}
 
-	// Parent agent right panel (unchanged)
+	// Parent agent right panel
 	m.filesVP.SetContent(m.filesContent(*agent))
 	m.historyVP.SetContent(m.historyContent())
 
@@ -624,7 +659,12 @@ func (m model) agentListContent() string {
 				prefix = "└─"
 			}
 
-			subIcon := lipgloss.NewStyle().Foreground(runningColor).Render("▶")
+			var subIcon string
+			if node.Sub.Completed {
+				subIcon = lipgloss.NewStyle().Foreground(doneColor).Render("✓")
+			} else {
+				subIcon = lipgloss.NewStyle().Foreground(runningColor).Render("▶")
+			}
 			subLabel := node.Sub.AgentType
 			if node.Sub.Description != "" {
 				maxDesc := m.leftWidth - 12 - len(subLabel)
@@ -813,6 +853,85 @@ func (m model) finalMessageContent() string {
 	for _, wl := range wrapped {
 		lines = append(lines, "  "+wl)
 	}
+	return strings.Join(lines, "\n")
+}
+
+func (m model) usageContent() string {
+	var lines []string
+	lines = append(lines, costStyle.Render("  USAGE BREAKDOWN"))
+	lines = append(lines, "")
+
+	// Per-agent usage
+	for _, agent := range m.agents {
+		u, ok := m.agentUsage[agent.Target]
+		if !ok || u.OutputTokens == 0 {
+			continue
+		}
+
+		label := agent.Branch
+		if label == "" {
+			label = filepath.Base(agent.Cwd)
+		}
+		paneID := fmt.Sprintf("%d.%d", agent.Window, agent.Pane)
+
+		lines = append(lines, fmt.Sprintf("  %s %s %s",
+			boldStyle.Render(paneID), label, costStyle.Render(FormatCost(u.CostUSD))))
+		lines = append(lines, fmt.Sprintf("    in: %s  out: %s  cache-r: %s  cache-w: %s",
+			FormatTokens(u.InputTokens),
+			FormatTokens(u.OutputTokens),
+			FormatTokens(u.CacheReadTokens),
+			FormatTokens(u.CacheWriteTokens)))
+		if u.Model != "" {
+			lines = append(lines, fmt.Sprintf("    model: %s", helpStyle.Render(u.Model)))
+		}
+		lines = append(lines, "")
+	}
+
+	// Daily cost from DB
+	if m.db != nil {
+		days := m.db.CostByDay(time.Now().AddDate(0, 0, -7))
+		if len(days) > 0 {
+			const maxBarWidth = 30
+			var maxCost float64
+			for _, d := range days {
+				if d.CostUSD > maxCost {
+					maxCost = d.CostUSD
+				}
+			}
+
+			lines = append(lines, boldStyle.Render("  DAILY COST (7d)"))
+			lines = append(lines, "")
+			for _, d := range days {
+				width := 0
+				if maxCost > 0 {
+					width = int(float64(maxBarWidth) * d.CostUSD / maxCost)
+				}
+				bar := strings.Repeat("█", width)
+				lines = append(lines, fmt.Sprintf("  %s  %s %s",
+					helpStyle.Render(d.Date),
+					costStyle.Render(bar),
+					FormatCost(d.CostUSD)))
+			}
+			lines = append(lines, "")
+		}
+	}
+
+	// Total — prefer DB (all-time) when available, else session-only
+	if m.db != nil && m.dbTotalCost > 0 {
+		lines = append(lines, fmt.Sprintf("  All-time: %s  │  Session: in %s  out %s",
+			costStyle.Render(FormatCost(m.dbTotalCost)),
+			FormatTokens(m.totalUsage.InputTokens),
+			FormatTokens(m.totalUsage.OutputTokens)))
+	} else {
+		lines = append(lines, fmt.Sprintf("  Session: %s  │  in: %s  out: %s",
+			costStyle.Render(FormatCost(m.totalUsage.CostUSD)),
+			FormatTokens(m.totalUsage.InputTokens),
+			FormatTokens(m.totalUsage.OutputTokens)))
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, helpStyle.Render("  Press u to close"))
+
 	return strings.Join(lines, "\n")
 }
 
@@ -1044,7 +1163,13 @@ func (m model) renderRightPanel() string {
 
 	var filesLabel, historyLabel, messageLabel string
 
-	if sub != nil {
+	if m.mode == modeUsage {
+		filesLabel = ""
+		historyLabel = ""
+		messageLabel = " " + lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).
+			Render("── Usage") + focusMarker(focusMessage) + scrollHint(m.messageVP) +
+			" " + helpStyle.Render(strings.Repeat("─", 20))
+	} else if sub != nil {
 		filesLabel = " " + boldStyle.Render("── Files Touched") + focusMarker(focusFiles) + scrollHint(m.filesVP) +
 			" " + helpStyle.Render(strings.Repeat("─", 12))
 		historyLabel = " " + boldStyle.Render("── Activity") + focusMarker(focusHistory) + scrollHint(m.historyVP) +
@@ -1081,16 +1206,25 @@ func (m model) renderRightPanel() string {
 	}
 
 	// Compose right panel (with blank-line buffers between sections)
-	parts := []string{
-		strings.Join(header, "\n"),
-		filesLabel,
-		m.filesVP.View(),
-		"",
-		historyLabel,
-		m.historyVP.View(),
-		"",
-		messageLabel,
-		m.messageVP.View(),
+	var parts []string
+	if m.mode == modeUsage {
+		parts = []string{
+			strings.Join(header, "\n"),
+			messageLabel,
+			m.messageVP.View(),
+		}
+	} else {
+		parts = []string{
+			strings.Join(header, "\n"),
+			filesLabel,
+			m.filesVP.View(),
+			"",
+			historyLabel,
+			m.historyVP.View(),
+			"",
+			messageLabel,
+			m.messageVP.View(),
+		}
 	}
 	if statusLine != "" {
 		parts = append(parts, statusLine)
@@ -1152,6 +1286,7 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("enter")+" "+helpStyle.Render("jump"))
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
+	parts = append(parts, boldStyle.Render("u")+" usage")
 	parts = append(parts, boldStyle.Render("c")+" collapse")
 	parts = append(parts, boldStyle.Render("tab")+" focus")
 	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
@@ -1240,14 +1375,21 @@ func (m model) loadSubagentActivity() tea.Cmd {
 func (m model) loadAllSubagents() []tea.Cmd {
 	var cmds []tea.Cmd
 	for _, agent := range m.agents {
-		if agent.Cwd == "" || agent.SessionID == "" {
+		if agent.Cwd == "" {
 			continue
 		}
 		a := agent // copy for closure
 		cmds = append(cmds, func() tea.Msg {
+			sid := a.SessionID
+			if sid == "" {
+				sid = FindSessionID(a.Cwd)
+			}
+			if sid == "" {
+				return subagentsMsg{parentTarget: a.Target, agents: nil}
+			}
 			slug := ProjectSlug(a.Cwd)
 			projDir := filepath.Join(ConversationsDir(), slug)
-			subs := FindSubagents(projDir, a.SessionID)
+			subs := FindSubagents(projDir, sid)
 			return subagentsMsg{parentTarget: a.Target, agents: subs}
 		})
 	}
