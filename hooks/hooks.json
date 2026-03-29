@@ -25,18 +25,6 @@
           }
         ],
         "description": "Block destructive shell commands (rm -rf, git reset --hard, DROP TABLE, etc.)"
-      },
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-reporter.js\"",
-            "async": true,
-            "timeout": 5
-          }
-        ],
-        "description": "Report agent state (running) to dashboard"
       }
     ],
     "PostToolUse": [

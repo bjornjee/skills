@@ -47,8 +47,8 @@ function validateCommitMessage(message) {
 // Export for testing
 module.exports = { extractCommitMessage, validateCommitMessage, VALID_TYPES };
 
-// Only run as hook when executed directly (stdin is piped)
-if (!process.stdin.isTTY) {
+// Only run as hook when executed directly (not imported by test runner)
+if (require.main === module && !process.stdin.isTTY) {
   let data = '';
 
   process.stdin.setEncoding('utf8');
