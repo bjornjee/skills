@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -68,9 +69,13 @@ type model struct {
 	confirmTarget string // tmux target pending close confirmation
 
 	// Z-plugin suggestions for create folder mode
-	zEntries    []zEntry // cached z entries from ~/.z
-	suggestions []string // filtered suggestions for current input
-	selectedSugg int     // index of highlighted suggestion
+	zEntries     []zEntry // cached z entries from ~/.z
+	suggestions  []string // filtered suggestions for current input
+	selectedSugg int      // index of highlighted suggestion
+
+	// Banner
+	quote   string           // random quote selected at startup
+	nowFunc func() time.Time // injectable clock for testability
 }
 
 // buildTree rebuilds the flat tree node list from agents and their subagents.
@@ -145,6 +150,8 @@ func newModel(statePath, selfTarget string, db *DB) model {
 		dismissed:      make(map[string]bool),
 		pendingInput:   make(map[string]bool),
 		prevEffState:   make(map[string]string),
+		quote:          pickQuote(db),
+		nowFunc:        time.Now,
 	}
 }
 
@@ -387,7 +394,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *model) resizeViewports() {
 	m.leftWidth = m.width*30/100 - 2
 	m.rightWidth = m.width - m.leftWidth - 4
-	panelHeight := m.height - 5
+	panelHeight := m.height - 5 - bannerHeight
 
 	m.agentListVP.Width = m.leftWidth
 	m.agentListVP.Height = panelHeight
@@ -408,4 +415,3 @@ func (m *model) resizeViewports() {
 	m.updateLeftContent()
 	m.updateRightContent()
 }
-
