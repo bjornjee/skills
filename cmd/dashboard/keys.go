@@ -45,6 +45,8 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeNormal
 			m.textInput.Reset()
 			m.textInput.Placeholder = "Type reply..."
+			m.suggestions = nil
+			m.selectedSugg = 0
 			if folder != "" {
 				return m, createSession(folder, m.agents, m.selfTarget)
 			}
@@ -53,11 +55,36 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeNormal
 			m.textInput.Reset()
 			m.textInput.Placeholder = "Type reply..."
+			m.suggestions = nil
+			m.selectedSugg = 0
 			m.updateRightContent()
+			return m, nil
+		case "tab":
+			if len(m.suggestions) > 0 && m.selectedSugg < len(m.suggestions) {
+				m.textInput.SetValue(m.suggestions[m.selectedSugg])
+				m.textInput.CursorEnd()
+				m.suggestions = nil
+				m.selectedSugg = 0
+			}
+			m.updateRightContent()
+			return m, nil
+		case "down":
+			if len(m.suggestions) > 0 {
+				m.selectedSugg = (m.selectedSugg + 1) % len(m.suggestions)
+				m.updateRightContent()
+			}
+			return m, nil
+		case "up":
+			if len(m.suggestions) > 0 {
+				m.selectedSugg = (m.selectedSugg - 1 + len(m.suggestions)) % len(m.suggestions)
+				m.updateRightContent()
+			}
 			return m, nil
 		default:
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
+			m.suggestions = filterZSuggestions(m.textInput.Value(), m.zEntries)
+			m.selectedSugg = 0
 			m.updateRightContent()
 			return m, cmd
 		}
@@ -69,6 +96,10 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			text := m.textInput.Value()
 			m.textInput.Reset()
+			if text != "" {
+				m.statusMsg = fmt.Sprintf("Sent: %s", text)
+				m.statusMsgTick = m.tickCount
+			}
 			m.updateRightContent()
 			if text != "" && m.interactTarget != "" {
 				return m, sendReply(m.interactTarget, text)
@@ -266,6 +297,11 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeCreateFolder
 		m.textInput.Placeholder = "Git folder path (e.g. ~/code/myrepo)..."
 		m.textInput.Focus()
+		if m.zEntries == nil {
+			m.zEntries = loadZEntries()
+		}
+		m.suggestions = filterZSuggestions("", m.zEntries)
+		m.selectedSugg = 0
 		m.updateRightContent()
 		return m, textinput.Blink
 	case "i":

@@ -16,6 +16,23 @@ func (m *model) updateLeftContent() {
 }
 
 func (m *model) updateRightContent() {
+	// Override modes use the full panel height since they replace all three viewports.
+	// Normal mode restores the standard message viewport height.
+	panelHeight := m.height - 5 // matches resizeViewports
+	if m.mode == modeCreateFolder || m.mode == modeInteractive {
+		fullHeight := panelHeight - 2 // minus panel border
+		if fullHeight < 3 {
+			fullHeight = 3
+		}
+		m.messageVP.Height = fullHeight
+	} else {
+		msgHeight := panelHeight - headerLines - filesVPHeight - historyVPHeight - sectionGaps
+		if msgHeight < 3 {
+			msgHeight = 3
+		}
+		m.messageVP.Height = msgHeight
+	}
+
 	// Create folder mode overrides right panel (works even with no agents)
 	if m.mode == modeCreateFolder {
 		var lines []string
@@ -25,7 +42,19 @@ func (m *model) updateRightContent() {
 		lines = append(lines, "  "+boldStyle.Render("Git folder path:"))
 		lines = append(lines, "  "+m.textInput.View())
 		lines = append(lines, "")
-		lines = append(lines, "  "+helpStyle.Render("Enter to create │ Esc to cancel"))
+		// Show z-plugin suggestions
+		if len(m.suggestions) > 0 {
+			for i, s := range m.suggestions {
+				prefix := "  "
+				if i == m.selectedSugg {
+					lines = append(lines, prefix+selectedStyle.Render(" "+s+" "))
+				} else {
+					lines = append(lines, prefix+helpStyle.Render(" "+s))
+				}
+			}
+			lines = append(lines, "")
+		}
+		lines = append(lines, "  "+helpStyle.Render("Enter to create │ Tab to accept │ ↑↓ cycle │ Esc to cancel"))
 		m.filesVP.SetContent("")
 		m.historyVP.SetContent("")
 		m.messageVP.SetContent(strings.Join(lines, "\n"))
@@ -49,6 +78,7 @@ func (m *model) updateRightContent() {
 		m.filesVP.SetContent("")
 		m.historyVP.SetContent("")
 		m.messageVP.SetContent(strings.Join(lines, "\n"))
+		m.messageVP.GotoBottom()
 		return
 	}
 

@@ -68,6 +68,11 @@ type model struct {
 
 	// Interactive mode
 	interactTarget string // tmux target of pane being mirrored
+
+	// Z-plugin suggestions for create folder mode
+	zEntries    []zEntry // cached z entries from ~/.z
+	suggestions []string // filtered suggestions for current input
+	selectedSugg int     // index of highlighted suggestion
 }
 
 // buildTree rebuilds the flat tree node list from agents and their subagents.
