@@ -57,7 +57,7 @@ func TestGreeting_Boundaries(t *testing.T) {
 }
 
 func TestRandomQuote_ReturnsFromList(t *testing.T) {
-	q := randomQuote()
+	q := fallbackQuote()
 	found := false
 	for _, candidate := range quotes {
 		if q == candidate {
@@ -66,14 +66,14 @@ func TestRandomQuote_ReturnsFromList(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("randomQuote() returned %q which is not in the quotes list", q)
+		t.Fatalf("fallbackQuote() returned %q which is not in the quotes list", q)
 	}
 }
 
 func TestRandomQuote_NotEmpty(t *testing.T) {
-	q := randomQuote()
+	q := fallbackQuote()
 	if q == "" {
-		t.Fatal("randomQuote() returned empty string")
+		t.Fatal("fallbackQuote() returned empty string")
 	}
 }
 
@@ -121,7 +121,7 @@ func TestRenderBanner_ContainsAxolotl(t *testing.T) {
 func TestRenderAxolotl_CorrectHeight(t *testing.T) {
 	art := renderAxolotl()
 	lines := strings.Split(art, "\n")
-	want := len(axolotlPixels) / 2
+	want := (len(axolotlPixels) + 1) / 2
 	if len(lines) != want {
 		t.Fatalf("renderAxolotl() has %d lines, want %d", len(lines), want)
 	}

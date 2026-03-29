@@ -24,6 +24,18 @@ CREATE TABLE IF NOT EXISTS daily_usage (
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_date ON daily_usage(date);
+
+CREATE TABLE IF NOT EXISTS quotes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    quote      TEXT NOT NULL,
+    author     TEXT NOT NULL DEFAULT '',
+    fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS quotes_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 `
 
 // DayCost is a single day's aggregated cost.
@@ -108,6 +120,60 @@ func (db *DB) CostForDate(date string) float64 {
 	_ = db.conn.Get(&total, `
 		SELECT COALESCE(SUM(cost_usd), 0) FROM daily_usage WHERE date = ?`, date)
 	return total
+}
+
+// RandomQuote returns a random quote from the cache, or empty strings if none cached.
+func (db *DB) RandomQuote() (quote, author string) {
+	var row struct {
+		Quote  string `db:"quote"`
+		Author string `db:"author"`
+	}
+	err := db.conn.Get(&row, "SELECT quote, author FROM quotes ORDER BY RANDOM() LIMIT 1")
+	if err != nil {
+		return "", ""
+	}
+	return row.Quote, row.Author
+}
+
+// QuoteCount returns the number of cached quotes.
+func (db *DB) QuoteCount() int {
+	var count int
+	_ = db.conn.Get(&count, "SELECT COUNT(*) FROM quotes")
+	return count
+}
+
+// InsertQuotes bulk-inserts quotes into the cache.
+func (db *DB) InsertQuotes(quotes []QuoteRow) error {
+	tx, err := db.conn.Beginx()
+	if err != nil {
+		return err
+	}
+	for _, q := range quotes {
+		_, err := tx.Exec("INSERT INTO quotes (quote, author) VALUES (?, ?)", q.Quote, q.Author)
+		if err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// LastQuoteFetch returns the date string of the last successful quote fetch, or "".
+func (db *DB) LastQuoteFetch() string {
+	var val string
+	_ = db.conn.Get(&val, "SELECT value FROM quotes_meta WHERE key = 'last_fetch'")
+	return val
+}
+
+// SetLastQuoteFetch records today as the last fetch date.
+func (db *DB) SetLastQuoteFetch(date string) {
+	_, _ = db.conn.Exec("INSERT OR REPLACE INTO quotes_meta (key, value) VALUES ('last_fetch', ?)", date)
+}
+
+// QuoteRow is a quote to insert into the cache.
+type QuoteRow struct {
+	Quote  string
+	Author string
 }
 
 // CostByDay returns daily aggregated cost since the given time, ordered by date.

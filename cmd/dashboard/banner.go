@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -26,7 +30,67 @@ var quotes = []string{
 	"A ship in harbor is safe, but that is not what ships are built for.",
 }
 
-func randomQuote() string {
+type apiNinjasQuote struct {
+	Quote  string `json:"quote"`
+	Author string `json:"author"`
+}
+
+// fetchAndCacheQuotes fetches 10 quotes from API Ninjas and caches them in the DB.
+func fetchAndCacheQuotes(db *DB) {
+	key := os.Getenv("API_NINJAS_KEY")
+	if key == "" {
+		return
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("GET", "https://api.api-ninjas.com/v1/quotes?limit=10", nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("X-Api-Key", key)
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
+	var results []apiNinjasQuote
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil || len(results) == 0 {
+		return
+	}
+	rows := make([]QuoteRow, len(results))
+	for i, r := range results {
+		rows[i] = QuoteRow{Quote: r.Quote, Author: r.Author}
+	}
+	if err := db.InsertQuotes(rows); err != nil {
+		return
+	}
+	db.SetLastQuoteFetch(time.Now().Format("2006-01-02"))
+}
+
+// refreshQuotesIfNeeded checks if quotes need refreshing (daily) and fetches if so.
+func refreshQuotesIfNeeded(db *DB) {
+	today := time.Now().Format("2006-01-02")
+	if db.LastQuoteFetch() == today {
+		return
+	}
+	fetchAndCacheQuotes(db)
+}
+
+// pickQuote returns a random quote from the DB cache, falling back to hardcoded.
+func pickQuote(db *DB) string {
+	if db != nil {
+		refreshQuotesIfNeeded(db)
+		q, a := db.RandomQuote()
+		if q != "" {
+			return fmt.Sprintf("%s — %s", q, a)
+		}
+	}
+	return fallbackQuote()
+}
+
+func fallbackQuote() string {
 	if len(quotes) == 0 {
 		return ""
 	}

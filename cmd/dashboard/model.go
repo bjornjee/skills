@@ -150,7 +150,7 @@ func newModel(statePath, selfTarget string, db *DB) model {
 		dismissed:      make(map[string]bool),
 		pendingInput:   make(map[string]bool),
 		prevEffState:   make(map[string]string),
-		quote:          randomQuote(),
+		quote:          pickQuote(db),
 		nowFunc:        time.Now,
 	}
 }
