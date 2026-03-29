@@ -363,6 +363,167 @@ func TestCreateSessionMsg_Error(t *testing.T) {
 	}
 }
 
+func TestInteractiveMode_InputVisibleAtBottom(t *testing.T) {
+	m := newModel("", "", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+	}
+	m.buildTree()
+
+	// Enter interactive mode
+	result, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	m = result.(model)
+
+	// Simulate many captured lines (more than viewport height) to push input below fold
+	var lines []string
+	for i := 0; i < 50; i++ {
+		lines = append(lines, fmt.Sprintf("output line %d", i))
+	}
+	m.capturedLines = lines
+	m.updateRightContent()
+
+	// Type something
+	for _, ch := range "test input" {
+		result, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = result.(model)
+	}
+
+	// The visible viewport content should contain the typed text
+	content := m.messageVP.View()
+	if !strings.Contains(content, "test input") {
+		t.Error("interactive mode viewport should show typed text — viewport must scroll to bottom")
+	}
+}
+
+func TestInteractiveMode_SendShowsStatusMsg(t *testing.T) {
+	m := newModel("", "", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+	}
+	m.buildTree()
+
+	// Enter interactive mode
+	m.mode = modeInteractive
+	m.interactTarget = "main:1.0"
+	m.textInput.Focus()
+	m.textInput.SetValue("hello world")
+
+	// Press enter to send
+	result, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	rm := result.(model)
+
+	if !strings.Contains(rm.statusMsg, "hello world") {
+		t.Errorf("expected statusMsg to contain sent text, got %q", rm.statusMsg)
+	}
+}
+
+func TestCreateFolderMode_SuggestionsShown(t *testing.T) {
+	m := newModel("", "", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+	}
+	m.buildTree()
+
+	// Pre-load z entries
+	m.zEntries = []zEntry{
+		{Path: "/Users/bjornjee/Code/skills", Rank: 100, Timestamp: 1774000000},
+		{Path: "/Users/bjornjee/Code/other", Rank: 50, Timestamp: 1773000000},
+		{Path: "/tmp/unrelated", Rank: 10, Timestamp: 1770000000},
+	}
+
+	// Enter create folder mode
+	result, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = result.(model)
+
+	// Type partial path
+	for _, ch := range "skills" {
+		result, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = result.(model)
+	}
+
+	// Should have suggestions filtered to match "skills"
+	if len(m.suggestions) == 0 {
+		t.Fatal("expected suggestions matching 'skills'")
+	}
+	if !strings.Contains(m.suggestions[0], "skills") {
+		t.Errorf("expected first suggestion to contain 'skills', got %q", m.suggestions[0])
+	}
+}
+
+func TestCreateFolderMode_TabAcceptsSuggestion(t *testing.T) {
+	m := newModel("", "", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+	}
+	m.buildTree()
+
+	m.zEntries = []zEntry{
+		{Path: "/Users/bjornjee/Code/skills", Rank: 100, Timestamp: 1774000000},
+	}
+
+	// Enter create folder mode and type partial
+	m.mode = modeCreateFolder
+	m.textInput.Focus()
+	m.textInput.SetValue("ski")
+	m.suggestions = filterZSuggestions("ski", m.zEntries)
+
+	// Press tab to accept
+	result, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyTab})
+	rm := result.(model)
+
+	if rm.textInput.Value() != "/Users/bjornjee/Code/skills" {
+		t.Errorf("expected tab to accept suggestion, got %q", rm.textInput.Value())
+	}
+	if len(rm.suggestions) != 0 {
+		t.Error("expected suggestions to be cleared after tab accept")
+	}
+}
+
+func TestCreateFolderMode_SuggestionsInView(t *testing.T) {
+	m := newModel("", "", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.tmuxAvailable = true
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+	}
+	m.buildTree()
+
+	m.zEntries = []zEntry{
+		{Path: "/Users/bjornjee/Code/skills", Rank: 100, Timestamp: 1774000000},
+		{Path: "/Users/bjornjee/Code/other", Rank: 50, Timestamp: 1773000000},
+	}
+
+	// Enter create folder mode
+	m.mode = modeCreateFolder
+	m.textInput.Focus()
+	m.textInput.SetValue("Code")
+	m.suggestions = filterZSuggestions("Code", m.zEntries)
+	m.updateRightContent()
+
+	content := m.messageVP.View()
+	if !strings.Contains(content, "skills") {
+		t.Error("viewport should show suggestion paths matching query")
+	}
+}
+
 // executeBatch runs a tea.Cmd (expected to be a Batch) and collects messages.
 func executeBatch(t *testing.T, cmd tea.Cmd) []tea.Msg {
 	t.Helper()
