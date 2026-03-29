@@ -2,10 +2,48 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
+
+// repoFromCwd extracts the repo name from a working directory path.
+// For worktree paths like /foo/worktrees/skills/branch-name, returns "skills".
+// For normal paths like /foo/skills, returns "skills" (filepath.Base).
+func repoFromCwd(cwd string) string {
+	if cwd == "" {
+		return ""
+	}
+	parts := strings.SplitN(cwd, "/worktrees/", 2)
+	if len(parts) == 2 && parts[1] != "" {
+		// Worktree: repo is the first component after /worktrees/
+		repo := strings.SplitN(parts[1], "/", 2)[0]
+		return repo
+	}
+	base := filepath.Base(cwd)
+	if base == "." || base == "/" {
+		return ""
+	}
+	return base
+}
+
+// agentLabel returns a display label for an agent: "repo/branch" with fallbacks.
+func agentLabel(agent Agent) string {
+	repo := repoFromCwd(agent.Cwd)
+	branch := agent.Branch
+
+	if repo != "" && branch != "" {
+		return repo + "/" + branch
+	}
+	if repo != "" {
+		return repo
+	}
+	if branch != "" {
+		return branch
+	}
+	return agent.Session
+}
 
 func truncateLineStr(s string, maxLen int) string {
 	if maxLen > 0 && len(s) > maxLen {
