@@ -37,6 +37,7 @@ type model struct {
 	totalUsage    Usage
 	db            *DB
 	dbTotalCost   float64
+	dbTodayCost   float64
 
 	// Viewports
 	agentListVP viewport.Model
@@ -214,6 +215,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dbCostMsg:
 		m.dbTotalCost = msg.total
+		m.dbTodayCost = msg.todayCost
 		return m, nil
 
 	case activityMsg:

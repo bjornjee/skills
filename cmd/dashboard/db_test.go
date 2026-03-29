@@ -120,3 +120,93 @@ func TestCostByDay_EmptyDB(t *testing.T) {
 		t.Errorf("CostByDay on empty DB: got %d days, want 0", len(days))
 	}
 }
+
+func TestSessionCostExcludingDate(t *testing.T) {
+	db := testDB(t)
+
+	// Session spans two days
+	db.UpsertUsage("2026-03-27", "sess-1", "opus", Usage{CostUSD: 5.00})
+	db.UpsertUsage("2026-03-28", "sess-1", "opus", Usage{CostUSD: 3.00})
+
+	// Excluding today (03-28), should return only 03-27's cost
+	got, err := db.SessionCostExcludingDate("sess-1", "2026-03-28")
+	if err != nil {
+		t.Fatalf("SessionCostExcludingDate: %v", err)
+	}
+	if math.Abs(got-5.00) > 0.0001 {
+		t.Errorf("SessionCostExcludingDate: got %f, want 5.00", got)
+	}
+
+	// Excluding 03-27, should return only 03-28's cost
+	got, err = db.SessionCostExcludingDate("sess-1", "2026-03-27")
+	if err != nil {
+		t.Fatalf("SessionCostExcludingDate: %v", err)
+	}
+	if math.Abs(got-3.00) > 0.0001 {
+		t.Errorf("SessionCostExcludingDate: got %f, want 3.00", got)
+	}
+
+	// Non-existent session
+	got, err = db.SessionCostExcludingDate("sess-999", "2026-03-28")
+	if err != nil {
+		t.Fatalf("SessionCostExcludingDate: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("SessionCostExcludingDate for missing session: got %f, want 0", got)
+	}
+}
+
+func TestCostForDate(t *testing.T) {
+	db := testDB(t)
+	today := "2026-03-28"
+
+	db.UpsertUsage("2026-03-27", "sess-1", "opus", Usage{CostUSD: 5.00})
+	db.UpsertUsage(today, "sess-1", "opus", Usage{CostUSD: 3.00})
+	db.UpsertUsage(today, "sess-2", "sonnet", Usage{CostUSD: 1.00})
+
+	got := db.CostForDate(today)
+	if math.Abs(got-4.00) > 0.0001 {
+		t.Errorf("CostForDate: got %f, want 4.00", got)
+	}
+
+	// Empty day
+	got = db.CostForDate("2026-03-25")
+	if got != 0 {
+		t.Errorf("CostForDate for empty day: got %f, want 0", got)
+	}
+}
+
+func TestDeltaPersistence_NoDuplicateCounting(t *testing.T) {
+	db := testDB(t)
+
+	// Simulate a session that runs across two days.
+	// Day 1: cumulative cost from JSONL is $5
+	// Delta = $5 - $0 (no previous) = $5
+	prev, _ := db.SessionCostExcludingDate("sess-1", "2026-03-27")
+	delta1 := 5.00 - prev
+	db.UpsertUsage("2026-03-27", "sess-1", "opus", Usage{CostUSD: delta1})
+
+	// Day 2: cumulative cost from JSONL is $8
+	// Previous days = $5, delta = $8 - $5 = $3
+	prev, _ = db.SessionCostExcludingDate("sess-1", "2026-03-28")
+	delta2 := 8.00 - prev
+	db.UpsertUsage("2026-03-28", "sess-1", "opus", Usage{CostUSD: delta2})
+
+	// Total should be $8 (not $13)
+	total := db.TotalCost()
+	if math.Abs(total-8.00) > 0.0001 {
+		t.Errorf("TotalCost with delta persistence: got %f, want 8.00", total)
+	}
+
+	// Day breakdown should be correct
+	days := db.CostByDay(time.Date(2026, 3, 27, 0, 0, 0, 0, time.UTC))
+	if len(days) != 2 {
+		t.Fatalf("expected 2 days, got %d", len(days))
+	}
+	if math.Abs(days[0].CostUSD-5.00) > 0.0001 {
+		t.Errorf("day 1 cost: got %f, want 5.00", days[0].CostUSD)
+	}
+	if math.Abs(days[1].CostUSD-3.00) > 0.0001 {
+		t.Errorf("day 2 cost: got %f, want 3.00", days[1].CostUSD)
+	}
+}

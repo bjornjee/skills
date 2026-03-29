@@ -91,6 +91,25 @@ func (db *DB) TotalCost() float64 {
 	return total
 }
 
+// SessionCostExcludingDate returns the total cost stored for a session across all days except the given date.
+func (db *DB) SessionCostExcludingDate(sessionID, excludeDate string) (float64, error) {
+	var total float64
+	err := db.conn.Get(&total, `
+		SELECT COALESCE(SUM(cost_usd), 0) FROM daily_usage
+		WHERE session_id = ? AND date != ?`,
+		sessionID, excludeDate,
+	)
+	return total, err
+}
+
+// CostForDate returns the total cost across all sessions for a specific date.
+func (db *DB) CostForDate(date string) float64 {
+	var total float64
+	_ = db.conn.Get(&total, `
+		SELECT COALESCE(SUM(cost_usd), 0) FROM daily_usage WHERE date = ?`, date)
+	return total
+}
+
 // CostByDay returns daily aggregated cost since the given time, ordered by date.
 func (db *DB) CostByDay(since time.Time) []DayCost {
 	var days []DayCost

@@ -354,12 +354,19 @@ func (m model) usageContent() string {
 		}
 	}
 
-	// Total — prefer DB (all-time) when available, else session-only
-	if m.db != nil && m.dbTotalCost > 0 {
-		lines = append(lines, fmt.Sprintf("  All-time: %s  │  Session: in %s  out %s",
-			costStyle.Render(FormatCost(m.dbTotalCost)),
+	// Today's accumulated cost
+	if m.db != nil && m.dbTodayCost > 0 {
+		lines = append(lines, fmt.Sprintf("  Today: %s  │  Session: in %s  out %s",
+			costStyle.Render(FormatCost(m.dbTodayCost)),
 			FormatTokens(m.totalUsage.InputTokens),
 			FormatTokens(m.totalUsage.OutputTokens)))
+		lines = append(lines, "")
+	}
+
+	// All-time total
+	if m.db != nil && m.dbTotalCost > 0 {
+		lines = append(lines, fmt.Sprintf("  All-time: %s",
+			costStyle.Render(FormatCost(m.dbTotalCost))))
 	} else {
 		lines = append(lines, fmt.Sprintf("  Session: %s  │  in: %s  out: %s",
 			costStyle.Render(FormatCost(m.totalUsage.CostUSD)),
@@ -670,6 +677,16 @@ func (m model) renderRightPanel() string {
 func (m model) renderHelpBar() string {
 	var parts []string
 
+	// Today's accumulated cost
+	todayCost := m.dbTodayCost
+	if todayCost > 0 {
+		todayStr := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).
+			Render(FormatCost(todayCost))
+		parts = append(parts, fmt.Sprintf("Today: %s", todayStr))
+		parts = append(parts, "│")
+	}
+
+	// All-time total
 	totalCost := m.dbTotalCost
 	if totalCost == 0 {
 		totalCost = m.totalUsage.CostUSD
@@ -677,7 +694,7 @@ func (m model) renderHelpBar() string {
 	if totalCost > 0 {
 		costStr := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true).
 			Render(FormatCost(totalCost))
-		parts = append(parts, fmt.Sprintf("Total: %s", costStr))
+		parts = append(parts, fmt.Sprintf("All-time: %s", costStr))
 		parts = append(parts, "│")
 	}
 
@@ -703,6 +720,7 @@ func (m model) renderHelpBar() string {
 		parts = append(parts, helpStyle.Render("r")+" "+helpStyle.Render("reply"))
 	}
 	parts = append(parts, boldStyle.Render("u")+" usage")
+	parts = append(parts, boldStyle.Render("S")+" /usage")
 	parts = append(parts, boldStyle.Render("c")+" collapse")
 	parts = append(parts, boldStyle.Render("tab")+" focus")
 	parts = append(parts, boldStyle.Render("^u/^d")+" scroll")
