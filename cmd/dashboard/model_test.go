@@ -524,6 +524,68 @@ func TestCreateFolderMode_SuggestionsInView(t *testing.T) {
 	}
 }
 
+func TestStateUpdate_PrunesAllMaps(t *testing.T) {
+	m := newModel("/tmp/test-state.json", "main:0.0", nil)
+	m.width = 120
+	m.height = 40
+	m.resizeViewports()
+	m.agents = []Agent{
+		{Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+		{Target: "main:2.0", Window: 2, Pane: 0, State: "done"},
+	}
+	m.buildTree()
+
+	// Populate maps for both agents
+	m.pendingInput["main:1.0"] = true
+	m.pendingInput["main:2.0"] = false
+	m.prevEffState["main:1.0"] = "running"
+	m.prevEffState["main:2.0"] = "done"
+	m.agentSubagents["main:1.0"] = []SubagentInfo{{AgentID: "sub1"}}
+	m.agentSubagents["main:2.0"] = []SubagentInfo{{AgentID: "sub2"}}
+	m.collapsed["main:1.0"] = true
+	m.collapsed["main:2.0"] = false
+	m.dismissed["main:1.0:sub1"] = true
+	m.dismissed["main:2.0:sub2"] = true
+
+	// Simulate state update where main:2.0 is removed
+	sf := StateFile{
+		Agents: map[string]Agent{
+			"main:1.0": {Target: "main:1.0", Window: 1, Pane: 0, State: "running"},
+		},
+	}
+	result, _ := m.Update(stateUpdatedMsg{state: sf})
+	rm := result.(model)
+
+	// main:1.0 maps should survive
+	if _, ok := rm.pendingInput["main:1.0"]; !ok {
+		t.Error("pendingInput for main:1.0 should survive")
+	}
+	if _, ok := rm.agentSubagents["main:1.0"]; !ok {
+		t.Error("agentSubagents for main:1.0 should survive")
+	}
+
+	// main:2.0 maps should be pruned
+	if _, ok := rm.pendingInput["main:2.0"]; ok {
+		t.Error("pendingInput for main:2.0 should be pruned")
+	}
+	if _, ok := rm.prevEffState["main:2.0"]; ok {
+		t.Error("prevEffState for main:2.0 should be pruned")
+	}
+	if _, ok := rm.agentSubagents["main:2.0"]; ok {
+		t.Error("agentSubagents for main:2.0 should be pruned")
+	}
+	if _, ok := rm.collapsed["main:2.0"]; ok {
+		t.Error("collapsed for main:2.0 should be pruned")
+	}
+	if _, ok := rm.dismissed["main:2.0:sub2"]; ok {
+		t.Error("dismissed for main:2.0:sub2 should be pruned")
+	}
+	// dismissed for main:1.0 should survive
+	if _, ok := rm.dismissed["main:1.0:sub1"]; !ok {
+		t.Error("dismissed for main:1.0:sub1 should survive")
+	}
+}
+
 // executeBatch runs a tea.Cmd (expected to be a Batch) and collects messages.
 func executeBatch(t *testing.T, cmd tea.Cmd) []tea.Msg {
 	t.Helper()

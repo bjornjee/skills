@@ -30,7 +30,10 @@ type pendingInputMsg struct {
 	pending bool
 }
 type notifyResultMsg struct{}
-type closeResultMsg struct{ err error }
+type closeResultMsg struct {
+	err     error
+	renames map[string]string // oldTarget → newTarget (from window renumbering)
+}
 type createSessionMsg struct {
 	target string
 	err    error

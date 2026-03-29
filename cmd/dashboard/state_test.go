@@ -129,6 +129,81 @@ func TestRemoveAgent_NonExistent(t *testing.T) {
 	}
 }
 
+func TestPruneDead_WithRenames(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "state.json")
+	os.WriteFile(path, []byte(`{
+		"agents": {
+			"main:1.0": {"target":"main:1.0","state":"running","session":"main","cwd":"/code/a"},
+			"main:2.0": {"target":"main:2.0","state":"running","session":"main","cwd":"/code/b"}
+		}
+	}`), 0644)
+
+	// After killing main:1.0, window 2 renumbered to window 1
+	livePanes := map[string]bool{
+		"main:0.0": true, // dashboard
+		"main:1.0": true, // agent B (was main:2.0, now renumbered)
+	}
+	renames := map[string]string{
+		"main:2.0": "main:1.0", // B was renumbered
+	}
+
+	removed := PruneDead(path, livePanes, renames)
+
+	sf := ReadState(path)
+
+	// Only 1 agent should remain (B with new target)
+	if len(sf.Agents) != 1 {
+		t.Fatalf("expected 1 agent after prune+rename, got %d", len(sf.Agents))
+	}
+
+	// Agent B should now be at main:1.0 (renamed from main:2.0)
+	agent, ok := sf.Agents["main:1.0"]
+	if !ok {
+		t.Fatal("main:1.0 should exist after rename")
+	}
+	if agent.Cwd != "/code/b" {
+		t.Errorf("main:1.0 should be agent B (cwd /code/b), got %q", agent.Cwd)
+	}
+
+	// main:2.0 (old key for B) should be gone
+	if _, ok := sf.Agents["main:2.0"]; ok {
+		t.Error("main:2.0 should have been renamed to main:1.0")
+	}
+
+	_ = removed
+}
+
+func TestPruneDead_NoRenames(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "state.json")
+	os.WriteFile(path, []byte(`{
+		"agents": {
+			"main:1.0": {"target":"main:1.0","state":"running","session":"main"},
+			"main:1.1": {"target":"main:1.1","state":"done","session":"main"}
+		}
+	}`), 0644)
+
+	livePanes := map[string]bool{
+		"main:0.0": true,
+		"main:1.0": true,
+		// main:1.1 is dead
+	}
+
+	removed := PruneDead(path, livePanes, nil)
+	if removed != 1 {
+		t.Errorf("expected 1 removed, got %d", removed)
+	}
+
+	sf := ReadState(path)
+	if len(sf.Agents) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(sf.Agents))
+	}
+	if _, ok := sf.Agents["main:1.0"]; !ok {
+		t.Error("main:1.0 should survive")
+	}
+}
+
 func TestFormatDuration(t *testing.T) {
 	if FormatDuration("") != "" {
 		t.Error("expected empty for empty input")
