@@ -6,9 +6,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+// Regexes for parsing Claude Code's XML-tagged slash command messages.
+var commandNameRe = regexp.MustCompile(`<command-name>(.*?)</command-name>`)
+var commandArgsRe = regexp.MustCompile(`(?s)<command-args>(.*?)</command-args>`)
 
 // ConversationEntry represents a single turn in the conversation.
 type ConversationEntry struct {
@@ -119,6 +124,10 @@ func parseUserEntry(entry jsonlEntry) *ConversationEntry {
 	strContent = strings.TrimSpace(strContent)
 	if strContent == "" {
 		return nil
+	}
+
+	if strings.Contains(strContent, "<command-message>") {
+		strContent = formatCommandMessage(strContent)
 	}
 
 	return &ConversationEntry{
@@ -662,6 +671,30 @@ func ReadRateLimitStatus(projDir, sessionID string) RateLimitStatus {
 		}
 	}
 	return last
+}
+
+// formatCommandMessage extracts the slash command name and args from
+// Claude Code's XML-tagged command message format.
+// Returns the formatted string, or the args alone if name is missing.
+func formatCommandMessage(s string) string {
+	name := ""
+	if m := commandNameRe.FindStringSubmatch(s); len(m) > 1 {
+		name = strings.TrimSpace(m[1])
+	}
+	args := ""
+	if m := commandArgsRe.FindStringSubmatch(s); len(m) > 1 {
+		args = strings.TrimSpace(m[1])
+	}
+	if name != "" && args != "" {
+		return name + " " + args
+	}
+	if name != "" {
+		return name
+	}
+	if args != "" {
+		return args
+	}
+	return s
 }
 
 func truncate(s string, maxLen int) string {

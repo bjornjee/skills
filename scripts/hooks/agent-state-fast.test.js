@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 
 // Import the module under test (will be created next)
-const { resolveState } = require('./agent-state-fast');
+const { resolveState, shouldRefreshBranch } = require('./agent-state-fast');
 
 // Import shared package for state I/O
 const pluginRoot = path.resolve(__dirname, '..', '..');
@@ -123,6 +123,36 @@ describe('fast hook state updates', () => {
     const result = readState(stateFile).agents['main:1.0'];
     assert.equal(result.state, 'running');
     assert.equal(result.current_tool, 'Bash');
+  });
+
+  it('PostToolUse Bash updates branch in state', () => {
+    // Seed agent with stale branch
+    writeState('main:1.0', {
+      target: 'main:1.0',
+      state: 'running',
+      branch: 'main',
+      current_tool: 'Bash',
+    }, stateFile);
+
+    // shouldRefreshBranch returns true only for PostToolUse + Bash
+    assert.equal(shouldRefreshBranch('PostToolUse', 'Bash'), true);
+    assert.equal(shouldRefreshBranch('PostToolUse', 'Read'), false);
+    assert.equal(shouldRefreshBranch('PreToolUse', 'Bash'), false);
+    assert.equal(shouldRefreshBranch('PermissionRequest', 'Bash'), false);
+
+    // Simulate fast hook writing branch update after Bash PostToolUse
+    const existing = readState(stateFile).agents['main:1.0'];
+    writeState('main:1.0', {
+      ...existing,
+      state: 'running',
+      current_tool: '',
+      branch: 'feat/new-feature',
+      last_hook_event: 'PostToolUse',
+    }, stateFile);
+
+    const result = readState(stateFile).agents['main:1.0'];
+    assert.equal(result.branch, 'feat/new-feature');
+    assert.equal(result.state, 'running');
   });
 
   it('preserves existing fields not updated by fast hook', () => {
