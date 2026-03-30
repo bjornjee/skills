@@ -220,6 +220,46 @@ describe('writeState', () => {
   });
 });
 
+describe('writeState concurrent', () => {
+  it('does not lose updates under concurrent multi-process writes', async () => {
+    // The real race happens between separate hook processes, not Promise-based
+    // concurrency (writeState is synchronous, Node.js is single-threaded).
+    // Spawn N child processes that each write a different agent concurrently.
+    const { execFile } = require('child_process');
+    const { promisify } = require('util');
+    const execFileP = promisify(execFile);
+
+    const N = 10;
+    const script = path.join(tmpDir, '_concurrent-write-helper.js');
+
+    // Write the helper script that each child process will execute
+    const indexPath = path.join(__dirname, 'index.js');
+    fs.writeFileSync(script, `
+      const { writeState } = require(${JSON.stringify(indexPath)});
+      const [id, branch, file] = process.argv.slice(2);
+      writeState(id, { target: id, state: 'running', branch }, file);
+    `);
+
+    // Launch all N processes simultaneously
+    const promises = [];
+    for (let i = 0; i < N; i++) {
+      const id = `agent:${i}.0`;
+      promises.push(execFileP(process.execPath, [script, id, `branch-${i}`, stateFile]));
+    }
+    await Promise.all(promises);
+
+    const state = readState(stateFile);
+    const agentCount = Object.keys(state.agents).length;
+    assert.equal(agentCount, N, `Expected ${N} agents but got ${agentCount} — concurrent writes lost updates`);
+
+    for (let i = 0; i < N; i++) {
+      const id = `agent:${i}.0`;
+      assert.ok(state.agents[id], `Agent ${id} missing from state`);
+      assert.equal(state.agents[id].branch, `branch-${i}`);
+    }
+  });
+});
+
 describe('cleanStale', () => {
   it('removes agents older than threshold', () => {
     const old = new Date(Date.now() - 600000).toISOString(); // 10 min ago
