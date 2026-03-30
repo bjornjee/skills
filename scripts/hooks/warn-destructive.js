@@ -8,10 +8,22 @@
 'use strict';
 
 function hasRmRF(cmd) {
-  if (!/\brm\b/.test(cmd)) return false;
-  const combined = /\brm\s[^|;&\n]*-[^\s-]*[rR][^\s-]*f|rm\s[^|;&\n]*-[^\s-]*f[^\s-]*[rR]/.test(cmd);
-  const separate = /\brm\s[^|;&\n]*-[rR]\b/.test(cmd) && /\brm\s[^|;&\n]*-f\b/.test(cmd);
-  return combined || separate;
+  const segments = cmd.split(/[|;&\n]+/);
+  for (const seg of segments) {
+    const tokens = seg.trim().split(/\s+/);
+    const rmIdx = tokens.indexOf('rm');
+    if (rmIdx === -1) continue;
+
+    let flags = '';
+    for (let i = rmIdx + 1; i < tokens.length; i++) {
+      if (tokens[i] === '--') break;
+      if (tokens[i].startsWith('--')) continue;
+      if (tokens[i].startsWith('-')) flags += tokens[i];
+    }
+
+    if (/[rR]/.test(flags) && /f/.test(flags)) return true;
+  }
+  return false;
 }
 
 const DESTRUCTIVE_PATTERNS = [
@@ -27,30 +39,34 @@ const DESTRUCTIVE_PATTERNS = [
   { pattern: /\btruncate\s+table\b/i,                 label: 'TRUNCATE TABLE' },
 ];
 
-let data = '';
+module.exports = { hasRmRF, DESTRUCTIVE_PATTERNS };
 
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', chunk => { data += chunk; });
-process.stdin.on('end', () => {
-  try {
-    const input = JSON.parse(data);
-    const command = (input.tool_input && input.tool_input.command) || '';
+if (require.main === module && !process.stdin.isTTY) {
+  let data = '';
 
-    for (const { pattern, test, label } of DESTRUCTIVE_PATTERNS) {
-      const match = test ? test(command) : pattern.test(command);
-      if (match) {
-        process.stderr.write(
-          `Blocked: "${label}" is a destructive command. ` +
-          `If intentional, ask the user to run it manually.\n`
-        );
-        process.exit(2);
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', chunk => { data += chunk; });
+  process.stdin.on('end', () => {
+    try {
+      const input = JSON.parse(data);
+      const command = (input.tool_input && input.tool_input.command) || '';
+
+      for (const { pattern, test, label } of DESTRUCTIVE_PATTERNS) {
+        const match = test ? test(command) : pattern.test(command);
+        if (match) {
+          process.stderr.write(
+            `Blocked: "${label}" is a destructive command. ` +
+            `If intentional, ask the user to run it manually.\n`
+          );
+          process.exit(2);
+        }
       }
-    }
 
-    // Pass through — print original input to stdout
-    process.stdout.write(data);
-  } catch {
-    // On parse error, don't block — let it through
-    process.stdout.write(data);
-  }
-});
+      // Pass through — print original input to stdout
+      process.stdout.write(data);
+    } catch {
+      // On parse error, don't block — let it through
+      process.stdout.write(data);
+    }
+  });
+}
