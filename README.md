@@ -4,6 +4,10 @@ Personal skills, commands, hooks, and workflows for Claude Code.
 
 This is the **single source of truth** for all Claude Code configuration. Everything in `~/.claude/rules/` and `~/.claude/settings.json` should derive from here.
 
+## Agent Dashboard
+
+The agent dashboard TUI has moved to its own repo: [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard). Install it as a tmux plugin for the full multi-agent experience.
+
 ## Installation
 
 1. Add the marketplace:
