@@ -449,6 +449,68 @@ func TestReadConversation_LargeAssistantMessageNotTruncated(t *testing.T) {
 	}
 }
 
+func TestParseUserEntry_CommandMessage(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "slash command with args",
+			content: "<command-message>skills:feature</command-message>\n<command-name>/skills:feature</command-name>\n<command-args>fix the login bug</command-args>",
+			want:    "/skills:feature fix the login bug",
+		},
+		{
+			name:    "slash command without args",
+			content: "<command-message>skills:feature</command-message>\n<command-name>/skills:feature</command-name>\n<command-args></command-args>",
+			want:    "/skills:feature",
+		},
+		{
+			name:    "regular user message unchanged",
+			content: "fix the bug",
+			want:    "fix the bug",
+		},
+		{
+			name:    "multiline args preserved",
+			content: "<command-message>skills:plan</command-message>\n<command-name>/skills:plan</command-name>\n<command-args>refactor auth\nand add tests</command-args>",
+			want:    "/skills:plan refactor auth\nand add tests",
+		},
+		{
+			name:    "missing command-name shows args only",
+			content: "<command-message>skills:plan</command-message>\n<command-args>refactor auth</command-args>",
+			want:    "refactor auth",
+		},
+		{
+			name:    "args with surrounding whitespace trimmed",
+			content: "<command-message>skills:feature</command-message>\n<command-name>/skills:feature</command-name>\n<command-args>\nfix the bug\n</command-args>",
+			want:    "/skills:feature fix the bug",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			contentJSON, _ := json.Marshal(tt.content)
+			msgJSON, _ := json.Marshal(map[string]json.RawMessage{
+				"role":    json.RawMessage(`"user"`),
+				"content": json.RawMessage(contentJSON),
+			})
+			entry := jsonlEntry{
+				Type:      "user",
+				Message:   json.RawMessage(msgJSON),
+				Timestamp: "2026-03-28T10:00:00Z",
+			}
+
+			result := parseUserEntry(entry)
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+			if result.Content != tt.want {
+				t.Errorf("got %q, want %q", result.Content, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsSubagentCompleted_LargeFinalEntry(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agent.jsonl")

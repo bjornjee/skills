@@ -17,6 +17,20 @@ const path = require('path');
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 const { readState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
+const { getBranch } = require(path.join(pluginRoot, 'packages', 'git-status'));
+
+/**
+ * Whether to refresh the git branch on this hook event.
+ * Only PostToolUse + Bash can change branches (~10ms cost).
+ * Assumes only the built-in Bash tool can change branches.
+ * Custom shell-executing MCP tools are not covered here.
+ * @param {string} hookEvent
+ * @param {string} toolName
+ * @returns {boolean}
+ */
+function shouldRefreshBranch(hookEvent, toolName) {
+  return hookEvent === 'PostToolUse' && toolName === 'Bash';
+}
 
 /**
  * Determine the agent state from the hook event.
@@ -69,22 +83,36 @@ function fastUpdate(input) {
 
   const existing = readState().agents[target] || {};
 
+  // Refresh branch after Bash (only tool that can change branches, ~10ms).
+  // Always write the result (even '') to clear stale values on detached HEAD.
+  const refreshBranch = shouldRefreshBranch(hookEvent, toolName);
+  let branch;
+  if (refreshBranch) {
+    const cwd = input.cwd || process.cwd();
+    branch = getBranch(cwd) || '';
+  }
+
   // NOTE: read-modify-write race is possible when multiple async hooks fire
   // concurrently. Acceptable for display-only fields (current_tool, state).
   // Only update the fast-path fields, preserve everything else
   const changed = existing.state !== state
     || existing.current_tool !== currentTool
-    || existing.permission_mode !== permissionMode;
+    || existing.permission_mode !== permissionMode
+    || (refreshBranch && existing.branch !== branch);
 
   if (changed || !existing.state) {
-    writeState(target, {
+    const update = {
       state,
       current_tool: currentTool,
       permission_mode: permissionMode || existing.permission_mode || '',
       last_hook_event: hookEvent || '',
-    });
+    };
+    if (refreshBranch) {
+      update.branch = branch;
+    }
+    writeState(target, update);
   }
 }
 
 // Export for testing
-module.exports = { resolveState };
+module.exports = { resolveState, shouldRefreshBranch };
