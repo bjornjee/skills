@@ -13,21 +13,21 @@ import (
 )
 
 var quotes = []string{
-	"Simplicity is the ultimate sophistication.",
-	"First, solve the problem. Then, write the code.",
-	"Code is like humor. When you have to explain it, it's bad.",
-	"Make it work, make it right, make it fast.",
-	"The best error message is the one that never shows up.",
-	"Talk is cheap. Show me the code.",
-	"Programs must be written for people to read.",
-	"Premature optimization is the root of all evil.",
-	"Any fool can write code that a computer can understand.",
-	"Deleted code is debugged code.",
-	"It works on my machine.",
-	"There are only two hard things: cache invalidation and naming things.",
-	"The only way to go fast is to go well.",
-	"Weeks of coding can save you hours of planning.",
-	"A ship in harbor is safe, but that is not what ships are built for.",
+	"Be yourself; everyone else is already taken.",
+	"I'm selfish, impatient and a little insecure. I make mistakes, I am out of control and at times hard to handle. But if you can't handle me at my worst, then you sure as hell don't deserve me at my best.",
+	"Two things are infinite: the universe and human stupidity; and I'm not sure about the universe.",
+	"Be who you are and say what you feel, because those who mind don't matter, and those who matter don't mind.",
+	"You only live once, but if you do it right, once is enough.",
+	"Be the change that you wish to see in the world.",
+	"To live is the rarest thing in the world. Most people exist, that is all.",
+	"Without music, life would be a mistake.",
+	"It is better to be hated for what you are than to be loved for what you are not.",
+	"It is our choices, Harry, that show what we truly are, far more than our abilities.",
+	"There are only two ways to live your life. One is as though nothing is a miracle. The other is as though everything is a miracle.",
+	"For every minute you are angry you lose sixty seconds of happiness.",
+	"And, when you want something, all the universe conspires in helping you to achieve it.",
+	"You may say I'm a dreamer, but I'm not the only one. I hope someday you'll join us. And the world will live as one.",
+	"Who controls the past controls the future. Who controls the present controls the past."
 }
 
 type apiNinjasQuote struct {
@@ -42,7 +42,7 @@ func fetchAndCacheQuotes(db *DB) {
 		return
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("GET", "https://api.api-ninjas.com/v1/quotes?limit=10", nil)
+	req, err := http.NewRequest("GET", "https://api.api-ninjas.com/v1/quotes?limit=30", nil)
 	if err != nil {
 		return
 	}
