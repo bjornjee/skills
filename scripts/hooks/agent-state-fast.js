@@ -92,8 +92,6 @@ function fastUpdate(input) {
     branch = getBranch(cwd) || '';
   }
 
-  // NOTE: read-modify-write race is possible when multiple async hooks fire
-  // concurrently. Acceptable for display-only fields (current_tool, state).
   // Only update the fast-path fields, preserve everything else
   const changed = existing.state !== state
     || existing.current_tool !== currentTool
