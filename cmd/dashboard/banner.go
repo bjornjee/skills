@@ -27,7 +27,7 @@ var quotes = []string{
 	"For every minute you are angry you lose sixty seconds of happiness.",
 	"And, when you want something, all the universe conspires in helping you to achieve it.",
 	"You may say I'm a dreamer, but I'm not the only one. I hope someday you'll join us. And the world will live as one.",
-	"Who controls the past controls the future. Who controls the present controls the past."
+	"Who controls the past controls the future. Who controls the present controls the past.",
 }
 
 type apiNinjasQuote struct {
