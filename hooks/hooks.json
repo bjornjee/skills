@@ -121,12 +121,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/desktop-notify.js\"",
-            "async": true,
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/agent-state-reporter.js\"",
             "async": true,
             "timeout": 5
