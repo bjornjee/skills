@@ -13,6 +13,7 @@ const STATE_PRIORITY = {
 function validateAgent(agent) {
   if (!agent || typeof agent !== 'object') return false;
   if (!agent.target || typeof agent.target !== 'string') return false;
+  if (!agent.session_id || typeof agent.session_id !== 'string') return false;
   if (!VALID_STATES.includes(agent.state)) return false;
   return true;
 }

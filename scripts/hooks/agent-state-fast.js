@@ -6,7 +6,7 @@
  * Updates only: state, permission_mode, current_tool, last_hook_event.
  * Skips: git branch, git diff, tmux capture, session_id lookup, model, preview.
  *
- * Uses per-agent files — no locking needed.
+ * Uses per-agent files keyed by session_id — no locking needed.
  *
  * Stdin: JSON from Claude Code hook system
  * Env: TMUX_PANE, CLAUDE_PLUGIN_ROOT
@@ -71,6 +71,9 @@ function fastUpdate(input) {
   const tmuxPane = process.env.TMUX_PANE;
   if (!tmuxPane) return;
 
+  const sessionId = input.session_id;
+  if (!sessionId) return; // Can't write without a session_id key
+
   const target = getTarget(tmuxPane);
   if (!target) return;
 
@@ -81,7 +84,7 @@ function fastUpdate(input) {
   const state = resolveState(hookEvent, toolName);
   const currentTool = hookEvent === 'PostToolUse' ? '' : toolName;
 
-  const existing = readAgentState(target) || {};
+  const existing = readAgentState(sessionId) || {};
 
   // Refresh branch after Bash (only tool that can change branches, ~10ms).
   const refreshBranch = shouldRefreshBranch(hookEvent, toolName);
@@ -99,6 +102,9 @@ function fastUpdate(input) {
 
   if (changed || !existing.state) {
     const update = {
+      target,
+      tmux_pane_id: tmuxPane,
+      session_id: sessionId,
       state,
       current_tool: currentTool,
       permission_mode: permissionMode || existing.permission_mode || '',
@@ -107,7 +113,7 @@ function fastUpdate(input) {
     if (refreshBranch) {
       update.branch = branch;
     }
-    writeState(target, update);
+    writeState(sessionId, update);
   }
 }
 
