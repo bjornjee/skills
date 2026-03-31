@@ -1,22 +1,22 @@
 # Model Selection
 
 ## Haiku 4.5
-90% of Sonnet capability at 3x cost savings. Use for:
-- Lightweight agents with frequent invocation
-- Pair programming and code generation
-- Worker agents in multi-agent systems
+Fast and cheap. Use for:
+- Exploration, search, file discovery
+- Environment setup, dependency install
+- Utility subagents (copy, symlink, validate)
 
 ## Sonnet 4.6
-Best coding model. Use for:
-- Main development work
+Strong comprehension. Use for:
+- Research and analysis
 - Orchestrating multi-agent workflows
-- Complex coding tasks
+- Code review
 
 ## Opus 4.6
-Deepest reasoning. Use for:
-- Complex architectural decisions
-- Maximum reasoning requirements
-- Research and analysis tasks
+Best quality output. Use for:
+- Code writing and editing
+- Architecture and planning
+- Complex reasoning tasks
 
 ## Context Window
 Avoid last 20% for large refactoring, multi-file features, or complex debugging.
