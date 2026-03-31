@@ -50,22 +50,25 @@ function resolveState(hookEvent, toolName) {
   return 'running';
 }
 
-const MAX_STDIN = 1024 * 64; // 64KB
-let data = '';
+// Only run stdin reader when executed directly (not when require()'d by tests)
+if (require.main === module) {
+  const MAX_STDIN = 1024 * 64; // 64KB
+  let data = '';
 
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', chunk => {
-  if (data.length < MAX_STDIN) data += chunk.substring(0, MAX_STDIN - data.length);
-});
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', chunk => {
+    if (data.length < MAX_STDIN) data += chunk.substring(0, MAX_STDIN - data.length);
+  });
 
-process.stdin.on('end', () => {
-  try {
-    const input = data.trim() ? JSON.parse(data) : {};
-    fastUpdate(input);
-  } catch {
-    // Silent — don't break Claude Code
-  }
-});
+  process.stdin.on('end', () => {
+    try {
+      const input = data.trim() ? JSON.parse(data) : {};
+      fastUpdate(input);
+    } catch {
+      // Silent — don't break Claude Code
+    }
+  });
+}
 
 /**
  * Build the state update object from hook input and existing state.
