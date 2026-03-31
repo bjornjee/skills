@@ -10,9 +10,10 @@ const os = require('os');
 // Import the module under test
 const { resolveState, shouldRefreshBranch } = require('./agent-state-fast');
 
-// Import shared package for state I/O
+// Import shared packages
 const pluginRoot = path.resolve(__dirname, '..', '..');
-const { readAgentState, writeState, encodeTarget } = require(path.join(pluginRoot, 'packages', 'agent-state'));
+const { readAgentState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
+const { extractCwdFromCommand } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
 let tmpDir;
 let agentsDir;
@@ -24,6 +25,48 @@ beforeEach(() => {
 
 afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+describe('extractCwdFromCommand', () => {
+  it('extracts absolute path from cd /path && cmd', () => {
+    assert.equal(extractCwdFromCommand('cd /Users/bjornjee/worktree && git status'), '/Users/bjornjee/worktree');
+  });
+
+  it('extracts double-quoted path with spaces', () => {
+    assert.equal(extractCwdFromCommand('cd "/path/with spaces" && ls'), '/path/with spaces');
+  });
+
+  it('extracts single-quoted absolute path', () => {
+    assert.equal(extractCwdFromCommand("cd '/abs/path' && pwd"), '/abs/path');
+  });
+
+  it('extracts path with semicolon separator', () => {
+    assert.equal(extractCwdFromCommand('cd /some/dir ; echo hello'), '/some/dir');
+  });
+
+  it('extracts path with || separator', () => {
+    assert.equal(extractCwdFromCommand('cd /some/dir || echo fail'), '/some/dir');
+  });
+
+  it('returns null for relative path', () => {
+    assert.equal(extractCwdFromCommand('cd relative/path && cmd'), null);
+  });
+
+  it('returns null when no cd prefix', () => {
+    assert.equal(extractCwdFromCommand('echo hello'), null);
+  });
+
+  it('returns null for null input', () => {
+    assert.equal(extractCwdFromCommand(null), null);
+  });
+
+  it('returns null for empty string', () => {
+    assert.equal(extractCwdFromCommand(''), null);
+  });
+
+  it('extracts path when cd is the only command', () => {
+    assert.equal(extractCwdFromCommand('cd /some/dir'), '/some/dir');
+  });
 });
 
 describe('resolveState', () => {
