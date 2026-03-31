@@ -3,7 +3,7 @@
  * Agent state reporter hook.
  *
  * Writes agent state on lifecycle events (SessionStart, SubagentStart/Stop, Stop).
- * Uses per-agent files — no locking needed.
+ * Uses per-agent files keyed by session_id — no locking needed.
  *
  * Stdin: JSON from Claude Code hook system
  * Env: TMUX_PANE, CLAUDE_PLUGIN_ROOT
@@ -64,6 +64,14 @@ function report(input) {
   const target = getTarget(tmuxPane);
   if (!target) return;
 
+  // Resolve session_id: from input, existing state, or PID-based lookup
+  const sessionId = input.session_id
+    || (readAgentState(input.session_id) || {}).session_id
+    || findSessionId();
+  if (!sessionId) return; // Can't write without a key
+
+  const existing = readAgentState(sessionId) || {};
+
   const cwd = input.cwd || process.cwd();
   const hookEvent = input.hook_event_name;
   const lastMessage = input.last_assistant_message || null;
@@ -87,10 +95,6 @@ function report(input) {
     ? lastMessage.split('\n').filter(l => l.trim()).slice(-3).join(' ').substring(0, 200)
     : null;
 
-  // Preserve started_at, session_id, and metadata if already set
-  const existing = readAgentState(target) || {};
-  const sessionId = input.session_id || existing.session_id || findSessionId();
-
   // Model: capture on SessionStart, preserve otherwise
   const model = (hookEvent === 'SessionStart' && input.model)
     ? input.model
@@ -109,6 +113,7 @@ function report(input) {
 
   const entry = {
     target,
+    tmux_pane_id: tmuxPane,
     session,
     window,
     pane,
@@ -134,6 +139,6 @@ function report(input) {
     || (existing.files_changed || []).join() !== filesChanged.join();
 
   if (changed || !existing.state) {
-    writeState(target, entry);
+    writeState(sessionId, entry);
   }
 }

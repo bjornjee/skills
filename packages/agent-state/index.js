@@ -14,44 +14,25 @@ const DEFAULT_AGENTS_DIR = path.join(
 );
 
 /**
- * Encode a tmux target string for use as a filename.
- * Replaces '/' with '_s_', ':' with '_c_', and '.' with '_d_' to avoid
- * filesystem path traversal and naming issues.
- * @param {string} target - e.g. 'main:1.0'
- * @returns {string} - e.g. 'main_c_1_d_0'
- */
-function encodeTarget(target) {
-  return target.replace(/\//g, '_s_').replace(/:/g, '_c_').replace(/\./g, '_d_');
-}
-
-/**
- * Decode a filename back to a tmux target string.
- * @param {string} encoded - e.g. 'main_c_1_d_0'
- * @returns {string} - e.g. 'main:1.0'
- */
-function decodeTarget(encoded) {
-  return encoded.replace(/_s_/g, '/').replace(/_c_/g, ':').replace(/_d_/g, '.');
-}
-
-/**
- * Get the file path for a specific agent.
- * @param {string} agentId - tmux target string
+ * Get the file path for a specific agent by session_id.
+ * UUIDs are filesystem-safe, so no encoding is needed.
+ * @param {string} sessionId - Claude session_id (UUID)
  * @param {string} [agentsDir] - directory containing per-agent files
  * @returns {string}
  */
-function agentFilePath(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
-  return path.join(agentsDir, `${encodeTarget(agentId)}.json`);
+function agentFilePath(sessionId, agentsDir = DEFAULT_AGENTS_DIR) {
+  return path.join(agentsDir, sessionId + '.json');
 }
 
 /**
  * Read a single agent's state from its per-agent file.
- * @param {string} agentId - tmux target string
+ * @param {string} sessionId - Claude session_id (UUID)
  * @param {string} [agentsDir] - directory containing per-agent files
  * @returns {Object|null} - agent state or null if not found/invalid
  */
-function readAgentState(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
+function readAgentState(sessionId, agentsDir = DEFAULT_AGENTS_DIR) {
   try {
-    const raw = fs.readFileSync(agentFilePath(agentId, agentsDir), 'utf8');
+    const raw = fs.readFileSync(agentFilePath(sessionId, agentsDir), 'utf8');
     const parsed = JSON.parse(raw);
     return (parsed && typeof parsed === 'object') ? parsed : null;
   } catch {
@@ -61,8 +42,9 @@ function readAgentState(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
 
 /**
  * Read all agent state files from the agents directory.
+ * Keys are session_id (filename stem).
  * @param {string} [agentsDir] - directory containing per-agent files
- * @returns {{agents: Object}} - state object with all agents
+ * @returns {{agents: Object}} - state object with all agents keyed by session_id
  */
 function readAllState(agentsDir = DEFAULT_AGENTS_DIR) {
   const result = { agents: {} };
@@ -75,10 +57,9 @@ function readAllState(agentsDir = DEFAULT_AGENTS_DIR) {
       try {
         const raw = fs.readFileSync(path.join(agentsDir, file), 'utf8');
         const agent = JSON.parse(raw);
-        // Validate agent and ensure target matches filename to prevent mismatched entries
-        const derivedTarget = decodeTarget(file.slice(0, -5)); // strip .json
-        if (validateAgent(agent) && agent.target === derivedTarget) {
-          result.agents[agent.target] = agent;
+        const sessionId = file.slice(0, -5); // strip .json
+        if (validateAgent(agent)) {
+          result.agents[sessionId] = agent;
         }
       } catch {
         // Skip corrupted files
@@ -93,19 +74,16 @@ function readAllState(agentsDir = DEFAULT_AGENTS_DIR) {
 
 /**
  * Write/merge an agent update into its per-agent file (atomic).
- * No cross-agent locking needed — each agent writes only its own file.
- * Same-agent concurrent writes use last-write-wins semantics, which is
- * acceptable because hooks for a single pane are effectively sequential
- * (tool calls take 1-10s, hooks complete in 10-100ms).
- * @param {string} agentId - tmux target string
+ * No cross-agent locking needed — each session writes only its own file.
+ * @param {string} sessionId - Claude session_id (UUID)
  * @param {Object} update - fields to merge into the agent entry
  * @param {string} [agentsDir] - directory containing per-agent files
  */
-function writeState(agentId, update, agentsDir = DEFAULT_AGENTS_DIR) {
+function writeState(sessionId, update, agentsDir = DEFAULT_AGENTS_DIR) {
   fs.mkdirSync(agentsDir, { recursive: true });
 
-  const filePath = agentFilePath(agentId, agentsDir);
-  const existing = readAgentState(agentId, agentsDir) || {};
+  const filePath = agentFilePath(sessionId, agentsDir);
+  const existing = readAgentState(sessionId, agentsDir) || {};
 
   const merged = {
     ...existing,
@@ -205,12 +183,12 @@ function cleanStale(maxAgeMs = 300000, agentsDir = DEFAULT_AGENTS_DIR) {
 
 /**
  * Remove a specific agent's state file.
- * @param {string} agentId - tmux target string
+ * @param {string} sessionId - Claude session_id (UUID)
  * @param {string} [agentsDir] - directory containing per-agent files
  */
-function removeAgent(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
+function removeAgent(sessionId, agentsDir = DEFAULT_AGENTS_DIR) {
   try {
-    fs.unlinkSync(agentFilePath(agentId, agentsDir));
+    fs.unlinkSync(agentFilePath(sessionId, agentsDir));
   } catch {
     // File already removed or never existed
   }
@@ -224,7 +202,5 @@ module.exports = {
   cleanStale,
   removeAgent,
   detectState,
-  encodeTarget,
-  decodeTarget,
   DEFAULT_AGENTS_DIR,
 };
