@@ -14,7 +14,19 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 
 ---
 
-### Phase 1: Scope
+### Phase 1: Branch Setup
+
+1. Derive a short kebab-case name from the refactoring goal.
+2. Fetch the latest main branch: `git fetch origin main`
+3. Create a new branch from origin/main: `git checkout -b refactor/<name> origin/main`
+   - If the branch already exists, ask the user whether to resume it (`git checkout refactor/<name>`) or choose a new name.
+4. Confirm the branch: `git branch --show-current`
+
+**Gate:** On the correct `refactor/<name>` branch, based on latest origin/main.
+
+---
+
+### Phase 2: Scope
 
 1. Parse the refactoring goal — what is being restructured and why?
 2. Identify all affected files by searching the codebase for the code to be changed and its dependents.
@@ -25,7 +37,7 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 
 ---
 
-### Phase 2: Baseline
+### Phase 3: Baseline
 
 1. Run `make test` to establish a passing baseline.
 2. If tests fail, **stop and report**. Do not refactor on a broken codebase. Suggest using `/fix` first.
@@ -35,7 +47,7 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 
 ---
 
-### Phase 3: Transform
+### Phase 4: Transform
 
 Apply the refactoring in small, atomic steps. For each step:
 
@@ -53,7 +65,7 @@ Do not batch multiple changes between test runs. One change, one test run.
 
 ---
 
-### Phase 4: Cleanup
+### Phase 5: Cleanup
 
 1. Remove dead code — unused imports, functions, variables, files.
 2. Update any affected documentation or comments.
@@ -63,7 +75,7 @@ Do not batch multiple changes between test runs. One change, one test run.
 
 ---
 
-### Phase 5: Review and Commit
+### Phase 6: Review and Commit
 
 1. Review all changes for correctness, security, and convention adherence.
 2. Verify that behavior is preserved — no new features, no bug fixes, only structural changes.

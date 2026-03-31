@@ -14,7 +14,19 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 
 ---
 
-### Phase 1: Gather Evidence
+### Phase 1: Branch Setup
+
+1. Derive a short kebab-case name from the bug description.
+2. Fetch the latest main branch: `git fetch origin main`
+3. Create a new branch from origin/main: `git checkout -b fix/<name> origin/main`
+   - If the branch already exists, ask the user whether to resume it (`git checkout fix/<name>`) or choose a new name.
+4. Confirm the branch: `git branch --show-current`
+
+**Gate:** On the correct `fix/<name>` branch, based on latest origin/main.
+
+---
+
+### Phase 2: Gather Evidence
 
 Before touching code, collect **grounded evidence** from observable sources. Do not guess from reading code alone.
 
@@ -32,22 +44,22 @@ Before touching code, collect **grounded evidence** from observable sources. Do 
 
 ---
 
-### Phase 2: Reproduce (RED)
+### Phase 3: Reproduce (RED)
 
-1. Using the evidence from Phase 1, write a **failing test** that reproduces the bug. The test should:
+1. Using the evidence from Phase 2, write a **failing test** that reproduces the bug. The test should:
    - Replicate the exact conditions from the evidence (inputs, state, sequence)
    - Target the specific behavior that is broken
    - Fail for the right reason (matching the observed error, not a typo or import error)
    - Be minimal — test only the broken behavior
 2. Run `make test` and confirm the new test **fails**.
-3. Compare the test failure output against the evidence from Phase 1 — the failure should match the observed bug (same error type, same behavior). If it doesn't, the test is wrong, not the code.
+3. Compare the test failure output against the evidence from Phase 2 — the failure should match the observed bug (same error type, same behavior). If it doesn't, the test is wrong, not the code.
 4. Show the failing test output to the user.
 
 **Gate:** A test exists that fails, reproducing the bug. The failure matches the observed evidence.
 
 ---
 
-### Phase 3: Diagnose
+### Phase 4: Diagnose
 
 Root cause analysis must be grounded in the evidence and the failing test, not speculation from reading code.
 
@@ -63,7 +75,7 @@ Root cause analysis must be grounded in the evidence and the failing test, not s
 
 ---
 
-### Phase 4: Fix (GREEN)
+### Phase 5: Fix (GREEN)
 
 1. Implement the **minimal fix** — change only what is necessary to fix the bug.
 2. Run `make test` — the previously failing test must now **pass**.
@@ -74,7 +86,7 @@ Root cause analysis must be grounded in the evidence and the failing test, not s
 
 ---
 
-### Phase 5: Refactor
+### Phase 6: Refactor
 
 1. Review the fix — is there a cleaner way to express it? Unnecessary duplication?
 2. If changes are needed, make them and run `make test` to confirm tests still pass.
@@ -84,7 +96,7 @@ Root cause analysis must be grounded in the evidence and the failing test, not s
 
 ---
 
-### Phase 6: Review and Commit
+### Phase 7: Review and Commit
 
 1. Review all changes for correctness, security, and convention adherence.
 2. Commit with a `fix:` conventional commit message that describes what was fixed and why.
