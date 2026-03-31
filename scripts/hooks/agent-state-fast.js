@@ -6,6 +6,8 @@
  * Updates only: state, permission_mode, current_tool, last_hook_event.
  * Skips: git branch, git diff, tmux capture, session_id lookup, model, preview.
  *
+ * Uses per-agent files — no locking needed.
+ *
  * Stdin: JSON from Claude Code hook system
  * Env: TMUX_PANE, CLAUDE_PLUGIN_ROOT
  */
@@ -15,15 +17,13 @@
 const path = require('path');
 
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
-const { readState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
+const { readAgentState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
 const { getBranch } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
 /**
  * Whether to refresh the git branch on this hook event.
  * Only PostToolUse + Bash can change branches (~10ms cost).
- * Assumes only the built-in Bash tool can change branches.
- * Custom shell-executing MCP tools are not covered here.
  * @param {string} hookEvent
  * @param {string} toolName
  * @returns {boolean}
@@ -50,7 +50,7 @@ function resolveState(hookEvent, toolName) {
   return 'running';
 }
 
-const MAX_STDIN = 1024 * 64; // 64KB — smaller than full reporter, we only need a few fields
+const MAX_STDIN = 1024 * 64; // 64KB
 let data = '';
 
 process.stdin.setEncoding('utf8');
@@ -81,10 +81,9 @@ function fastUpdate(input) {
   const state = resolveState(hookEvent, toolName);
   const currentTool = hookEvent === 'PostToolUse' ? '' : toolName;
 
-  const existing = readState().agents[target] || {};
+  const existing = readAgentState(target) || {};
 
   // Refresh branch after Bash (only tool that can change branches, ~10ms).
-  // Always write the result (even '') to clear stale values on detached HEAD.
   const refreshBranch = shouldRefreshBranch(hookEvent, toolName);
   let branch;
   if (refreshBranch) {

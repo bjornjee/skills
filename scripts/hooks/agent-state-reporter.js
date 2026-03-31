@@ -2,9 +2,8 @@
 /**
  * Agent state reporter hook.
  *
- * Writes agent state to ~/.claude/agent-dashboard/state.json on lifecycle
- * events (SessionStart, SubagentStart/Stop, Stop). Uses packages/agent-state,
- * packages/tmux, and packages/git-status for core logic.
+ * Writes agent state on lifecycle events (SessionStart, SubagentStart/Stop, Stop).
+ * Uses per-agent files — no locking needed.
  *
  * Stdin: JSON from Claude Code hook system
  * Env: TMUX_PANE, CLAUDE_PLUGIN_ROOT
@@ -13,12 +12,11 @@
 'use strict';
 
 const path = require('path');
-
 const fs = require('fs');
 const os = require('os');
 
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
-const { readState, writeState, detectState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
+const { readAgentState, writeState, detectState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget, capture, parseTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
 const { getChangedFiles, getBranch } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
@@ -90,7 +88,7 @@ function report(input) {
     : null;
 
   // Preserve started_at, session_id, and metadata if already set
-  const existing = readState().agents[target] || {};
+  const existing = readAgentState(target) || {};
   const sessionId = input.session_id || existing.session_id || findSessionId();
 
   // Model: capture on SessionStart, preserve otherwise

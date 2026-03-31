@@ -7,19 +7,19 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Import the module under test (will be created next)
+// Import the module under test
 const { resolveState, shouldRefreshBranch } = require('./agent-state-fast');
 
 // Import shared package for state I/O
 const pluginRoot = path.resolve(__dirname, '..', '..');
-const { readState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
+const { readAgentState, writeState, encodeTarget } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 
 let tmpDir;
-let stateFile;
+let agentsDir;
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fast-hook-test-'));
-  stateFile = path.join(tmpDir, 'state.json');
+  agentsDir = path.join(tmpDir, 'agents');
 });
 
 afterEach(() => {
@@ -50,18 +50,17 @@ describe('resolveState', () => {
   });
 });
 
-describe('fast hook state updates', () => {
+describe('fast hook state updates (per-agent files)', () => {
   it('PermissionRequest sets state to input with current_tool', () => {
-    // Seed existing agent
     writeState('main:1.0', {
       target: 'main:1.0',
       state: 'running',
       current_tool: '',
       permission_mode: 'default',
-    }, stateFile);
+    }, agentsDir);
 
     // Simulate PermissionRequest update
-    const existing = readState(stateFile).agents['main:1.0'];
+    const existing = readAgentState('main:1.0', agentsDir);
     const update = {
       ...existing,
       state: 'input',
@@ -69,9 +68,9 @@ describe('fast hook state updates', () => {
       permission_mode: 'acceptEdits',
       last_hook_event: 'PermissionRequest',
     };
-    writeState('main:1.0', update, stateFile);
+    writeState('main:1.0', update, agentsDir);
 
-    const result = readState(stateFile).agents['main:1.0'];
+    const result = readAgentState('main:1.0', agentsDir);
     assert.equal(result.state, 'input');
     assert.equal(result.current_tool, 'Edit');
     assert.equal(result.permission_mode, 'acceptEdits');
@@ -79,26 +78,24 @@ describe('fast hook state updates', () => {
   });
 
   it('PostToolUse sets state to running and clears current_tool', () => {
-    // Seed agent in input state
     writeState('main:1.0', {
       target: 'main:1.0',
       state: 'input',
       current_tool: 'Edit',
       permission_mode: 'acceptEdits',
       last_hook_event: 'PermissionRequest',
-    }, stateFile);
+    }, agentsDir);
 
-    // Simulate PostToolUse update
-    const existing = readState(stateFile).agents['main:1.0'];
+    const existing = readAgentState('main:1.0', agentsDir);
     const update = {
       ...existing,
       state: 'running',
       current_tool: '',
       last_hook_event: 'PostToolUse',
     };
-    writeState('main:1.0', update, stateFile);
+    writeState('main:1.0', update, agentsDir);
 
-    const result = readState(stateFile).agents['main:1.0'];
+    const result = readAgentState('main:1.0', agentsDir);
     assert.equal(result.state, 'running');
     assert.equal(result.current_tool, '');
     assert.equal(result.last_hook_event, 'PostToolUse');
@@ -109,30 +106,29 @@ describe('fast hook state updates', () => {
       target: 'main:1.0',
       state: 'running',
       current_tool: '',
-    }, stateFile);
+    }, agentsDir);
 
-    const existing = readState(stateFile).agents['main:1.0'];
+    const existing = readAgentState('main:1.0', agentsDir);
     const update = {
       ...existing,
       state: 'running',
       current_tool: 'Bash',
       last_hook_event: 'PreToolUse',
     };
-    writeState('main:1.0', update, stateFile);
+    writeState('main:1.0', update, agentsDir);
 
-    const result = readState(stateFile).agents['main:1.0'];
+    const result = readAgentState('main:1.0', agentsDir);
     assert.equal(result.state, 'running');
     assert.equal(result.current_tool, 'Bash');
   });
 
   it('PostToolUse Bash updates branch in state', () => {
-    // Seed agent with stale branch
     writeState('main:1.0', {
       target: 'main:1.0',
       state: 'running',
       branch: 'main',
       current_tool: 'Bash',
-    }, stateFile);
+    }, agentsDir);
 
     // shouldRefreshBranch returns true only for PostToolUse + Bash
     assert.equal(shouldRefreshBranch('PostToolUse', 'Bash'), true);
@@ -141,16 +137,16 @@ describe('fast hook state updates', () => {
     assert.equal(shouldRefreshBranch('PermissionRequest', 'Bash'), false);
 
     // Simulate fast hook writing branch update after Bash PostToolUse
-    const existing = readState(stateFile).agents['main:1.0'];
+    const existing = readAgentState('main:1.0', agentsDir);
     writeState('main:1.0', {
       ...existing,
       state: 'running',
       current_tool: '',
       branch: 'feat/new-feature',
       last_hook_event: 'PostToolUse',
-    }, stateFile);
+    }, agentsDir);
 
-    const result = readState(stateFile).agents['main:1.0'];
+    const result = readAgentState('main:1.0', agentsDir);
     assert.equal(result.branch, 'feat/new-feature');
     assert.equal(result.state, 'running');
   });
@@ -163,10 +159,10 @@ describe('fast hook state updates', () => {
       model: 'claude-opus-4-6',
       session_id: 'abc123',
       files_changed: ['file1.go', 'file2.go'],
-    }, stateFile);
+    }, agentsDir);
 
     // Fast hook only updates state, current_tool, permission_mode, last_hook_event
-    const existing = readState(stateFile).agents['main:1.0'];
+    const existing = readAgentState('main:1.0', agentsDir);
     const update = {
       ...existing,
       state: 'input',
@@ -174,9 +170,9 @@ describe('fast hook state updates', () => {
       permission_mode: 'default',
       last_hook_event: 'PermissionRequest',
     };
-    writeState('main:1.0', update, stateFile);
+    writeState('main:1.0', update, agentsDir);
 
-    const result = readState(stateFile).agents['main:1.0'];
+    const result = readAgentState('main:1.0', agentsDir);
     // Fast fields updated
     assert.equal(result.state, 'input');
     assert.equal(result.current_tool, 'Bash');
