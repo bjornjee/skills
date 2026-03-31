@@ -2,137 +2,152 @@
 
 const fs = require('fs');
 const path = require('path');
-const { validateState } = require('./schema');
+const crypto = require('crypto');
+const { validateAgent } = require('./schema');
 const { detectState } = require('./detect');
 
-const DEFAULT_STATE_DIR = path.join(
+const DEFAULT_AGENTS_DIR = path.join(
   process.env.HOME || process.env.USERPROFILE || '/tmp',
   '.claude',
   'agent-dashboard',
+  'agents',
 );
-const DEFAULT_STATE_FILE = path.join(DEFAULT_STATE_DIR, 'state.json');
-
-const crypto = require('crypto');
 
 /**
- * Execute fn while holding an exclusive lockfile.
- * Uses O_CREAT|O_EXCL to atomically create a .lock file as a mutex.
- * Retries with short busy-wait on contention; breaks stale locks after 2s.
- * Falls back to unlocked execution if lock cannot be acquired.
+ * Encode a tmux target string for use as a filename.
+ * Replaces '/' with '_s_', ':' with '_c_', and '.' with '_d_' to avoid
+ * filesystem path traversal and naming issues.
+ * @param {string} target - e.g. 'main:1.0'
+ * @returns {string} - e.g. 'main_c_1_d_0'
  */
-function withLock(filePath, fn) {
-  const lockPath = filePath + '.lock';
-  const maxRetries = 50;
-  const retryMs = 2;
-  let acquired = false;
-
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const fd = fs.openSync(lockPath, 'wx');
-      fs.closeSync(fd);
-      acquired = true;
-      break;
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-      // Check for stale locks (>2s old)
-      try {
-        const stat = fs.statSync(lockPath);
-        if (Date.now() - stat.mtimeMs > 2000) {
-          try { fs.unlinkSync(lockPath); } catch { /* race with another unlink */ }
-          continue;
-        }
-      } catch { /* lock was just released */ continue; }
-      // Busy-wait
-      const end = Date.now() + retryMs;
-      while (Date.now() < end) { /* spin */ }
-    }
-  }
-
-  if (!acquired) {
-    // Lock contention exceeded 100ms — skip the write rather than race.
-    return;
-  }
-
-  try {
-    return fn();
-  } finally {
-    try { fs.unlinkSync(lockPath); } catch { /* already removed */ }
-  }
+function encodeTarget(target) {
+  return target.replace(/\//g, '_s_').replace(/:/g, '_c_').replace(/\./g, '_d_');
 }
 
 /**
- * Read and validate the agent state file.
- * @param {string} [filePath] - path to state file
- * @returns {{agents: Object}}
+ * Decode a filename back to a tmux target string.
+ * @param {string} encoded - e.g. 'main_c_1_d_0'
+ * @returns {string} - e.g. 'main:1.0'
  */
-function readState(filePath = DEFAULT_STATE_FILE) {
+function decodeTarget(encoded) {
+  return encoded.replace(/_s_/g, '/').replace(/_c_/g, ':').replace(/_d_/g, '.');
+}
+
+/**
+ * Get the file path for a specific agent.
+ * @param {string} agentId - tmux target string
+ * @param {string} [agentsDir] - directory containing per-agent files
+ * @returns {string}
+ */
+function agentFilePath(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
+  return path.join(agentsDir, `${encodeTarget(agentId)}.json`);
+}
+
+/**
+ * Read a single agent's state from its per-agent file.
+ * @param {string} agentId - tmux target string
+ * @param {string} [agentsDir] - directory containing per-agent files
+ * @returns {Object|null} - agent state or null if not found/invalid
+ */
+function readAgentState(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
   try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return validateState(JSON.parse(raw));
+    const raw = fs.readFileSync(agentFilePath(agentId, agentsDir), 'utf8');
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : null;
   } catch {
-    return { agents: {} };
+    return null;
   }
 }
 
 /**
- * Write/merge an agent update into the state file (atomic).
- * Uses file locking to prevent concurrent hook processes from losing updates.
- * @param {string} agentId - unique agent identifier (target)
- * @param {Object} update - fields to merge into the agent entry
- * @param {string} [filePath] - path to state file
+ * Read all agent state files from the agents directory.
+ * @param {string} [agentsDir] - directory containing per-agent files
+ * @returns {{agents: Object}} - state object with all agents
  */
-function writeState(agentId, update, filePath = DEFAULT_STATE_FILE) {
-  const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
+function readAllState(agentsDir = DEFAULT_AGENTS_DIR) {
+  const result = { agents: {} };
 
-  withLock(filePath, () => {
-    const current = readState(filePath);
-    const existing = current.agents[agentId] || {};
+  try {
+    const files = fs.readdirSync(agentsDir);
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
 
-    current.agents[agentId] = {
-      ...existing,
-      ...update,
-      updated_at: new Date().toISOString(),
-    };
+      try {
+        const raw = fs.readFileSync(path.join(agentsDir, file), 'utf8');
+        const agent = JSON.parse(raw);
+        // Validate agent and ensure target matches filename to prevent mismatched entries
+        const derivedTarget = decodeTarget(file.slice(0, -5)); // strip .json
+        if (validateAgent(agent) && agent.target === derivedTarget) {
+          result.agents[agent.target] = agent;
+        }
+      } catch {
+        // Skip corrupted files
+      }
+    }
+  } catch {
+    // Directory doesn't exist yet
+  }
 
-    // Use a unique tmp file per process to avoid ENOENT when concurrent
-    // processes rename each other's tmp files.
-    const tmp = filePath + `.tmp.${process.pid}.${crypto.randomBytes(4).toString('hex')}`;
-    fs.writeFileSync(tmp, JSON.stringify(current, null, 2));
-    fs.renameSync(tmp, filePath);
-  });
+  return result;
 }
 
 /**
- * Watch the state file for changes with debounce.
- * @param {function} callback - called with validated state on change
- * @param {string} [filePath] - path to state file
+ * Write/merge an agent update into its per-agent file (atomic).
+ * No cross-agent locking needed — each agent writes only its own file.
+ * Same-agent concurrent writes use last-write-wins semantics, which is
+ * acceptable because hooks for a single pane are effectively sequential
+ * (tool calls take 1-10s, hooks complete in 10-100ms).
+ * @param {string} agentId - tmux target string
+ * @param {Object} update - fields to merge into the agent entry
+ * @param {string} [agentsDir] - directory containing per-agent files
+ */
+function writeState(agentId, update, agentsDir = DEFAULT_AGENTS_DIR) {
+  fs.mkdirSync(agentsDir, { recursive: true });
+
+  const filePath = agentFilePath(agentId, agentsDir);
+  const existing = readAgentState(agentId, agentsDir) || {};
+
+  const merged = {
+    ...existing,
+    ...update,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Atomic write via tmp file + rename. Clean up tmp on failure.
+  const tmp = filePath + `.tmp.${process.pid}.${crypto.randomBytes(4).toString('hex')}`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(merged, null, 2));
+    fs.renameSync(tmp, filePath);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+    throw err;
+  }
+}
+
+/**
+ * Watch the agents directory for changes with debounce.
+ * @param {function} callback - called with all agents state on change
+ * @param {string} [agentsDir] - directory containing per-agent files
  * @param {number} [debounceMs=300] - debounce interval
  * @returns {function} stop - call to stop watching
  */
-function watchState(callback, filePath = DEFAULT_STATE_FILE, debounceMs = 300) {
+function watchState(callback, agentsDir = DEFAULT_AGENTS_DIR, debounceMs = 300) {
   let timer = null;
   let watcher = null;
 
-  const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
-
-  // Ensure file exists
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({ agents: {} }));
-  }
+  fs.mkdirSync(agentsDir, { recursive: true });
 
   try {
-    watcher = fs.watch(filePath, () => {
+    watcher = fs.watch(agentsDir, () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        callback(readState(filePath));
+        callback(readAllState(agentsDir));
       }, debounceMs);
     });
   } catch {
     // Fallback to polling if fs.watch isn't available
     const interval = setInterval(() => {
-      callback(readState(filePath));
+      callback(readAllState(agentsDir));
     }, 1000);
     return () => clearInterval(interval);
   }
@@ -144,40 +159,72 @@ function watchState(callback, filePath = DEFAULT_STATE_FILE, debounceMs = 300) {
 }
 
 /**
- * Remove stale agents that haven't been updated within the threshold.
+ * Remove stale agent files that haven't been updated within the threshold.
+ * Also cleans orphaned tmp files older than 60s.
  * @param {number} [maxAgeMs=300000] - max age in ms (default 5 min)
- * @param {string} [filePath] - path to state file
+ * @param {string} [agentsDir] - directory containing per-agent files
  */
-function cleanStale(maxAgeMs = 300000, filePath = DEFAULT_STATE_FILE) {
-  withLock(filePath, () => {
-    const state = readState(filePath);
-    const now = Date.now();
-    let changed = false;
+function cleanStale(maxAgeMs = 300000, agentsDir = DEFAULT_AGENTS_DIR) {
+  let files;
+  try {
+    files = fs.readdirSync(agentsDir);
+  } catch {
+    return; // Directory doesn't exist
+  }
 
-    for (const [id, agent] of Object.entries(state.agents)) {
+  const now = Date.now();
+
+  for (const file of files) {
+    const filePath = path.join(agentsDir, file);
+
+    // Clean up orphaned tmp files older than 60s
+    if (file.includes('.tmp.')) {
+      try {
+        const stat = fs.statSync(filePath);
+        if (now - stat.mtimeMs > 60000) {
+          fs.unlinkSync(filePath);
+        }
+      } catch { /* ignore */ }
+      continue;
+    }
+
+    if (!file.endsWith('.json')) continue;
+
+    try {
+      const raw = fs.readFileSync(filePath, 'utf8');
+      const agent = JSON.parse(raw);
       const age = now - new Date(agent.updated_at || 0).getTime();
       if (age > maxAgeMs) {
-        delete state.agents[id];
-        changed = true;
+        fs.unlinkSync(filePath);
       }
+    } catch {
+      // Skip files we can't read
     }
+  }
+}
 
-    if (changed) {
-      const dir = path.dirname(filePath);
-      fs.mkdirSync(dir, { recursive: true });
-      const tmp = filePath + `.tmp.${process.pid}.${crypto.randomBytes(4).toString('hex')}`;
-      fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
-      fs.renameSync(tmp, filePath);
-    }
-  });
+/**
+ * Remove a specific agent's state file.
+ * @param {string} agentId - tmux target string
+ * @param {string} [agentsDir] - directory containing per-agent files
+ */
+function removeAgent(agentId, agentsDir = DEFAULT_AGENTS_DIR) {
+  try {
+    fs.unlinkSync(agentFilePath(agentId, agentsDir));
+  } catch {
+    // File already removed or never existed
+  }
 }
 
 module.exports = {
-  readState,
+  readAgentState,
+  readAllState,
   writeState,
   watchState,
   cleanStale,
+  removeAgent,
   detectState,
-  DEFAULT_STATE_FILE,
-  DEFAULT_STATE_DIR,
+  encodeTarget,
+  decodeTarget,
+  DEFAULT_AGENTS_DIR,
 };

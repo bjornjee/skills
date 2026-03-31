@@ -24,3 +24,7 @@ Thumbs.db
 # Temporary
 *.tmp
 tmp/
+
+# Worktree sentinel files
+.env-setup-done
+.env-setup-failed
