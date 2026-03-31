@@ -4,7 +4,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldNotify } = require('./desktop-notify');
+const { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldAlert, lastTurnHasAlertingTool, ALERTING_NOTIFICATION_TYPES, ALERTING_ERRORS } = require('./desktop-notify');
 const { extractSessionWindow } = require(path.resolve(__dirname, '..', '..', 'packages', 'tmux'));
 
 describe('stripMarkdown', () => {
@@ -105,55 +105,34 @@ describe('sanitizeShellArg', () => {
   });
 });
 
-describe('shouldNotify', () => {
-  it('returns false when state is running', () => {
-    assert.equal(shouldNotify('running', 'Here is the implementation plan for review.'), false);
-    assert.equal(shouldNotify('running', 'The feature is complete.'), false);
+describe('shouldAlert', () => {
+  it('returns true for alerting Notification types', () => {
+    assert.equal(shouldAlert({ hook_event_name: 'Notification', notification_type: 'permission_prompt' }), true);
+    assert.equal(shouldAlert({ hook_event_name: 'Notification', notification_type: 'idle_prompt' }), true);
+    assert.equal(shouldAlert({ hook_event_name: 'Notification', notification_type: 'elicitation_dialog' }), true);
   });
 
-  it('returns false when message is null or empty regardless of state', () => {
-    assert.equal(shouldNotify('input', null), false);
-    assert.equal(shouldNotify('input', ''), false);
-    assert.equal(shouldNotify('done', undefined), false);
+  it('returns false for non-alerting Notification types', () => {
+    assert.equal(shouldAlert({ hook_event_name: 'Notification', notification_type: 'progress' }), false);
+    assert.equal(shouldAlert({ hook_event_name: 'Notification', notification_type: 'unknown' }), false);
   });
 
-  it('returns false when state is input but message is mid-task question', () => {
-    assert.equal(shouldNotify('input', 'Which file should I edit?'), false);
-    assert.equal(shouldNotify('input', 'Do you want me to proceed with the refactor?'), false);
-    assert.equal(shouldNotify('input', 'Should I use Redis or Memcached for caching?'), false);
+  it('returns true for rate_limit StopFailure', () => {
+    assert.equal(shouldAlert({ hook_event_name: 'StopFailure', error: 'rate_limit' }), true);
   });
 
-  it('returns false when state is done but message has no completion signal', () => {
-    assert.equal(shouldNotify('done', 'I updated the config file.'), false);
-    assert.equal(shouldNotify('done', 'Here are the changes I made.'), false);
+  it('returns false for non-alerting StopFailure errors', () => {
+    assert.equal(shouldAlert({ hook_event_name: 'StopFailure', error: 'unknown_error' }), false);
   });
 
-  // Plan review requires 'input' state (plan approval UI shows prompt)
-  it('returns true when state is input and message has plan review signal', () => {
-    assert.equal(shouldNotify('input', 'Here is the implementation plan. Please review and approve before I proceed.'), true);
-    assert.equal(shouldNotify('input', "I've created a plan for this feature. Please review the approach."), true);
-    assert.equal(shouldNotify('input', 'Plan is ready for your review.'), true);
+  it('returns false for unknown hook events', () => {
+    assert.equal(shouldAlert({ hook_event_name: 'PreToolUse' }), false);
+    assert.equal(shouldAlert({ hook_event_name: 'PostToolUse' }), false);
   });
 
-  it('returns false when state is done and message has plan review signal', () => {
-    assert.equal(shouldNotify('done', 'Here is the implementation plan. Please review.'), false);
-  });
-
-  // Completion allows 'input' or 'done' (declarative statements, not questions)
-  it('returns true when state is input and message has completion signal', () => {
-    assert.equal(shouldNotify('input', 'The feature is complete. All tests pass and changes are committed.'), true);
-    assert.equal(shouldNotify('input', 'All changes have been successfully implemented. Ready for your review.'), true);
-    assert.equal(shouldNotify('input', 'Implementation is finished. All tests pass.'), true);
-  });
-
-  it('returns true when state is done and message has completion signal', () => {
-    assert.equal(shouldNotify('done', 'The feature is complete. All tests pass.'), true);
-    assert.equal(shouldNotify('done', 'Successfully implemented the notification filter.'), true);
-    assert.equal(shouldNotify('done', 'All changes have been implemented. Ready for your review.'), true);
-  });
-
-  it('returns false when state is input and message mentions plan casually', () => {
-    assert.equal(shouldNotify('input', 'I plan to refactor this module next. Which approach do you prefer?'), false);
+  it('returns false for Stop without transcript_path', () => {
+    assert.equal(shouldAlert({ hook_event_name: 'Stop' }), false);
+    assert.equal(shouldAlert({ hook_event_name: 'Stop', transcript_path: null }), false);
   });
 });
 
