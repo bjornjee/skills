@@ -88,8 +88,12 @@ function report(input) {
   }
 
   const { session, window, pane } = parseTarget(target);
-  const branch = getBranch(cwd);
   const filesChanged = getChangedFiles(cwd);
+
+  // Branch is owned by agent-state-fast.js. Only set on SessionStart (initial value).
+  // Note: SessionStart cwd is the Claude session's primary directory, not the worktree.
+  // The fast hook corrects this on the first PostToolUse+Bash with a cd to the worktree.
+  const branch = hookEvent === 'SessionStart' ? getBranch(cwd) : undefined;
 
   const preview = lastMessage
     ? lastMessage.split('\n').filter(l => l.trim()).slice(-3).join(' ').substring(0, 200)
@@ -119,7 +123,6 @@ function report(input) {
     pane,
     state,
     cwd,
-    branch,
     files_changed: filesChanged,
     last_message_preview: preview,
     session_id: sessionId,
@@ -130,9 +133,14 @@ function report(input) {
     last_hook_event: hookEvent || '',
   };
 
+  // Branch is owned by agent-state-fast.js; only set initial value on SessionStart
+  if (branch !== undefined) {
+    entry.branch = branch;
+  }
+
   // Debounce: skip write if nothing meaningful changed
   const changed = existing.state !== state
-    || existing.branch !== branch
+    || (branch !== undefined && existing.branch !== branch)
     || existing.subagent_count !== subagentCount
     || existing.last_message_preview !== preview
     || existing.permission_mode !== permissionMode

@@ -51,4 +51,19 @@ function getBranch(cwd) {
   return result.stdout.trim() || null;
 }
 
-module.exports = { getChangedFiles, getBranch };
+/**
+ * Extract the effective working directory from a Bash command string.
+ * Handles the worktree pattern: cd /absolute/path && ...
+ * @param {string} command
+ * @returns {string|null} absolute path or null
+ */
+function extractCwdFromCommand(command) {
+  if (!command) return null;
+  const match = command.match(/^\s*cd\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*(?:&&|;|\|\||$)/);
+  if (!match) return null;
+  const dir = match[1] || match[2] || match[3];
+  if (!dir || !dir.startsWith('/')) return null;
+  return dir;
+}
+
+module.exports = { getChangedFiles, getBranch, extractCwdFromCommand };

@@ -19,7 +19,7 @@ const path = require('path');
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 const { readAgentState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
-const { getBranch } = require(path.join(pluginRoot, 'packages', 'git-status'));
+const { getBranch, extractCwdFromCommand } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
 /**
  * Whether to refresh the git branch on this hook event.
@@ -90,8 +90,10 @@ function fastUpdate(input) {
   const refreshBranch = shouldRefreshBranch(hookEvent, toolName);
   let branch;
   if (refreshBranch) {
-    const cwd = input.cwd || process.cwd();
-    branch = getBranch(cwd) || '';
+    const sessionCwd = input.cwd || process.cwd();
+    const toolInput = input.tool_input || {};
+    const effectiveCwd = extractCwdFromCommand(toolInput.command) || sessionCwd;
+    branch = getBranch(effectiveCwd) || existing.branch || '';
   }
 
   // Only update the fast-path fields, preserve everything else
