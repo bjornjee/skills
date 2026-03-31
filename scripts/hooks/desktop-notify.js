@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
- * Desktop notification hook (Stop event).
+ * Desktop notification hook for Stop, Notification, and StopFailure events.
  *
- * Sends a macOS notification via terminal-notifier when Claude finishes
- * responding. When running inside tmux, clicking the notification switches
- * to the correct window and pane.
+ * Plays the "Blow" sound when Claude needs user attention:
+ *   - Notification: permission_prompt, idle_prompt, elicitation_dialog
+ *   - Stop: last assistant turn used AskUserQuestion or ExitPlanMode
+ *   - StopFailure: rate_limit error
+ *
+ * All other stops show a silent notification.
+ *
+ * When running inside tmux, clicking the notification switches to the
+ * correct window and pane.
  *
  * Fallback: osascript if terminal-notifier is not installed.
- *
- * Env vars:
- *   CLAUDE_NOTIFY_SOUND - notification sound name (default: "default", set to "" to disable)
  *
  * Dependencies (optional): terminal-notifier (brew install terminal-notifier)
  */
@@ -17,53 +20,84 @@
 'use strict';
 
 const { spawnSync } = require('child_process');
+const { readFileSync } = require('fs');
 const { basename, resolve } = require('path');
 
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || resolve(__dirname, '..', '..');
 const tmuxPkg = require(resolve(pluginRoot, 'packages', 'tmux'));
-const { detectState } = require(resolve(pluginRoot, 'packages', 'agent-state', 'detect'));
 
 const TITLE = 'Claude Code';
+const SOUND = 'Blow';
 const MAX_BODY = 100;
 
-// Plan review — requires 'input' state (plan approval UI shows ❯ prompt)
-const PLAN_PATTERNS = [
-  /\bplan\b.*\b(review|approve|approval)\b/i,
-  /\breview\b.*\bplan\b/i,
-  /\bplease\s+(review|approve)\b/i,
-  /\bimplementation\s+plan\b/i,
-  /\bplan\s+is\s+ready\b/i,
-];
+// Notification types that require user attention.
+const ALERTING_NOTIFICATION_TYPES = new Set([
+  'permission_prompt',
+  'idle_prompt',
+  'elicitation_dialog',
+]);
 
-// Feature completion — allows 'input' or 'done' (declarative, not questions)
-const COMPLETION_PATTERNS = [
-  /\b(feature|implementation|work)\s+(is\s+)?(complete|done|finished)\b/i,
-  /\bsuccessfully\s+(implemented|completed|finished)\b/i,
-  /\ball\s+(changes|tests)\b.*\b(pass|complete|implemented)\b/i,
-  /\bready\s+for\s+(your\s+)?(review|input)\b/i,
-];
+// Tool names in the last assistant turn that mean "waiting for user".
+const ALERTING_TOOL_NAMES = new Set([
+  'AskUserQuestion',
+  'ExitPlanMode',
+]);
 
-const NOTIFICATION_PATTERNS = [...PLAN_PATTERNS, ...COMPLETION_PATTERNS];
+// StopFailure error types that warrant a sound.
+const ALERTING_ERRORS = new Set([
+  'rate_limit',
+]);
 
 /**
- * Determine whether a notification should fire.
- * Plan review: requires 'input' state (plan approval UI shows prompt).
- * Completion: allows 'input' or 'done' (declarative statements, not questions).
- *
- * @param {'input'|'done'|'running'} state - Agent state from detectState()
- * @param {string|null} message - The last assistant message
- * @returns {boolean}
+ * Read the last assistant message from the transcript JSONL and check
+ * whether it contains a tool_use block matching ALERTING_TOOL_NAMES.
  */
-function shouldNotify(state, message) {
-  if (state !== 'input' && state !== 'done') return false;
-  if (!message || typeof message !== 'string') return false;
+function lastTurnHasAlertingTool(transcriptPath) {
+  if (!transcriptPath) return false;
+  try {
+    const raw = readFileSync(transcriptPath, 'utf8');
+    const lines = raw.trimEnd().split('\n');
 
-  if (state === 'input') {
-    return NOTIFICATION_PATTERNS.some(p => p.test(message));
+    // Walk backwards to find the last assistant entry with a message.
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const entry = JSON.parse(lines[i]);
+      if (entry.type !== 'assistant' || !entry.message) continue;
+
+      const content = entry.message.content;
+      if (!Array.isArray(content)) return false;
+
+      return content.some(
+        block => block.type === 'tool_use' && ALERTING_TOOL_NAMES.has(block.name)
+      );
+    }
+  } catch {
+    // Transcript unreadable — fall through silently.
+  }
+  return false;
+}
+
+/**
+ * Determine whether to play the alert sound based on the hook event.
+ */
+function shouldAlert(input) {
+  const event = input.hook_event_name;
+
+  // Tier 1: Notification hook — permission prompt, idle, elicitation
+  if (event === 'Notification') {
+    return ALERTING_NOTIFICATION_TYPES.has(input.notification_type);
   }
 
-  // state === 'done': only completion patterns fire
-  return COMPLETION_PATTERNS.some(p => p.test(message));
+  // Tier 1: StopFailure — rate limit
+  if (event === 'StopFailure') {
+    return ALERTING_ERRORS.has(input.error);
+  }
+
+  // Tier 2: Stop — check transcript for AskUserQuestion / ExitPlanMode
+  if (event === 'Stop') {
+    return lastTurnHasAlertingTool(input.transcript_path);
+  }
+
+  return false;
 }
 
 function stripMarkdown(text) {
@@ -89,6 +123,23 @@ function extractSummary(message) {
 
   if (!line) return 'Done';
   return line.length > MAX_BODY ? `${line.slice(0, MAX_BODY)}...` : line;
+}
+
+/**
+ * Build the notification body text based on the hook event.
+ */
+function buildBody(input) {
+  const event = input.hook_event_name;
+
+  if (event === 'Notification') {
+    return input.message || input.title || 'Notification';
+  }
+
+  if (event === 'StopFailure') {
+    return input.error_details || input.error || 'Error';
+  }
+
+  return extractSummary(input.last_assistant_message);
 }
 
 function getSubtitle(cwd) {
@@ -160,11 +211,8 @@ function notifyWithOsascript(title, subtitle, body, sound) {
   spawnSync('osascript', ['-e', script], { stdio: 'ignore', timeout: 5000 });
 }
 
-function notify(title, subtitle, body) {
+function notify(title, subtitle, body, sound) {
   if (process.platform !== 'darwin') return;
-
-  const soundEnv = process.env.CLAUDE_NOTIFY_SOUND;
-  const sound = soundEnv === undefined ? 'default' : soundEnv || undefined;
 
   if (hasCommand('terminal-notifier')) {
     notifyWithTerminalNotifier(title, subtitle, body, sound);
@@ -175,7 +223,7 @@ function notify(title, subtitle, body) {
 
 // Export for testing
 if (typeof module !== 'undefined') {
-  module.exports = { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldNotify, PLAN_PATTERNS, COMPLETION_PATTERNS, NOTIFICATION_PATTERNS };
+  module.exports = { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldAlert, lastTurnHasAlertingTool, buildBody, ALERTING_NOTIFICATION_TYPES, ALERTING_TOOL_NAMES, ALERTING_ERRORS };
 }
 
 // Only run stdin reader when executed directly (not when require()'d by tests)
@@ -190,19 +238,10 @@ if (require.main === module) {
   process.stdin.on('end', () => {
     try {
       const input = data.trim() ? JSON.parse(data) : {};
-      const message = input.last_assistant_message;
-
-      // Detect agent state from message content + tmux pane buffer
-      const tmuxPane = process.env.TMUX_PANE;
-      const paneTarget = tmuxPane ? tmuxPkg.getTarget(tmuxPane) : null;
-      const paneBuffer = paneTarget ? tmuxPkg.capture(paneTarget, 15) : [];
-      const state = detectState(message, paneBuffer);
-
-      if (!shouldNotify(state, message)) return;
-
-      const body = extractSummary(message);
+      const sound = shouldAlert(input) ? SOUND : undefined;
+      const body = buildBody(input);
       const subtitle = getSubtitle(input.cwd);
-      notify(TITLE, subtitle, body);
+      notify(TITLE, subtitle, body, sound);
     } catch {
       // Silent — don't break Claude Code if notification fails
     }

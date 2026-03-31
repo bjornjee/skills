@@ -132,7 +132,35 @@
             "timeout": 5
           }
         ],
-        "description": "macOS notification with tmux click-to-pane + agent state reporting"
+        "description": "Desktop notification + agent state reporting; Blow sound when AskUserQuestion or ExitPlanMode detected"
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/desktop-notify.js\"",
+            "async": true,
+            "timeout": 10
+          }
+        ],
+        "description": "Blow sound on permission prompt, idle prompt, or elicitation dialog"
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/desktop-notify.js\"",
+            "async": true,
+            "timeout": 10
+          }
+        ],
+        "description": "Blow sound on rate limit errors"
       }
     ]
   }
