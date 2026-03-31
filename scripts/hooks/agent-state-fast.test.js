@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 
 // Import the module under test
-const { resolveState, shouldRefreshBranch } = require('./agent-state-fast');
+const { resolveState, shouldRefreshBranch, buildUpdate } = require('./agent-state-fast');
 
 // Import shared packages
 const pluginRoot = path.resolve(__dirname, '..', '..');
@@ -192,6 +192,95 @@ describe('fast hook state updates (per-agent files)', () => {
     const result = readAgentState('main:1.0', agentsDir);
     assert.equal(result.branch, 'feat/new-feature');
     assert.equal(result.state, 'running');
+  });
+
+  it('PostToolUse Bash with cd updates cwd in state via buildUpdate', () => {
+    const existing = {
+      target: 'main:1.0',
+      state: 'running',
+      cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      branch: 'main',
+      current_tool: 'Bash',
+    };
+
+    const { changed, update } = buildUpdate({
+      input: {
+        session_id: 'abc123',
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Bash',
+        tool_input: { command: 'cd /tmp/worktree && git status' },
+        cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      },
+      existing,
+      target: 'main:1.0',
+      tmuxPane: '%0',
+      branch: 'feat/new-feature',
+      effectiveCwd: '/tmp/worktree',
+    });
+
+    assert.equal(changed, true);
+    assert.equal(update.cwd, '/tmp/worktree');
+    assert.equal(update.branch, 'feat/new-feature');
+  });
+
+  it('PostToolUse Bash without cd preserves existing branch and cwd via buildUpdate', () => {
+    const existing = {
+      target: 'main:1.0',
+      state: 'running',
+      cwd: '/tmp/worktree',
+      branch: 'feat/update-readme',
+      current_tool: 'Bash',
+    };
+
+    // No cd detected: effectiveCwd is null, branch preserves existing
+    const { changed, update } = buildUpdate({
+      input: {
+        session_id: 'abc123',
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Bash',
+        tool_input: { command: 'git status' },
+        cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      },
+      existing,
+      target: 'main:1.0',
+      tmuxPane: '%0',
+      branch: 'feat/update-readme',  // preserved from existing
+      effectiveCwd: null,             // no cd detected
+    });
+
+    // current_tool changes from 'Bash' to '' on PostToolUse, so update is non-null
+    assert.equal(changed, true);
+    assert.notEqual(update, null);
+    assert.equal(update.cwd, undefined, 'cwd should not be set when no cd detected');
+    assert.equal(update.branch, 'feat/update-readme');
+  });
+
+  it('non-Bash PostToolUse does not set cwd via buildUpdate', () => {
+    const existing = {
+      target: 'main:1.0',
+      state: 'running',
+      cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      current_tool: 'Read',
+    };
+
+    const { changed, update } = buildUpdate({
+      input: {
+        session_id: 'abc123',
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Read',
+        cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      },
+      existing,
+      target: 'main:1.0',
+      tmuxPane: '%0',
+      branch: undefined,
+      effectiveCwd: null,
+    });
+
+    // current_tool changes from 'Read' to '' on PostToolUse, so update is non-null
+    assert.equal(changed, true);
+    assert.notEqual(update, null);
+    assert.equal(update.cwd, undefined, 'non-Bash tools should not touch cwd');
   });
 
   it('preserves existing fields not updated by fast hook', () => {
