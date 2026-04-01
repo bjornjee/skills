@@ -27,6 +27,16 @@
         "description": "Block destructive shell commands (rm -rf, git reset --hard, DROP TABLE, etc.)"
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/block-main-commit.js\""
+          }
+        ],
+        "description": "Block git commit on main/master — require a feature branch"
+      },
+      {
         "matcher": "*",
         "hooks": [
           {
