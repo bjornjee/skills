@@ -94,11 +94,12 @@ function buildUpdate({ input, existing, target, tmuxPane, branch, effectiveCwd }
 
   const refreshBranch = shouldRefreshBranch(hookEvent, toolName);
 
+  const cwd = effectiveCwd || input.cwd || process.cwd();
   const changed = existing.state !== state
     || existing.current_tool !== currentTool
     || existing.permission_mode !== permissionMode
-    || (refreshBranch && existing.branch !== branch)
-    || (refreshBranch && effectiveCwd && existing.cwd !== effectiveCwd);
+    || existing.cwd !== cwd
+    || (refreshBranch && existing.branch !== branch);
 
   if (!changed && existing.state) {
     return { changed: false, update: null };
@@ -110,14 +111,12 @@ function buildUpdate({ input, existing, target, tmuxPane, branch, effectiveCwd }
     session_id: input.session_id,
     state,
     current_tool: currentTool,
+    cwd,
     permission_mode: permissionMode || existing.permission_mode || '',
     last_hook_event: hookEvent || '',
   };
   if (refreshBranch) {
     update.branch = branch;
-    if (effectiveCwd) {
-      update.cwd = effectiveCwd;
-    }
   }
   return { changed: true, update };
 }
