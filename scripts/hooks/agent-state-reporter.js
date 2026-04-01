@@ -154,7 +154,9 @@ function report(input) {
   }
 
   const parsed = parseTarget(target);
-  const filesChanged = getChangedFiles(cwd);
+  // Use worktree_cwd if available (agent may be working in a worktree)
+  const effectiveCwd = existing.worktree_cwd || cwd;
+  const filesChanged = getChangedFiles(effectiveCwd);
 
   const { changed, entry } = buildReportEntry({
     input, existing, target, tmuxPane, state, filesChanged, parsed, cwd,
