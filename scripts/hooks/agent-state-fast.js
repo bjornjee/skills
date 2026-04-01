@@ -19,18 +19,7 @@ const path = require('path');
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 const { readAgentState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
-const { getBranch, extractCwdFromCommand } = require(path.join(pluginRoot, 'packages', 'git-status'));
-
-/**
- * Whether to refresh the git branch on this hook event.
- * Only PostToolUse + Bash can change branches (~10ms cost).
- * @param {string} hookEvent
- * @param {string} toolName
- * @returns {boolean}
- */
-function shouldRefreshBranch(hookEvent, toolName) {
-  return hookEvent === 'PostToolUse' && toolName === 'Bash';
-}
+const { extractCwdFromCommand } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
 /**
  * Determine the agent state from the hook event.
@@ -80,11 +69,10 @@ if (require.main === module) {
  * @param {object} params.existing - current agent state from disk
  * @param {string} params.target - tmux target string
  * @param {string} params.tmuxPane - TMUX_PANE env value
- * @param {string|undefined} params.branch - refreshed branch (only when shouldRefreshBranch)
- * @param {string|null} params.effectiveCwd - cwd extracted from Bash cd command (only when shouldRefreshBranch)
+ * @param {string|null} params.effectiveCwd - cwd extracted from Bash cd command
  * @returns {{ changed: boolean, update: object|null }}
  */
-function buildUpdate({ input, existing, target, tmuxPane, branch, effectiveCwd }) {
+function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
   const hookEvent = input.hook_event_name;
   const toolName = input.tool_name || '';
   const permissionMode = input.permission_mode || '';
@@ -92,14 +80,11 @@ function buildUpdate({ input, existing, target, tmuxPane, branch, effectiveCwd }
   const state = resolveState(hookEvent, toolName);
   const currentTool = hookEvent === 'PostToolUse' ? '' : toolName;
 
-  const refreshBranch = shouldRefreshBranch(hookEvent, toolName);
-
   const cwd = effectiveCwd || input.cwd || process.cwd();
   const changed = existing.state !== state
     || existing.current_tool !== currentTool
     || existing.permission_mode !== permissionMode
-    || existing.cwd !== cwd
-    || (refreshBranch && existing.branch !== branch);
+    || existing.cwd !== cwd;
 
   if (!changed && existing.state) {
     return { changed: false, update: null };
@@ -115,9 +100,6 @@ function buildUpdate({ input, existing, target, tmuxPane, branch, effectiveCwd }
     permission_mode: permissionMode || existing.permission_mode || '',
     last_hook_event: hookEvent || '',
   };
-  if (refreshBranch) {
-    update.branch = branch;
-  }
   return { changed: true, update };
 }
 
@@ -133,28 +115,21 @@ function fastUpdate(input) {
 
   const existing = readAgentState(sessionId) || {};
 
-  // Refresh branch after Bash (only tool that can change branches, ~10ms).
-  const refreshBranch = shouldRefreshBranch(input.hook_event_name, input.tool_name || '');
-  let branch;
+  // Detect cwd from cd commands in Bash PostToolUse
   let effectiveCwd = null;
-  if (refreshBranch) {
+  if (input.hook_event_name === 'PostToolUse' && (input.tool_name || '') === 'Bash') {
     const toolInput = input.tool_input || {};
     const detectedCwd = extractCwdFromCommand(toolInput.command);
     if (detectedCwd) {
-      // Agent cd'd to a new directory — refresh branch from there
       effectiveCwd = detectedCwd;
-      branch = getBranch(detectedCwd) || existing.branch || '';
-    } else {
-      // No cd detected — preserve existing branch and cwd
-      branch = existing.branch || '';
     }
   }
 
-  const { changed, update } = buildUpdate({ input, existing, target, tmuxPane, branch, effectiveCwd });
+  const { changed, update } = buildUpdate({ input, existing, target, tmuxPane, effectiveCwd });
   if (changed && update) {
     writeState(sessionId, update);
   }
 }
 
 // Export for testing
-module.exports = { resolveState, shouldRefreshBranch, buildUpdate };
+module.exports = { resolveState, buildUpdate };

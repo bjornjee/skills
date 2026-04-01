@@ -8,7 +8,7 @@ const path = require('path');
 const os = require('os');
 
 // Import the module under test
-const { resolveState, shouldRefreshBranch, buildUpdate } = require('./agent-state-fast');
+const { resolveState, buildUpdate } = require('./agent-state-fast');
 
 // Import shared packages
 const pluginRoot = path.resolve(__dirname, '..', '..');
@@ -165,35 +165,6 @@ describe('fast hook state updates (per-agent files)', () => {
     assert.equal(result.current_tool, 'Bash');
   });
 
-  it('PostToolUse Bash updates branch in state', () => {
-    writeState('main:1.0', {
-      target: 'main:1.0',
-      state: 'running',
-      branch: 'main',
-      current_tool: 'Bash',
-    }, agentsDir);
-
-    // shouldRefreshBranch returns true only for PostToolUse + Bash
-    assert.equal(shouldRefreshBranch('PostToolUse', 'Bash'), true);
-    assert.equal(shouldRefreshBranch('PostToolUse', 'Read'), false);
-    assert.equal(shouldRefreshBranch('PreToolUse', 'Bash'), false);
-    assert.equal(shouldRefreshBranch('PermissionRequest', 'Bash'), false);
-
-    // Simulate fast hook writing branch update after Bash PostToolUse
-    const existing = readAgentState('main:1.0', agentsDir);
-    writeState('main:1.0', {
-      ...existing,
-      state: 'running',
-      current_tool: '',
-      branch: 'feat/new-feature',
-      last_hook_event: 'PostToolUse',
-    }, agentsDir);
-
-    const result = readAgentState('main:1.0', agentsDir);
-    assert.equal(result.branch, 'feat/new-feature');
-    assert.equal(result.state, 'running');
-  });
-
   it('PostToolUse Bash with cd updates cwd in state via buildUpdate', () => {
     const existing = {
       target: 'main:1.0',
@@ -214,16 +185,14 @@ describe('fast hook state updates (per-agent files)', () => {
       existing,
       target: 'main:1.0',
       tmuxPane: '%0',
-      branch: 'feat/new-feature',
       effectiveCwd: '/tmp/worktree',
     });
 
     assert.equal(changed, true);
     assert.equal(update.cwd, '/tmp/worktree');
-    assert.equal(update.branch, 'feat/new-feature');
   });
 
-  it('PostToolUse Bash without cd preserves existing branch and cwd via buildUpdate', () => {
+  it('PostToolUse Bash without cd uses input.cwd via buildUpdate', () => {
     const existing = {
       target: 'main:1.0',
       state: 'running',
@@ -232,7 +201,6 @@ describe('fast hook state updates (per-agent files)', () => {
       current_tool: 'Bash',
     };
 
-    // No cd detected: effectiveCwd is null, branch preserves existing
     const { changed, update } = buildUpdate({
       input: {
         session_id: 'abc123',
@@ -244,18 +212,16 @@ describe('fast hook state updates (per-agent files)', () => {
       existing,
       target: 'main:1.0',
       tmuxPane: '%0',
-      branch: 'feat/update-readme',  // preserved from existing
-      effectiveCwd: null,             // no cd detected
+      effectiveCwd: null,
     });
 
-    // current_tool changes from 'Bash' to '' on PostToolUse, so update is non-null
     assert.equal(changed, true);
     assert.notEqual(update, null);
-    assert.equal(update.cwd, undefined, 'cwd should not be set when no cd detected');
-    assert.equal(update.branch, 'feat/update-readme');
+    assert.equal(update.cwd, '/Users/bjornjee/Code/bjornjee/skills');
+    assert.equal(update.branch, undefined, 'fast hook should not set branch');
   });
 
-  it('non-Bash PostToolUse does not set cwd via buildUpdate', () => {
+  it('non-Bash PostToolUse updates cwd from input via buildUpdate', () => {
     const existing = {
       target: 'main:1.0',
       state: 'running',
@@ -273,14 +239,13 @@ describe('fast hook state updates (per-agent files)', () => {
       existing,
       target: 'main:1.0',
       tmuxPane: '%0',
-      branch: undefined,
       effectiveCwd: null,
     });
 
-    // current_tool changes from 'Read' to '' on PostToolUse, so update is non-null
     assert.equal(changed, true);
     assert.notEqual(update, null);
-    assert.equal(update.cwd, undefined, 'non-Bash tools should not touch cwd');
+    assert.equal(update.cwd, '/Users/bjornjee/Code/bjornjee/skills');
+    assert.equal(update.branch, undefined, 'fast hook should not set branch');
   });
 
   it('preserves existing fields not updated by fast hook', () => {

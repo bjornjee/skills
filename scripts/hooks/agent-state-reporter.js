@@ -40,22 +40,90 @@ function findSessionId() {
   return null;
 }
 
-const MAX_STDIN = 1024 * 1024;
-let data = '';
+/**
+ * Build the report entry from hook input and existing state.
+ * Pure logic — no I/O. Extracted for testability.
+ *
+ * @param {object} params
+ * @param {object} params.input - parsed hook stdin
+ * @param {object} params.existing - current agent state from disk
+ * @param {string} params.target - tmux target string
+ * @param {string} params.tmuxPane - TMUX_PANE env value
+ * @param {string} params.state - resolved agent state
+ * @param {string[]} params.filesChanged - changed files list
+ * @param {string} params.branch - resolved branch name
+ * @param {{session: string, window: number, pane: number}} params.parsed - parsed target
+ * @returns {{ changed: boolean, entry: object }}
+ */
+function buildReportEntry({ input, existing, target, tmuxPane, state, filesChanged, branch, parsed }) {
+  const hookEvent = input.hook_event_name;
+  const lastMessage = input.last_assistant_message || null;
 
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', chunk => {
-  if (data.length < MAX_STDIN) data += chunk.substring(0, MAX_STDIN - data.length);
-});
+  const preview = lastMessage
+    ? lastMessage.split('\n').filter(l => l.trim()).slice(-3).join(' ').substring(0, 200)
+    : null;
 
-process.stdin.on('end', () => {
-  try {
-    const input = data.trim() ? JSON.parse(data) : {};
-    report(input);
-  } catch {
-    // Silent — don't break Claude Code
+  const model = (hookEvent === 'SessionStart' && input.model)
+    ? input.model
+    : (existing.model || '');
+
+  const permissionMode = input.permission_mode || existing.permission_mode || '';
+
+  let subagentCount = existing.subagent_count || 0;
+  if (hookEvent === 'SubagentStart') {
+    subagentCount++;
+  } else if (hookEvent === 'SubagentStop') {
+    subagentCount = Math.max(0, subagentCount - 1);
   }
-});
+
+  const entry = {
+    target,
+    tmux_pane_id: tmuxPane,
+    session: parsed.session,
+    window: parsed.window,
+    pane: parsed.pane,
+    state,
+    cwd: input.cwd || '',
+    files_changed: filesChanged,
+    last_message_preview: preview,
+    session_id: input.session_id,
+    started_at: existing.started_at || new Date().toISOString(),
+    model,
+    permission_mode: permissionMode,
+    subagent_count: subagentCount,
+    branch,
+    last_hook_event: hookEvent || '',
+  };
+
+  const changed = existing.state !== state
+    || existing.branch !== branch
+    || existing.subagent_count !== subagentCount
+    || existing.last_message_preview !== preview
+    || existing.permission_mode !== permissionMode
+    || (existing.files_changed || []).join() !== filesChanged.join();
+
+  return { changed: changed || !existing.state, entry };
+}
+
+// Only run stdin reader when executed directly (not when require()'d by tests)
+if (require.main === module) {
+  const MAX_STDIN = 1024 * 1024;
+  let data = '';
+
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', chunk => {
+    if (data.length < MAX_STDIN) data += chunk.substring(0, MAX_STDIN - data.length);
+  });
+
+  process.stdin.on('end', () => {
+    try {
+      const input = data.trim() ? JSON.parse(data) : {};
+      report(input);
+    } catch {
+      // Silent — don't break Claude Code
+    }
+  });
+}
 
 function report(input) {
   const tmuxPane = process.env.TMUX_PANE;
@@ -87,66 +155,23 @@ function report(input) {
     state = detectState(lastMessage, paneBuffer);
   }
 
-  const { session, window, pane } = parseTarget(target);
+  const parsed = parseTarget(target);
   const filesChanged = getChangedFiles(cwd);
 
-  // Branch is owned by agent-state-fast.js. Only set on SessionStart (initial value).
-  // Note: SessionStart cwd is the Claude session's primary directory, not the worktree.
-  // The fast hook corrects this on the first PostToolUse+Bash with a cd to the worktree.
-  const branch = hookEvent === 'SessionStart' ? getBranch(cwd) : undefined;
+  // Branch is refreshed on every reporter event (lifecycle boundaries).
+  // Use existing.cwd (kept accurate by fast hook) over input.cwd, which may
+  // reflect the primary session directory rather than the worktree.
+  const branchCwd = existing.cwd || cwd;
+  const branch = getBranch(branchCwd) || existing.branch || '';
 
-  const preview = lastMessage
-    ? lastMessage.split('\n').filter(l => l.trim()).slice(-3).join(' ').substring(0, 200)
-    : null;
+  const { changed, entry } = buildReportEntry({
+    input, existing, target, tmuxPane, state, filesChanged, branch, parsed,
+  });
 
-  // Model: capture on SessionStart, preserve otherwise
-  const model = (hookEvent === 'SessionStart' && input.model)
-    ? input.model
-    : (existing.model || '');
-
-  // Permission mode: always update from hook input
-  const permissionMode = input.permission_mode || existing.permission_mode || '';
-
-  // Subagent count: increment on start, decrement on stop
-  let subagentCount = existing.subagent_count || 0;
-  if (hookEvent === 'SubagentStart') {
-    subagentCount++;
-  } else if (hookEvent === 'SubagentStop') {
-    subagentCount = Math.max(0, subagentCount - 1);
-  }
-
-  const entry = {
-    target,
-    tmux_pane_id: tmuxPane,
-    session,
-    window,
-    pane,
-    state,
-    cwd,
-    files_changed: filesChanged,
-    last_message_preview: preview,
-    session_id: sessionId,
-    started_at: existing.started_at || new Date().toISOString(),
-    model,
-    permission_mode: permissionMode,
-    subagent_count: subagentCount,
-    last_hook_event: hookEvent || '',
-  };
-
-  // Branch is owned by agent-state-fast.js; only set initial value on SessionStart
-  if (branch !== undefined) {
-    entry.branch = branch;
-  }
-
-  // Debounce: skip write if nothing meaningful changed
-  const changed = existing.state !== state
-    || (branch !== undefined && existing.branch !== branch)
-    || existing.subagent_count !== subagentCount
-    || existing.last_message_preview !== preview
-    || existing.permission_mode !== permissionMode
-    || (existing.files_changed || []).join() !== filesChanged.join();
-
-  if (changed || !existing.state) {
+  if (changed) {
     writeState(sessionId, entry);
   }
 }
+
+// Export for testing
+module.exports = { buildReportEntry };
