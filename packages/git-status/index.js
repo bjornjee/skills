@@ -5,7 +5,30 @@ const { spawnSync } = require('child_process');
 const TIMEOUT = 2000;
 
 /**
- * Get files changed in the working tree (unstaged + staged).
+ * Find the merge-base commit between HEAD and the default branch (main/master).
+ * Returns the commit hash, or null if not found.
+ * @param {string} cwd - working directory
+ * @returns {string|null}
+ */
+function findMergeBase(cwd) {
+  for (const base of ['main', 'master']) {
+    const result = spawnSync('git', ['merge-base', 'HEAD', base], {
+      encoding: 'utf8',
+      timeout: TIMEOUT,
+      cwd,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    if (result.status === 0 && result.stdout.trim()) {
+      return result.stdout.trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * Get files changed on the current branch (committed + uncommitted).
+ * Diffs from the merge-base with main/master to capture all branch changes.
+ * Falls back to diffing against HEAD if no merge-base is found.
  * Returns array of strings with prefix: '+' added, '~' modified, '-' deleted.
  * @param {string} cwd - working directory
  * @returns {string[]}
@@ -13,7 +36,9 @@ const TIMEOUT = 2000;
 function getChangedFiles(cwd) {
   if (!cwd) return [];
 
-  const result = spawnSync('git', ['diff', '--name-status', 'HEAD'], {
+  const diffFrom = findMergeBase(cwd) || 'HEAD';
+
+  const result = spawnSync('git', ['diff', '--name-status', diffFrom], {
     encoding: 'utf8',
     timeout: TIMEOUT,
     cwd,
@@ -66,4 +91,4 @@ function extractCwdFromCommand(command) {
   return dir;
 }
 
-module.exports = { getChangedFiles, getBranch, extractCwdFromCommand };
+module.exports = { getChangedFiles, getBranch, extractCwdFromCommand, findMergeBase };
