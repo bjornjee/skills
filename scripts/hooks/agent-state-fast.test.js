@@ -122,7 +122,31 @@ describe('fast hook state updates (per-agent files)', () => {
     assert.equal(result.current_tool, 'Bash');
   });
 
-  it('buildUpdate does not include cwd in update', () => {
+  it('buildUpdate does not include cwd or branch in update', () => {
+    const existing = {
+      target: 'main:1.0',
+      state: 'running',
+      current_tool: 'Bash',
+    };
+
+    const { update } = buildUpdate({
+      input: {
+        session_id: 'abc123',
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Bash',
+        cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      },
+      existing,
+      target: 'main:1.0',
+      tmuxPane: '%0',
+      worktreeCwd: null,
+    });
+
+    assert.equal(update.cwd, undefined, 'fast hook should not set cwd');
+    assert.equal(update.branch, undefined, 'fast hook should not set branch');
+  });
+
+  it('sets worktree_cwd when Bash cd targets a worktree path', () => {
     const existing = {
       target: 'main:1.0',
       state: 'running',
@@ -139,17 +163,42 @@ describe('fast hook state updates (per-agent files)', () => {
       existing,
       target: 'main:1.0',
       tmuxPane: '%0',
+      worktreeCwd: '/Users/bjornjee/Code/bjornjee/worktrees/skills/my-feature',
     });
 
     assert.equal(changed, true);
-    assert.equal(update.cwd, undefined, 'fast hook should not set cwd');
+    assert.equal(update.worktree_cwd, '/Users/bjornjee/Code/bjornjee/worktrees/skills/my-feature');
   });
 
-  it('buildUpdate does not include branch in update', () => {
+  it('does not set worktree_cwd for non-worktree cd', () => {
+    const existing = {
+      target: 'main:1.0',
+      state: 'running',
+      current_tool: 'Bash',
+    };
+
+    const { update } = buildUpdate({
+      input: {
+        session_id: 'abc123',
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Bash',
+        cwd: '/Users/bjornjee/Code/bjornjee/skills',
+      },
+      existing,
+      target: 'main:1.0',
+      tmuxPane: '%0',
+      worktreeCwd: null,
+    });
+
+    assert.equal(update.worktree_cwd, undefined);
+  });
+
+  it('preserves existing worktree_cwd when no new worktree cd detected', () => {
     const existing = {
       target: 'main:1.0',
       state: 'running',
       current_tool: 'Read',
+      worktree_cwd: '/Users/bjornjee/Code/bjornjee/worktrees/skills/my-feature',
     };
 
     const { update } = buildUpdate({
@@ -162,9 +211,11 @@ describe('fast hook state updates (per-agent files)', () => {
       existing,
       target: 'main:1.0',
       tmuxPane: '%0',
+      worktreeCwd: null,
     });
 
-    assert.equal(update.branch, undefined, 'fast hook should not set branch');
+    // worktree_cwd should NOT be in the update — it's preserved via merge in writeState
+    assert.equal(update.worktree_cwd, undefined);
   });
 
   it('preserves existing fields not updated by fast hook', () => {
