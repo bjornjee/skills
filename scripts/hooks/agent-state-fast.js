@@ -3,7 +3,7 @@
  * Fast state sync hook for agent dashboard.
  *
  * Registered for PreToolUse, PostToolUse, and PermissionRequest.
- * Updates only: state, permission_mode, current_tool, last_hook_event.
+ * Updates only: state, permission_mode, current_tool, last_hook_event, worktree_cwd.
  * Skips: git branch, git diff, tmux capture, session_id lookup, model, preview.
  *
  * Uses per-agent files keyed by session_id — no locking needed.
@@ -69,10 +69,10 @@ if (require.main === module) {
  * @param {object} params.existing - current agent state from disk
  * @param {string} params.target - tmux target string
  * @param {string} params.tmuxPane - TMUX_PANE env value
- * @param {string|null} params.effectiveCwd - cwd extracted from Bash cd command
+ * @param {string|null} params.worktreeCwd - detected worktree path from Bash cd, or null
  * @returns {{ changed: boolean, update: object|null }}
  */
-function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
+function buildUpdate({ input, existing, target, tmuxPane, worktreeCwd }) {
   const hookEvent = input.hook_event_name;
   const toolName = input.tool_name || '';
   const permissionMode = input.permission_mode || '';
@@ -80,11 +80,10 @@ function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
   const state = resolveState(hookEvent, toolName);
   const currentTool = hookEvent === 'PostToolUse' ? '' : toolName;
 
-  const cwd = effectiveCwd || input.cwd || process.cwd();
   const changed = existing.state !== state
     || existing.current_tool !== currentTool
     || existing.permission_mode !== permissionMode
-    || existing.cwd !== cwd;
+    || (worktreeCwd && existing.worktree_cwd !== worktreeCwd);
 
   if (!changed && existing.state) {
     return { changed: false, update: null };
@@ -96,10 +95,14 @@ function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
     session_id: input.session_id,
     state,
     current_tool: currentTool,
-    cwd,
     permission_mode: permissionMode || existing.permission_mode || '',
     last_hook_event: hookEvent || '',
   };
+
+  if (worktreeCwd) {
+    update.worktree_cwd = worktreeCwd;
+  }
+
   return { changed: true, update };
 }
 
@@ -115,17 +118,17 @@ function fastUpdate(input) {
 
   const existing = readAgentState(sessionId) || {};
 
-  // Detect cwd from cd commands in Bash PostToolUse
-  let effectiveCwd = null;
+  // Detect worktree cd from Bash PostToolUse commands.
+  // Pattern: cd /path/to/worktrees/<app>/<feature> && ...
+  let worktreeCwd = null;
   if (input.hook_event_name === 'PostToolUse' && (input.tool_name || '') === 'Bash') {
-    const toolInput = input.tool_input || {};
-    const detectedCwd = extractCwdFromCommand(toolInput.command);
-    if (detectedCwd) {
-      effectiveCwd = detectedCwd;
+    const detectedCwd = extractCwdFromCommand((input.tool_input || {}).command);
+    if (detectedCwd && /\/worktrees\//.test(detectedCwd)) {
+      worktreeCwd = detectedCwd;
     }
   }
 
-  const { changed, update } = buildUpdate({ input, existing, target, tmuxPane, effectiveCwd });
+  const { changed, update } = buildUpdate({ input, existing, target, tmuxPane, worktreeCwd });
   if (changed && update) {
     writeState(sessionId, update);
   }

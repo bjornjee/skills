@@ -17,7 +17,7 @@ const BASE_INPUT = {
 const BASE_PARSED = { session: 'main', window: 1, pane: 0 };
 
 describe('buildReportEntry', () => {
-  it('sets branch on SessionStart', () => {
+  it('does not include branch or cwd in entry', () => {
     const { entry } = buildReportEntry({
       input: BASE_INPUT,
       existing: {},
@@ -25,44 +25,13 @@ describe('buildReportEntry', () => {
       tmuxPane: '%0',
       state: 'running',
       filesChanged: [],
-      branch: 'feat/new-feature',
       parsed: BASE_PARSED,
     });
 
-    assert.equal(entry.branch, 'feat/new-feature');
+    assert.equal(entry.branch, undefined, 'reporter should not set branch');
+    assert.equal(entry.cwd, undefined, 'reporter should not set cwd');
     assert.equal(entry.state, 'running');
     assert.equal(entry.model, 'claude-opus-4-6');
-  });
-
-  it('sets branch on Stop event (not just SessionStart)', () => {
-    const { entry } = buildReportEntry({
-      input: { ...BASE_INPUT, hook_event_name: 'Stop' },
-      existing: { state: 'running', branch: 'main' },
-      target: 'main:1.0',
-      tmuxPane: '%0',
-      state: 'done',
-      filesChanged: [],
-      branch: 'feat/switched-branch',
-      parsed: BASE_PARSED,
-    });
-
-    assert.equal(entry.branch, 'feat/switched-branch');
-    assert.equal(entry.state, 'done');
-  });
-
-  it('detects branch change in debounce logic', () => {
-    const { changed } = buildReportEntry({
-      input: { ...BASE_INPUT, hook_event_name: 'Stop' },
-      existing: { state: 'done', branch: 'main', subagent_count: 0, files_changed: [] },
-      target: 'main:1.0',
-      tmuxPane: '%0',
-      state: 'done',
-      filesChanged: [],
-      branch: 'feat/new-branch',
-      parsed: BASE_PARSED,
-    });
-
-    assert.equal(changed, true);
   });
 
   it('skips write when nothing changed', () => {
@@ -70,7 +39,6 @@ describe('buildReportEntry', () => {
       input: { ...BASE_INPUT, hook_event_name: 'SubagentStop' },
       existing: {
         state: 'running',
-        branch: 'main',
         subagent_count: 0,
         last_message_preview: null,
         permission_mode: 'default',
@@ -80,7 +48,6 @@ describe('buildReportEntry', () => {
       tmuxPane: '%0',
       state: 'running',
       filesChanged: [],
-      branch: 'main',
       parsed: BASE_PARSED,
     });
 
@@ -95,7 +62,6 @@ describe('buildReportEntry', () => {
       tmuxPane: '%0',
       state: 'running',
       filesChanged: [],
-      branch: 'main',
       parsed: BASE_PARSED,
     });
 
@@ -110,7 +76,6 @@ describe('buildReportEntry', () => {
       tmuxPane: '%0',
       state: 'running',
       filesChanged: [],
-      branch: 'main',
       parsed: BASE_PARSED,
     });
 
@@ -125,7 +90,6 @@ describe('buildReportEntry', () => {
       tmuxPane: '%0',
       state: 'done',
       filesChanged: [],
-      branch: 'main',
       parsed: BASE_PARSED,
     });
 
@@ -140,7 +104,6 @@ describe('buildReportEntry', () => {
       tmuxPane: '%0',
       state: 'running',
       filesChanged: [],
-      branch: 'main',
       parsed: BASE_PARSED,
     });
 

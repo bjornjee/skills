@@ -18,7 +18,7 @@ const os = require('os');
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 const { readAgentState, writeState, detectState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget, capture, parseTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
-const { getChangedFiles, getBranch } = require(path.join(pluginRoot, 'packages', 'git-status'));
+const { getChangedFiles } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
 function findSessionId() {
   const sessDir = path.join(os.homedir(), '.claude', 'sessions');
@@ -51,11 +51,10 @@ function findSessionId() {
  * @param {string} params.tmuxPane - TMUX_PANE env value
  * @param {string} params.state - resolved agent state
  * @param {string[]} params.filesChanged - changed files list
- * @param {string} params.branch - resolved branch name
  * @param {{session: string, window: number, pane: number}} params.parsed - parsed target
  * @returns {{ changed: boolean, entry: object }}
  */
-function buildReportEntry({ input, existing, target, tmuxPane, state, filesChanged, branch, parsed }) {
+function buildReportEntry({ input, existing, target, tmuxPane, state, filesChanged, parsed }) {
   const hookEvent = input.hook_event_name;
   const lastMessage = input.last_assistant_message || null;
 
@@ -83,7 +82,6 @@ function buildReportEntry({ input, existing, target, tmuxPane, state, filesChang
     window: parsed.window,
     pane: parsed.pane,
     state,
-    cwd: input.cwd || '',
     files_changed: filesChanged,
     last_message_preview: preview,
     session_id: input.session_id,
@@ -91,12 +89,10 @@ function buildReportEntry({ input, existing, target, tmuxPane, state, filesChang
     model,
     permission_mode: permissionMode,
     subagent_count: subagentCount,
-    branch,
     last_hook_event: hookEvent || '',
   };
 
   const changed = existing.state !== state
-    || existing.branch !== branch
     || existing.subagent_count !== subagentCount
     || existing.last_message_preview !== preview
     || existing.permission_mode !== permissionMode
@@ -158,14 +154,8 @@ function report(input) {
   const parsed = parseTarget(target);
   const filesChanged = getChangedFiles(cwd);
 
-  // Branch is refreshed on every reporter event (lifecycle boundaries).
-  // Use existing.cwd (kept accurate by fast hook) over input.cwd, which may
-  // reflect the primary session directory rather than the worktree.
-  const branchCwd = existing.cwd || cwd;
-  const branch = getBranch(branchCwd) || existing.branch || '';
-
   const { changed, entry } = buildReportEntry({
-    input, existing, target, tmuxPane, state, filesChanged, branch, parsed,
+    input, existing, target, tmuxPane, state, filesChanged, parsed,
   });
 
   if (changed) {
