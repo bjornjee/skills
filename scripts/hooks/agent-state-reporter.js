@@ -52,9 +52,10 @@ function findSessionId() {
  * @param {string} params.state - resolved agent state
  * @param {string[]} params.filesChanged - changed files list
  * @param {{session: string, window: number, pane: number}} params.parsed - parsed target
+ * @param {string} params.cwd - working directory
  * @returns {{ changed: boolean, entry: object }}
  */
-function buildReportEntry({ input, existing, target, tmuxPane, state, filesChanged, parsed }) {
+function buildReportEntry({ input, existing, target, tmuxPane, state, filesChanged, parsed, cwd }) {
   const hookEvent = input.hook_event_name;
   const lastMessage = input.last_assistant_message || null;
 
@@ -82,6 +83,7 @@ function buildReportEntry({ input, existing, target, tmuxPane, state, filesChang
     window: parsed.window,
     pane: parsed.pane,
     state,
+    cwd: cwd || existing.cwd || '',
     files_changed: filesChanged,
     last_message_preview: preview,
     session_id: input.session_id,
@@ -155,7 +157,7 @@ function report(input) {
   const filesChanged = getChangedFiles(cwd);
 
   const { changed, entry } = buildReportEntry({
-    input, existing, target, tmuxPane, state, filesChanged, parsed,
+    input, existing, target, tmuxPane, state, filesChanged, parsed, cwd,
   });
 
   if (changed) {

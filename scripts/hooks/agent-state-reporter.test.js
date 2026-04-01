@@ -17,7 +17,7 @@ const BASE_INPUT = {
 const BASE_PARSED = { session: 'main', window: 1, pane: 0 };
 
 describe('buildReportEntry', () => {
-  it('does not include branch or cwd in entry', () => {
+  it('includes cwd from input but not branch', () => {
     const { entry } = buildReportEntry({
       input: BASE_INPUT,
       existing: {},
@@ -26,12 +26,28 @@ describe('buildReportEntry', () => {
       state: 'running',
       filesChanged: [],
       parsed: BASE_PARSED,
+      cwd: '/Users/bjornjee/Code/bjornjee/skills',
     });
 
     assert.equal(entry.branch, undefined, 'reporter should not set branch');
-    assert.equal(entry.cwd, undefined, 'reporter should not set cwd');
+    assert.equal(entry.cwd, '/Users/bjornjee/Code/bjornjee/skills');
     assert.equal(entry.state, 'running');
     assert.equal(entry.model, 'claude-opus-4-6');
+  });
+
+  it('falls back to existing.cwd when cwd param is empty', () => {
+    const { entry } = buildReportEntry({
+      input: BASE_INPUT,
+      existing: { cwd: '/existing/path' },
+      target: 'main:1.0',
+      tmuxPane: '%0',
+      state: 'running',
+      filesChanged: [],
+      parsed: BASE_PARSED,
+      cwd: '',
+    });
+
+    assert.equal(entry.cwd, '/existing/path');
   });
 
   it('skips write when nothing changed', () => {
