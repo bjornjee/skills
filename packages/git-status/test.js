@@ -199,4 +199,56 @@ describe('packages/git-status', () => {
       delete require.cache[require.resolve('./index')];
     });
   });
+
+  describe('extractCwdFromCommand', () => {
+    it('extracts absolute path from cd /path && cmd', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('cd /Users/bjornjee/worktree && git status'), '/Users/bjornjee/worktree');
+    });
+
+    it('extracts double-quoted path with spaces', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('cd "/path/with spaces" && ls'), '/path/with spaces');
+    });
+
+    it('extracts single-quoted absolute path', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand("cd '/abs/path' && pwd"), '/abs/path');
+    });
+
+    it('extracts path with semicolon separator', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('cd /some/dir ; echo hello'), '/some/dir');
+    });
+
+    it('extracts path with || separator', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('cd /some/dir || echo fail'), '/some/dir');
+    });
+
+    it('returns null for relative path', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('cd relative/path && cmd'), null);
+    });
+
+    it('returns null when no cd prefix', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('echo hello'), null);
+    });
+
+    it('returns null for null input', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand(null), null);
+    });
+
+    it('returns null for empty string', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand(''), null);
+    });
+
+    it('extracts path when cd is the only command', () => {
+      const { extractCwdFromCommand } = require('./index');
+      assert.equal(extractCwdFromCommand('cd /some/dir'), '/some/dir');
+    });
+  });
 });

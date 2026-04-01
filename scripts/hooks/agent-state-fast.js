@@ -19,7 +19,6 @@ const path = require('path');
 const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 const { readAgentState, writeState } = require(path.join(pluginRoot, 'packages', 'agent-state'));
 const { getTarget } = require(path.join(pluginRoot, 'packages', 'tmux'));
-const { extractCwdFromCommand } = require(path.join(pluginRoot, 'packages', 'git-status'));
 
 /**
  * Determine the agent state from the hook event.
@@ -69,10 +68,9 @@ if (require.main === module) {
  * @param {object} params.existing - current agent state from disk
  * @param {string} params.target - tmux target string
  * @param {string} params.tmuxPane - TMUX_PANE env value
- * @param {string|null} params.effectiveCwd - cwd extracted from Bash cd command
  * @returns {{ changed: boolean, update: object|null }}
  */
-function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
+function buildUpdate({ input, existing, target, tmuxPane }) {
   const hookEvent = input.hook_event_name;
   const toolName = input.tool_name || '';
   const permissionMode = input.permission_mode || '';
@@ -80,11 +78,9 @@ function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
   const state = resolveState(hookEvent, toolName);
   const currentTool = hookEvent === 'PostToolUse' ? '' : toolName;
 
-  const cwd = effectiveCwd || input.cwd || process.cwd();
   const changed = existing.state !== state
     || existing.current_tool !== currentTool
-    || existing.permission_mode !== permissionMode
-    || existing.cwd !== cwd;
+    || existing.permission_mode !== permissionMode;
 
   if (!changed && existing.state) {
     return { changed: false, update: null };
@@ -96,7 +92,6 @@ function buildUpdate({ input, existing, target, tmuxPane, effectiveCwd }) {
     session_id: input.session_id,
     state,
     current_tool: currentTool,
-    cwd,
     permission_mode: permissionMode || existing.permission_mode || '',
     last_hook_event: hookEvent || '',
   };
@@ -115,17 +110,7 @@ function fastUpdate(input) {
 
   const existing = readAgentState(sessionId) || {};
 
-  // Detect cwd from cd commands in Bash PostToolUse
-  let effectiveCwd = null;
-  if (input.hook_event_name === 'PostToolUse' && (input.tool_name || '') === 'Bash') {
-    const toolInput = input.tool_input || {};
-    const detectedCwd = extractCwdFromCommand(toolInput.command);
-    if (detectedCwd) {
-      effectiveCwd = detectedCwd;
-    }
-  }
-
-  const { changed, update } = buildUpdate({ input, existing, target, tmuxPane, effectiveCwd });
+  const { changed, update } = buildUpdate({ input, existing, target, tmuxPane });
   if (changed && update) {
     writeState(sessionId, update);
   }
