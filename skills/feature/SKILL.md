@@ -19,10 +19,11 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 1. Derive a short kebab-case name from the description
 2. Derive the app name from the git repo: `basename $(git rev-parse --show-toplevel)`
 3. Fetch the latest main branch: `git fetch origin main`
-4. Create branch `feat/<name>` and worktree `../worktrees/<app>/<name>` from origin/main:
+4. Fast-forward local main to match remote: `git branch -f main origin/main`
+5. Create branch `feat/<name>` and worktree `../worktrees/<app>/<name>` from origin/main:
    `mkdir -p ../worktrees/<app> && git worktree add ../worktrees/<app>/<name> -b feat/<name> origin/main`
    - If the branch already exists, ask the user whether to resume it or choose a new name.
-5. **From the source repo root** (before cd'ing), copy environment files into the worktree **preserving their exact relative path from the project root**:
+6. **From the source repo root** (before cd'ing), copy environment files into the worktree **preserving their exact relative path from the project root**:
    - Find all env files recursively: `find . -name '.env*' -not -path './.git/*' -not -path './node_modules/*'`
    - For each file found, recreate its directory structure in the worktree and copy it. For example:
      - `./. env` → `../worktrees/<app>/<name>/.env`
@@ -30,8 +31,8 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
      - `./infra/.env.production` → `../worktrees/<app>/<name>/infra/.env.production`
    - Use: `for f in $(find . -name '.env*' -not -path './.git/*' -not -path './node_modules/*'); do mkdir -p "../worktrees/<app>/<name>/$(dirname "$f")" && cp "$f" "../worktrees/<app>/<name>/$f"; done`
    - If `.claude/settings.local.json` exists: `mkdir -p ../worktrees/<app>/<name>/.claude && cp .claude/settings.local.json ../worktrees/<app>/<name>/.claude/`
-6. cd into the worktree and confirm with `pwd` and `git branch --show-current`
-7. Verify: compare env files between source and worktree. Run the same `find` command in both directories and diff the file lists. If any files are missing in the worktree, **halt and report failure**. If the source repo had no `.env*` files, note that explicitly.
+7. cd into the worktree and confirm with `pwd` and `git branch --show-current`
+8. Verify: compare env files between source and worktree. Run the same `find` command in both directories and diff the file lists. If any files are missing in the worktree, **halt and report failure**. If the source repo had no `.env*` files, note that explicitly.
 
 **Gate:** Working directory is the new worktree on the correct branch, based on latest origin/main. If `.env*` files existed in the source repo, they are all present in the worktree.
 
