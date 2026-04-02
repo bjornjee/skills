@@ -5,13 +5,15 @@ const { spawnSync } = require('child_process');
 const TIMEOUT = 2000;
 
 /**
- * Find the merge-base commit between HEAD and the default branch (main/master).
+ * Find the merge-base commit between HEAD and the default branch.
+ * Prefers origin/main over local main (and origin/master over local master)
+ * to avoid stale results when the local default branch is behind the remote.
  * Returns the commit hash, or null if not found.
  * @param {string} cwd - working directory
  * @returns {string|null}
  */
 function findMergeBase(cwd) {
-  for (const base of ['main', 'master']) {
+  for (const base of ['origin/main', 'main', 'origin/master', 'master']) {
     const result = spawnSync('git', ['merge-base', 'HEAD', base], {
       encoding: 'utf8',
       timeout: TIMEOUT,
