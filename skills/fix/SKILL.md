@@ -18,11 +18,12 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 
 1. Derive a short kebab-case name from the bug description.
 2. Derive the app name from the git repo: `basename $(git rev-parse --show-toplevel)`
-3. Pull the latest main branch: `git pull origin main`
-4. Create branch `fix/<name>` and worktree `../worktrees/<app>/<name>` from origin/main:
-   `mkdir -p ../worktrees/<app> && git worktree add ../worktrees/<app>/<name> -b fix/<name> origin/main`
+3. Switch to main: `git checkout main`
+4. Pull latest: `git pull origin main`
+5. Create branch `fix/<name>` and worktree `../worktrees/<app>/<name>` from main:
+   `mkdir -p ../worktrees/<app> && git worktree add ../worktrees/<app>/<name> -b fix/<name> main`
    - If the branch already exists, ask the user whether to resume it or choose a new name.
-5. **From the source repo root** (before cd'ing), copy environment files into the worktree **preserving their exact relative path from the project root**:
+6. **From the source repo root** (before cd'ing), copy environment files into the worktree **preserving their exact relative path from the project root**:
    - Find all env files recursively: `find . -name '.env*' -not -path './.git/*' -not -path './node_modules/*'`
    - For each file found, recreate its directory structure in the worktree and copy it. For example:
      - `./.env` → `../worktrees/<app>/<name>/.env`
@@ -32,7 +33,7 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 6. cd into the worktree and confirm with `pwd` and `git branch --show-current`
 7. Verify: compare env files between source and worktree. Run the same `find` command in both directories and diff the file lists. If any files are missing in the worktree, **halt and report failure**. If the source repo had no `.env*` files, note that explicitly.
 
-**Gate:** Working directory is the new worktree on the correct branch, based on latest origin/main. If `.env*` files existed in the source repo, they are all present in the worktree.
+**Gate:** Working directory is the new worktree on the correct branch, based on latest main. If `.env*` files existed in the source repo, they are all present in the worktree.
 
 ---
 

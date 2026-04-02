@@ -16,7 +16,8 @@ Follow these phases in order.
 
 ### Phase 0: Sync
 
-1. Pull the latest main branch: `git pull origin main`
+1. Switch to main: `git checkout main`
+2. Pull latest: `git pull origin main`
 
 ---
 
