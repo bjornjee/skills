@@ -7,6 +7,8 @@
 
 These MUST always match. When bumping, update both files in the same commit.
 
+`package.json` version is unrelated to the plugin version — do NOT bump it for plugin changes.
+
 ## When to Bump
 
 Bump the version on every commit that changes plugin behavior:
