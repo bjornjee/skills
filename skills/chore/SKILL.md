@@ -17,12 +17,13 @@ Follow these phases in order. Each phase has a gate — do not proceed until the
 ### Phase 1: Branch Setup
 
 1. Derive a short kebab-case name from the change description.
-2. Fetch the latest main branch: `git fetch origin main`
-3. Create a new branch from origin/main: `git checkout -b chore/<name> origin/main`
+2. Switch to main: `git checkout main`
+3. Pull latest: `git pull origin main`
+4. Create a new branch from main: `git checkout -b chore/<name>`
    - If the branch already exists, ask the user whether to resume it (`git checkout chore/<name>`) or choose a new name.
-4. Confirm the branch: `git branch --show-current`
+5. Confirm the branch: `git branch --show-current`
 
-**Gate:** On the correct `chore/<name>` branch, based on latest origin/main.
+**Gate:** On the correct `chore/<name>` branch, based on latest main.
 
 ---
 
