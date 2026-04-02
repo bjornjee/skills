@@ -14,6 +14,12 @@ Follow these phases in order. Apply all project rules and conventions that are i
 
 ---
 
+### Phase 0: Sync
+
+1. Pull the latest main branch: `git pull origin main`
+
+---
+
 ### Phase 1: Scope
 
 1. Parse the question or concern — is it about behavior, architecture, performance, a failure, a dependency, or something else?

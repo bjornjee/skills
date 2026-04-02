@@ -14,6 +14,12 @@ Follow these phases in order.
 
 ---
 
+### Phase 0: Sync
+
+1. Pull the latest main branch: `git pull origin main`
+
+---
+
 ### Phase 1: Analyze
 
 Run all of these in parallel:
