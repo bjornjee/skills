@@ -25,16 +25,16 @@ const { extractCwdFromCommand } = require(path.join(pluginRoot, 'packages', 'git
  * Determine the agent state from the hook event.
  * @param {string} hookEvent - hook_event_name from stdin
  * @param {string} toolName - tool_name from stdin
- * @returns {string} "input" or "running"
+ * @returns {string} "permission", "question", or "running"
  */
 function resolveState(hookEvent, toolName) {
   if (hookEvent === 'PermissionRequest') {
-    return 'input';
+    return 'permission';
   }
   // AskUserQuestion fires as PreToolUse, not PermissionRequest.
-  // It always blocks for user input, so treat it like a permission prompt.
+  // It always blocks for user input — the agent asked a question.
   if (hookEvent === 'PreToolUse' && toolName === 'AskUserQuestion') {
-    return 'input';
+    return 'question';
   }
   return 'running';
 }

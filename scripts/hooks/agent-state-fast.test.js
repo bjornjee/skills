@@ -27,8 +27,8 @@ afterEach(() => {
 });
 
 describe('resolveState', () => {
-  it('returns "input" for PermissionRequest', () => {
-    assert.equal(resolveState('PermissionRequest', 'Bash'), 'input');
+  it('returns "permission" for PermissionRequest', () => {
+    assert.equal(resolveState('PermissionRequest', 'Bash'), 'permission');
   });
 
   it('returns "running" for PreToolUse with normal tools', () => {
@@ -37,8 +37,8 @@ describe('resolveState', () => {
     assert.equal(resolveState('PreToolUse', 'Edit'), 'running');
   });
 
-  it('returns "input" for PreToolUse with AskUserQuestion', () => {
-    assert.equal(resolveState('PreToolUse', 'AskUserQuestion'), 'input');
+  it('returns "question" for PreToolUse with AskUserQuestion', () => {
+    assert.equal(resolveState('PreToolUse', 'AskUserQuestion'), 'question');
   });
 
   it('returns "running" for PostToolUse', () => {

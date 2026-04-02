@@ -70,16 +70,27 @@ describe('schema/validateState', () => {
 });
 
 describe('schema/sortAgentsByPriority', () => {
-  it('sorts input first, then error, running, idle, done', () => {
+  it('sorts permission first, then question, error, running, idle_prompt, done', () => {
+    const agents = [
+      { state: 'done', target: 'a' },
+      { state: 'permission', target: 'b' },
+      { state: 'running', target: 'c' },
+      { state: 'error', target: 'd' },
+      { state: 'idle_prompt', target: 'e' },
+      { state: 'question', target: 'f' },
+    ];
+    const sorted = sortAgentsByPriority(agents);
+    assert.deepEqual(sorted.map(a => a.state), ['permission', 'question', 'error', 'running', 'idle_prompt', 'done']);
+  });
+
+  it('treats legacy input/idle as question/idle_prompt in sort order', () => {
     const agents = [
       { state: 'done', target: 'a' },
       { state: 'input', target: 'b' },
-      { state: 'running', target: 'c' },
-      { state: 'error', target: 'd' },
-      { state: 'idle', target: 'e' },
+      { state: 'idle', target: 'c' },
     ];
     const sorted = sortAgentsByPriority(agents);
-    assert.deepEqual(sorted.map(a => a.state), ['input', 'error', 'running', 'idle', 'done']);
+    assert.deepEqual(sorted.map(a => a.state), ['input', 'idle', 'done']);
   });
 });
 
@@ -147,28 +158,31 @@ describe('detect/scorePaneBuffer', () => {
 });
 
 describe('detect/detectState', () => {
-  it('returns input when message has question and pane has prompt', () => {
-    assert.equal(detectState('Which one?', ['output', '>']), 'input');
+  it('returns question when message has question and pane has prompt', () => {
+    assert.equal(detectState('Which one?', ['output', '>']), 'question');
   });
 
-  it('returns input when only message has question', () => {
-    assert.equal(detectState('Which one?', ['still running...']), 'input');
+  it('returns question when only message has question', () => {
+    assert.equal(detectState('Which one?', ['still running...']), 'question');
   });
 
-  it('returns input when pane shows prompt even without question', () => {
-    // Prompt visible = agent is waiting for user, regardless of message content
-    assert.equal(detectState('Task complete.', ['$']), 'input');
-    assert.equal(detectState('Here is my plan.', ['\u276f']), 'input');
+  it('returns idle_prompt when pane shows prompt without question', () => {
+    // Prompt visible but no question = finished turn, sitting at ❯
+    assert.equal(detectState('Task complete.', ['$']), 'idle_prompt');
+    assert.equal(detectState('Here is my plan.', ['\u276f']), 'idle_prompt');
   });
 
-  it('returns input when pane shows plan approval menu', () => {
+  it('returns question when message is a question even with plan approval pane', () => {
     const planPane = [
       'Here is my implementation plan.',
       '',
       ' \u276f 1. Yes, and bypass permissions',
       '   2. Yes, manually approve edits',
     ];
-    assert.equal(detectState('Here is my implementation plan.', planPane), 'input');
+    // The message itself doesn't match question patterns, so idle_prompt
+    assert.equal(detectState('Here is my implementation plan.', planPane), 'idle_prompt');
+    // But if the message asks a question, it's a question
+    assert.equal(detectState('Would you like to proceed?', planPane), 'question');
   });
 
   it('returns done when no signals', () => {
