@@ -46,6 +46,75 @@ describe('packages/git-status', () => {
       delete require.cache[require.resolve('./index')];
     });
 
+    it('prefers origin/main over local main', () => {
+      const cp = require('child_process');
+      const orig = cp.spawnSync;
+      cp.spawnSync = (cmd, args) => {
+        if (args.includes('merge-base') && args.includes('origin/main')) {
+          return { status: 0, stdout: 'origin111\n' };
+        }
+        if (args.includes('merge-base') && args.includes('main')) {
+          return { status: 0, stdout: 'local222\n' };
+        }
+        return { status: 128, stdout: '' };
+      };
+
+      delete require.cache[require.resolve('./index')];
+      const { findMergeBase } = require('./index');
+
+      assert.equal(findMergeBase('/some/dir'), 'origin111');
+
+      cp.spawnSync = orig;
+      delete require.cache[require.resolve('./index')];
+    });
+
+    it('falls back to local main when origin/main is unavailable', () => {
+      const cp = require('child_process');
+      const orig = cp.spawnSync;
+      cp.spawnSync = (cmd, args) => {
+        if (args.includes('merge-base') && args.includes('origin/main')) {
+          return { status: 128, stdout: '' };
+        }
+        if (args.includes('merge-base') && args.includes('main')) {
+          return { status: 0, stdout: 'local222\n' };
+        }
+        return { status: 128, stdout: '' };
+      };
+
+      delete require.cache[require.resolve('./index')];
+      const { findMergeBase } = require('./index');
+
+      assert.equal(findMergeBase('/some/dir'), 'local222');
+
+      cp.spawnSync = orig;
+      delete require.cache[require.resolve('./index')];
+    });
+
+    it('prefers origin/master over local master when no main exists', () => {
+      const cp = require('child_process');
+      const orig = cp.spawnSync;
+      cp.spawnSync = (cmd, args) => {
+        if (args.includes('origin/main') || args.includes('main')) {
+          return { status: 128, stdout: '' };
+        }
+        if (args.includes('merge-base') && args.includes('origin/master')) {
+          return { status: 0, stdout: 'originmaster333\n' };
+        }
+        if (args.includes('merge-base') && args.includes('master')) {
+          return { status: 0, stdout: 'localmaster444\n' };
+        }
+        return { status: 128, stdout: '' };
+      };
+
+      delete require.cache[require.resolve('./index')];
+      const { findMergeBase } = require('./index');
+
+      assert.equal(findMergeBase('/some/dir'), 'originmaster333');
+
+      cp.spawnSync = orig;
+      delete require.cache[require.resolve('./index')];
+    });
+
     it('returns null when neither main nor master exists', () => {
       const cp = require('child_process');
       const orig = cp.spawnSync;
