@@ -16,23 +16,25 @@ const QUESTION_PATTERNS = [
 const PROMPT_CHAR = '\u276f';
 
 /**
- * Detect whether an agent is waiting for input, done, or running.
+ * Detect whether an agent asked a question, is idle at prompt, or done.
  * Uses a layered heuristic: message content + tmux pane buffer.
+ *
+ * Called on Stop events only — permission/question states from
+ * PermissionRequest and AskUserQuestion are handled by agent-state-fast.js.
  *
  * @param {string|null} lastMessage - The agent's last assistant message
  * @param {string[]} paneBuffer - Lines from tmux capture-pane
- * @returns {'input'|'done'|'running'}
+ * @returns {'question'|'idle_prompt'|'done'}
  */
 function detectState(lastMessage, paneBuffer) {
-  const messageScore = scoreMessage(lastMessage);
-  const paneScore = scorePaneBuffer(paneBuffer);
+  const hasQuestion = scoreMessage(lastMessage) > 0;
+  const hasPrompt = scorePaneBuffer(paneBuffer) > 0;
 
-  // Pane shows a prompt → agent is waiting for user input.
-  // This covers: questions, plan approval, permission prompts, idle at prompt.
-  if (paneScore > 0) return 'input';
+  // Message looks like a question → agent asked something specific
+  if (hasQuestion) return 'question';
 
-  // Message looks like a question but pane doesn't show prompt yet
-  if (messageScore > 0) return 'input';
+  // Pane shows a prompt but no question → sitting at ❯, finished turn
+  if (hasPrompt) return 'idle_prompt';
 
   // Neither signal → assume done (Stop hook fired, Claude finished)
   return 'done';

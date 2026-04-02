@@ -1,13 +1,19 @@
 'use strict';
 
-const VALID_STATES = ['input', 'running', 'done', 'error', 'idle'];
+const VALID_STATES = ['permission', 'question', 'error', 'running', 'idle_prompt', 'done',
+  // Legacy aliases — accepted on read, never produced by new hooks
+  'input', 'idle',
+];
 
 const STATE_PRIORITY = {
-  input: 1,
-  error: 2,
-  running: 3,
-  idle: 4,
-  done: 5,
+  permission: 1,
+  question: 2,
+  error: 3,
+  input: 2, // legacy: treat like question
+  running: 4,
+  idle_prompt: 5,
+  idle: 5, // legacy: treat like idle_prompt
+  done: 6,
 };
 
 function validateAgent(agent) {
