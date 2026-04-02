@@ -1,20 +1,16 @@
 'use strict';
 
-const VALID_STATES = ['permission', 'question', 'error', 'running', 'idle_prompt', 'done', 'merged',
-  // Legacy aliases — accepted on read, never produced by new hooks
-  'input', 'idle',
-];
+const VALID_STATES = ['permission', 'question', 'error', 'running', 'idle_prompt', 'done', 'pr', 'merged'];
 
 const STATE_PRIORITY = {
-  permission: 1,
-  question: 2,
-  error: 3,
-  input: 2, // legacy: treat like question
-  running: 4,
-  idle_prompt: 5,
-  idle: 5, // legacy: treat like idle_prompt
-  done: 6,
-  merged: 7, // branch merged — dashboard-derived, safe to close
+  permission: 1, // blocked — needs y/n approval
+  question: 2,   // waiting — needs user reply
+  error: 2,      // waiting — needs investigation
+  running: 3,
+  idle_prompt: 4, // review — finished turn, at prompt
+  done: 4,        // review — finished task
+  pr: 5,          // PR open — waiting on GitHub
+  merged: 6,      // branch merged — cleanup
 };
 
 function validateAgent(agent) {

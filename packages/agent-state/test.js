@@ -70,7 +70,7 @@ describe('schema/validateState', () => {
 });
 
 describe('schema/sortAgentsByPriority', () => {
-  it('sorts permission first, then question, error, running, idle_prompt, done', () => {
+  it('sorts blocked, then waiting, then running, then review', () => {
     const agents = [
       { state: 'done', target: 'a' },
       { state: 'permission', target: 'b' },
@@ -80,17 +80,9 @@ describe('schema/sortAgentsByPriority', () => {
       { state: 'question', target: 'f' },
     ];
     const sorted = sortAgentsByPriority(agents);
-    assert.deepEqual(sorted.map(a => a.state), ['permission', 'question', 'error', 'running', 'idle_prompt', 'done']);
-  });
-
-  it('treats legacy input/idle as question/idle_prompt in sort order', () => {
-    const agents = [
-      { state: 'done', target: 'a' },
-      { state: 'input', target: 'b' },
-      { state: 'idle', target: 'c' },
-    ];
-    const sorted = sortAgentsByPriority(agents);
-    assert.deepEqual(sorted.map(a => a.state), ['input', 'idle', 'done']);
+    const states = sorted.map(a => a.state);
+    // permission (1) → error+question (2, stable order from input) → running (3) → done+idle_prompt (4, stable order from input)
+    assert.deepEqual(states, ['permission', 'error', 'question', 'running', 'done', 'idle_prompt']);
   });
 });
 
@@ -246,12 +238,12 @@ describe('writeState', () => {
     const sess1 = 'sess-001';
     const sess2 = 'sess-002';
     writeState(sess1, { target: 'a:0.1', session_id: sess1, state: 'running' }, agentsDir);
-    writeState(sess2, { target: 'b:0.1', session_id: sess2, state: 'input' }, agentsDir);
+    writeState(sess2, { target: 'b:0.1', session_id: sess2, state: 'question' }, agentsDir);
 
     const all = readAllState(agentsDir);
     assert.equal(Object.keys(all.agents).length, 2);
     assert.equal(all.agents[sess1].state, 'running');
-    assert.equal(all.agents[sess2].state, 'input');
+    assert.equal(all.agents[sess2].state, 'question');
   });
 });
 
@@ -265,12 +257,12 @@ describe('readAllState', () => {
     const sess1 = 'sess-001';
     const sess2 = 'sess-002';
     writeState(sess1, { target: 'a:0.1', session_id: sess1, state: 'running' }, agentsDir);
-    writeState(sess2, { target: 'b:1.0', session_id: sess2, state: 'input' }, agentsDir);
+    writeState(sess2, { target: 'b:1.0', session_id: sess2, state: 'question' }, agentsDir);
 
     const state = readAllState(agentsDir);
     assert.equal(Object.keys(state.agents).length, 2);
     assert.equal(state.agents[sess1].state, 'running');
-    assert.equal(state.agents[sess2].state, 'input');
+    assert.equal(state.agents[sess2].state, 'question');
   });
 
   it('skips non-json files and invalid agents', () => {
