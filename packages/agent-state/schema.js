@@ -1,6 +1,6 @@
 'use strict';
 
-const VALID_STATES = ['permission', 'question', 'error', 'running', 'idle_prompt', 'done',
+const VALID_STATES = ['permission', 'question', 'error', 'running', 'idle_prompt', 'done', 'merged',
   // Legacy aliases — accepted on read, never produced by new hooks
   'input', 'idle',
 ];
@@ -14,6 +14,7 @@ const STATE_PRIORITY = {
   idle_prompt: 5,
   idle: 5, // legacy: treat like idle_prompt
   done: 6,
+  merged: 7, // branch merged — dashboard-derived, safe to close
 };
 
 function validateAgent(agent) {
