@@ -1,6 +1,6 @@
 # bjornjee-skills
 
-Personal skills, commands, hooks, and workflows for Claude Code.
+Personal skills, agents, hooks, and workflows for Claude Code.
 
 This is the **single source of truth** for all Claude Code configuration. Everything in `~/.claude/rules/` and `~/.claude/settings.json` should derive from here.
 
@@ -27,11 +27,59 @@ The agent dashboard TUI has moved to its own repo: [bjornjee/agent-dashboard](ht
 ```
 .claude/rules/         Rules and guidelines (loaded automatically by plugin)
 .claude-plugin/        Plugin metadata
-  commands/            Slash commands (/feature, etc.)
+skills/                Workflow skills (slash commands)
+agents/                Specialized subagents
 hooks/                 Hook definitions (hooks.json)
 scripts/hooks/         Hook scripts (Node.js)
-skills/                Domain skills
+packages/              Shared packages used by hooks
 ```
+
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/chore` | Non-code changes — rules, config, docs, CI, dependency bumps |
+| `/feature` | New feature in an isolated git worktree with TDD workflow |
+| `/fix` | Diagnose and fix a bug with reproduce-first, test-first methodology |
+| `/investigate` | Deep-dive into a codebase question or failure without making changes |
+| `/pr` | Create a pull request with full diff analysis, summary, and test plan |
+| `/refactor` | Restructure code in an isolated git worktree with incremental transformations |
+
+## Agents
+
+| Agent | Description |
+|-------|-------------|
+| `build-error-resolver` | Fix build and type errors with minimal diffs |
+| `code-reviewer` | Review code for correctness, security, and conventions |
+| `planner` | Create phased implementation plans with dependencies and risks |
+| `security-reviewer` | Detect security vulnerabilities, secrets, and OWASP Top 10 issues |
+| `tdd-guide` | Enforce RED-GREEN-REFACTOR test-driven development |
+
+## Hooks
+
+| Event | Hook | Description |
+|-------|------|-------------|
+| `SessionStart` | `agent-state-reporter` | Register agent in dashboard on session start |
+| `PreToolUse` (Bash) | `warn-destructive` | Block destructive shell commands (rm -rf, git reset --hard, DROP TABLE, etc.) |
+| `PreToolUse` (Bash) | `block-main-commit` | Block git commit on main/master — require a feature branch |
+| `PreToolUse` (*) | `agent-state-fast` | Fast state sync for dashboard |
+| `PostToolUse` (Bash) | `commit-lint` | Validate conventional commit message format on git commit |
+| `PostToolUse` (Bash) | `test-gate` | Block git commit unless `make test` passes |
+| `PostToolUse` (*) | `agent-state-fast` | Fast state sync for dashboard |
+| `PermissionRequest` (*) | `agent-state-fast` | Instant needs-attention detection for dashboard |
+| `SubagentStart` (*) | `agent-state-reporter` | Track subagent spawn in dashboard |
+| `SubagentStop` (*) | `agent-state-reporter` | Track subagent completion in dashboard |
+| `Stop` (*) | `agent-state-reporter` | Agent state reporting on session stop |
+| `Notification` (*) | `desktop-notify` | Sound alert on permission prompt, idle, or elicitation |
+| `StopFailure` (*) | `desktop-notify` | Sound alert on rate limit errors |
+
+## Shared Packages
+
+| Package | Description |
+|---------|-------------|
+| `packages/agent-state` | Agent state detection, schema, and file I/O for dashboard integration |
+| `packages/git-status` | Git status utilities |
+| `packages/tmux` | Tmux pane detection and interaction |
 
 ## Rules
 
@@ -39,29 +87,13 @@ skills/                Domain skills
 |------|-------|-------------|
 | `principles.md` | All | KISS, DRY, research-first, plan-first, test-first |
 | `workflow.md` | All | Development lifecycle and git conventions |
+| `agent-orchestration.md` | All | Auto agent usage, parallel execution, model selection |
+| `model-selection.md` | All | Haiku/Sonnet/Opus selection strategy |
+| `monorepo.md` | All | Root-level scripts, shared packages, uv, Docker |
 | `python.md` | `**/*.py` | PEP 8, Pydantic, pytest, tooling |
 | `fastapi.md` | `**/*.py` | Service layer, DI, async SQLAlchemy, soft delete |
-| `monorepo.md` | All | Root-level scripts, shared packages, uv, Docker |
-| `model-selection.md` | All | Haiku/Sonnet/Opus selection strategy |
-| `agent-orchestration.md` | All | Auto agent usage, parallel execution |
 | `react-native.md` | `**/*.ts{,x}` | Expo, worktree isolation, Metro ports |
 | `ai-ml.md` | `**/evals/**` | Eval pipelines, prompt testing, experiments |
-
-## Hooks
-
-| Event | Hook | Description |
-|-------|------|-------------|
-| `Stop` | `desktop-notify.js` | macOS notification via terminal-notifier; click to jump to tmux pane |
-
-### Dependencies
-
-- `terminal-notifier`: `brew install terminal-notifier`
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `/feature <description>` | Start a new feature in an isolated git worktree |
 
 ## Migration from ECC
 
