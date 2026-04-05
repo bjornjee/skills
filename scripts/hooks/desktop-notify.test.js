@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-const { describe, it } = require('node:test');
+const { describe, it, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldAlert, lastTurnHasAlertingTool, ALERTING_NOTIFICATION_TYPES, ALERTING_ERRORS } = require('./desktop-notify');
+const fs = require('fs');
+const os = require('os');
+const { stripMarkdown, extractSummary, escapeAppleScript, sanitizeShellArg, shouldAlert, lastTurnHasAlertingTool, getTerminalBundleId, getAgentState, ALERTING_NOTIFICATION_TYPES, ALERTING_ERRORS } = require('./desktop-notify');
 const { extractSessionWindow } = require(path.resolve(__dirname, '..', '..', 'packages', 'tmux'));
 
 describe('stripMarkdown', () => {
@@ -133,6 +135,97 @@ describe('shouldAlert', () => {
   it('returns false for Stop without transcript_path', () => {
     assert.equal(shouldAlert({ hook_event_name: 'Stop' }), false);
     assert.equal(shouldAlert({ hook_event_name: 'Stop', transcript_path: null }), false);
+  });
+});
+
+describe('getTerminalBundleId', () => {
+  it('returns Ghostty bundle ID', () => {
+    assert.equal(getTerminalBundleId('ghostty'), 'com.mitchellh.ghostty');
+  });
+
+  it('returns iTerm2 bundle ID', () => {
+    assert.equal(getTerminalBundleId('iTerm.app'), 'com.googlecode.iterm2');
+  });
+
+  it('returns Terminal.app bundle ID', () => {
+    assert.equal(getTerminalBundleId('Apple_Terminal'), 'com.apple.Terminal');
+  });
+
+  it('returns WezTerm bundle ID', () => {
+    assert.equal(getTerminalBundleId('WezTerm'), 'com.github.wez.wezterm');
+  });
+
+  it('returns undefined for unknown terminals', () => {
+    assert.equal(getTerminalBundleId('unknown'), undefined);
+    assert.equal(getTerminalBundleId(undefined), undefined);
+    assert.equal(getTerminalBundleId(''), undefined);
+  });
+});
+
+describe('getAgentState', () => {
+  it('returns "needs permission" for permission_prompt notification', () => {
+    assert.equal(getAgentState({ hook_event_name: 'Notification', notification_type: 'permission_prompt' }), 'needs permission');
+  });
+
+  it('returns "idle" for idle_prompt notification', () => {
+    assert.equal(getAgentState({ hook_event_name: 'Notification', notification_type: 'idle_prompt' }), 'idle');
+  });
+
+  it('returns "needs input" for elicitation_dialog notification', () => {
+    assert.equal(getAgentState({ hook_event_name: 'Notification', notification_type: 'elicitation_dialog' }), 'needs input');
+  });
+
+  it('returns "notification" for other notification types', () => {
+    assert.equal(getAgentState({ hook_event_name: 'Notification', notification_type: 'progress' }), 'notification');
+  });
+
+  it('returns "done" for Stop without transcript', () => {
+    assert.equal(getAgentState({ hook_event_name: 'Stop' }), 'done');
+  });
+
+  it('returns "asked a question" for Stop with AskUserQuestion in transcript', () => {
+    const tmp = path.join(os.tmpdir(), `test-transcript-${Date.now()}-ask.jsonl`);
+    const entry = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'AskUserQuestion' }] } };
+    fs.writeFileSync(tmp, JSON.stringify(entry) + '\n');
+    try {
+      assert.equal(getAgentState({ hook_event_name: 'Stop', transcript_path: tmp }), 'asked a question');
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it('returns "plan ready" for Stop with ExitPlanMode in transcript', () => {
+    const tmp = path.join(os.tmpdir(), `test-transcript-${Date.now()}-plan.jsonl`);
+    const entry = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'ExitPlanMode' }] } };
+    fs.writeFileSync(tmp, JSON.stringify(entry) + '\n');
+    try {
+      assert.equal(getAgentState({ hook_event_name: 'Stop', transcript_path: tmp }), 'plan ready');
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it('returns "done" for Stop with non-alerting tools in transcript', () => {
+    const tmp = path.join(os.tmpdir(), `test-transcript-${Date.now()}-done.jsonl`);
+    const entry = { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read' }] } };
+    fs.writeFileSync(tmp, JSON.stringify(entry) + '\n');
+    try {
+      assert.equal(getAgentState({ hook_event_name: 'Stop', transcript_path: tmp }), 'done');
+    } finally {
+      fs.unlinkSync(tmp);
+    }
+  });
+
+  it('returns "rate limited" for rate_limit StopFailure', () => {
+    assert.equal(getAgentState({ hook_event_name: 'StopFailure', error: 'rate_limit' }), 'rate limited');
+  });
+
+  it('returns "error" for other StopFailure errors', () => {
+    assert.equal(getAgentState({ hook_event_name: 'StopFailure', error: 'unknown' }), 'error');
+  });
+
+  it('returns undefined for unknown events', () => {
+    assert.equal(getAgentState({ hook_event_name: 'PreToolUse' }), undefined);
   });
 });
 
