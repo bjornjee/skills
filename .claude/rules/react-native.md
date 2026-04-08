@@ -2,8 +2,6 @@
 paths:
   - "**/*.ts"
   - "**/*.tsx"
-  - "**/package.json"
-  - "**/app.json"
 ---
 # React Native
 

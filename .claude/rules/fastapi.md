@@ -1,9 +1,10 @@
 ---
 paths:
-  - "**/*.py"
-  - "**/routers/**"
-  - "**/services/**"
-  - "**/models/**"
+  - "**/main.py"
+  - "**/routers/**/*.py"
+  - "**/services/**/*.py"
+  - "**/models/**/*.py"
+  - "**/schemas/**/*.py"
 ---
 # FastAPI
 
