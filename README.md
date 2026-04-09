@@ -75,6 +75,51 @@ scripts/               Helper scripts (rules symlink installer)
 
 Run `scripts/install-rules-symlinks.sh` to symlink these into `~/.claude/rules/` so Claude Code loads them at user scope.
 
+## Codex Setup
+
+This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can delegate isolated coding tasks from Claude Code. The files live in `.agents/`, `.codex/`, and `AGENTS.md` but need to be copied into your target project.
+
+### Step 1: Copy project config and AGENTS.md
+
+```bash
+# From the root of your target project:
+SKILLS_REPO="$HOME/Code/bjornjee/skills"  # adjust to your clone path
+
+cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
+cp -r "$SKILLS_REPO/.codex" ./.codex
+chmod +x .codex/hooks/validate-command.sh
+```
+
+### Step 2: Copy Codex skills
+
+```bash
+cp -r "$SKILLS_REPO/.agents" ./.agents
+```
+
+### Step 3: Re-sync skills after updates
+
+When skills change in this repo, re-run the sync script to update `.agents/skills/`:
+
+```bash
+"$SKILLS_REPO/scripts/sync-skills-to-codex.sh"
+```
+
+Then copy the updated `.agents/` directory to your target project again.
+
+### Step 4: Verify
+
+```bash
+codex exec "summarize the current instructions"
+```
+
+Codex should reference AGENTS.md conventions and discover the ported skills.
+
+### Delegation from Claude Code
+
+Use the `/codex-delegate` skill inside Claude Code for the full Plan → Delegate → Review → Rectify workflow.
+
+---
+
 ## Migration from ECC
 
 If you previously used `everything-claude-code` for rules, follow these steps to switch to bjornjee-skills as the source of truth.
