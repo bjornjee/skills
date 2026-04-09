@@ -1,4 +1,4 @@
-# ECC Curation Report
+# Skill & Agent Curation
 
 **Date:** 2026-04-08
 **Source:** `everything-claude-code@1.10.0` (commit `098b773`)

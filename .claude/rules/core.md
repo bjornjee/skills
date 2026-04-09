@@ -14,11 +14,11 @@ step lives inside the corresponding subagent definition, not here.
 
 ## Workflow phases (in what order)
 
-1. **Research.** Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
-2. **Plan.** No code until the approach is agreed. Break work into phases, identify risks and affected files. Output: plan file or plan-mode exit.
-3. **Implement (TDD).** RED → GREEN → REFACTOR. Test fails before code, passes after.
-4. **Review.** Every change reviewed for correctness, security, convention. Address critical and high; fix medium when cheap.
-5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include diff-against-base summary and a test plan.
+1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
+2. **Plan.** Use the built-in `Plan` agent for non-trivial implementation. No code until the approach is approved (`EnterPlanMode` → `ExitPlanMode`). Break work into phases, identify risks and affected files.
+3. **Implement (TDD).** RED → GREEN → REFACTOR. Use `tdd-guide` to walk the cycle explicitly — the guide refuses to write implementation before a failing test exists, and shows the actual failing run before GREEN. The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes, but a hook is a *gate*, not a *guide* — `tdd-guide` enforces the order of operations the gate cannot see.
+4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
+5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
 
@@ -26,17 +26,15 @@ Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hi
 
 Spawn without waiting for the user to ask:
 
-| Trigger | Agent |
-|---|---|
-| Complex feature, refactor, architectural decision | `planner` |
-| Code written or modified | `code-reviewer` |
-| Bug fix or new feature | `tdd-guide` |
-| User input, auth, API surface, sensitive data handling | `security-reviewer` |
-| Build or test failure | `build-error-resolver` |
-| Go file edited | `go-reviewer-strict` (in addition to `code-reviewer`) |
-| Python file edited | `python-reviewer-strict` (in addition to `code-reviewer`) |
-| Dead code or duplication suspected | `refactor-cleaner` |
-| Hot-path or perf concern raised | `performance-optimizer` |
+| Trigger | Agent | Source |
+|---|---|---|
+| Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
+| Complex feature, refactor, or architectural decision | `Plan` | Claude Code built-in |
+| New feature, bug fix, or refactor (any stack) | `tdd-guide` | bjornjee-skills |
+| Go file edited | `go-reviewer-strict` | bjornjee-skills |
+| Python file edited | `python-reviewer-strict` | bjornjee-skills |
+| Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
+| Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
 
 **Parallel by default.** Independent agents launch in one message with multiple tool calls. Never serialize when there is no dependency.
 
@@ -45,8 +43,8 @@ Spawn without waiting for the user to ask:
 2. Relevant diff or snippet inline.
 3. Enough task context to start without exploring.
 
-Bad: "Review the recent changes for security issues."
-Good: "Review `src/auth/session.ts` (added refresh token rotation) and `src/auth/middleware.ts` (updated verification flow). Diff: <paste>."
+Bad: "Review the recent Go changes."
+Good: "Run `go-reviewer-strict` on `internal/tmux/runner.go` (added new `Output` variant) and `internal/tmux/runner_test.go` (added mock expectations). Diff: <paste>."
 
 ## Model selection when delegating
 
@@ -56,4 +54,4 @@ Good: "Review `src/auth/session.ts` (added refresh token rotation) and `src/auth
 | Research, analysis, code review | `sonnet` | Strong comprehension and synthesis |
 | Code writing, architecture, complex reasoning | `opus` | Best output quality |
 
-Set `model` explicitly on every ad-hoc spawn. Named agents in `agents/` already declare their own model in frontmatter — trust those.
+Set `model` explicitly on every ad-hoc spawn. Built-in `Plan` and `Explore` pick their own model — don't override unless you have a specific reason. Named agents in `agents/` declare their own model in frontmatter — trust those.
