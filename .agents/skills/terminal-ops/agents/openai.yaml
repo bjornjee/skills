@@ -1,0 +1,6 @@
+interface:
+  display_name: "Terminal Ops"
+  short_description: "Evidence-first execution — inspect, fix, verify, report"
+
+policy:
+  allow_implicit_invocation: true

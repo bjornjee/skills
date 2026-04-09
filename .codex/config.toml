@@ -1,0 +1,35 @@
+model = "gpt-5.4"
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+model_reasoning_effort = "medium"
+personality = "none"
+
+# Hard behavioral rules — always active, independent of AGENTS.md
+developer_instructions = """
+Follow ALL conventions in AGENTS.md and active skills. These are mandatory, not suggestions.
+Run tests after every code change. Never claim "done" without a passing test command.
+Use conventional commits: <type>: <description> (feat/fix/refactor/docs/test/chore/perf/ci).
+Never modify auto-generated files. Never commit secrets or .env files.
+When a skill is active, follow every rule in it — no exceptions.
+"""
+
+[features]
+codex_hooks = true
+
+[profiles.rescue]
+# For automated delegation from Claude Code via codex-plugin-cc
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+personality = "none"
+
+[profiles.strict]
+# For high-stakes tasks requiring maximum compliance
+model_reasoning_effort = "high"
+approval_policy = "untrusted"
+sandbox_mode = "workspace-write"
+personality = "none"
+
+[profiles.fast]
+model = "gpt-5.3-codex-spark"
+model_reasoning_effort = "low"

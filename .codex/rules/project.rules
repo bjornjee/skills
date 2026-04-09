@@ -1,0 +1,25 @@
+# Project command approval policies
+# Codex applies the most restrictive decision when multiple rules match.
+
+# Test runners — always allow
+prefix_rule(pattern=["go", "test"], decision="allow", justification="Go test runner")
+prefix_rule(pattern=["make", "test"], decision="allow", justification="Makefile test target")
+prefix_rule(pattern=["npm", "test"], decision="allow", justification="npm test runner")
+prefix_rule(pattern=["pytest"], decision="allow", justification="Python test runner")
+prefix_rule(pattern=["ruff"], decision="allow", justification="Python linter/formatter")
+prefix_rule(pattern=["mypy"], decision="allow", justification="Python type checker")
+
+# Read-only git — always allow
+prefix_rule(pattern=["git", "diff"], decision="allow", justification="Read-only diff")
+prefix_rule(pattern=["git", "status"], decision="allow", justification="Read-only status")
+prefix_rule(pattern=["git", "log"], decision="allow", justification="Read-only log")
+prefix_rule(pattern=["git", "branch"], decision="allow", justification="Read-only branch list")
+
+# Git writes — prompt first
+prefix_rule(pattern=["git", "commit"], decision="prompt", justification="Review commit message before creating")
+prefix_rule(pattern=["git", "push"], decision="prompt", justification="Review before pushing to remote")
+
+# Destructive — forbidden
+prefix_rule(pattern=["rm", "-rf"], decision="forbidden", justification="Use targeted deletes instead")
+prefix_rule(pattern=["git", "push", "--force"], decision="forbidden", justification="Use --force-with-lease instead")
+prefix_rule(pattern=["git", "reset", "--hard"], decision="forbidden", justification="Prefer git stash or git revert")

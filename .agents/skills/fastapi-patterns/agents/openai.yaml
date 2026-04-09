@@ -1,0 +1,6 @@
+interface:
+  display_name: "FastAPI Patterns"
+  short_description: "Service layer, DI with Annotated, domain exceptions, async SQLAlchemy"
+
+policy:
+  allow_implicit_invocation: true

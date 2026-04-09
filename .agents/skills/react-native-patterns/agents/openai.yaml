@@ -1,0 +1,6 @@
+interface:
+  display_name: "React Native Patterns"
+  short_description: "expo-dev-client, Metro port isolation, AVD/Simulator setup"
+
+policy:
+  allow_implicit_invocation: true
