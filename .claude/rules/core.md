@@ -46,7 +46,7 @@ Spawn without waiting for the user to ask:
 3. Enough task context to start without exploring.
 
 Bad: "Review the recent changes for security issues."
-Good: "Review `packages/agent-state/index.js` (added file locking) and `scripts/hooks/agent-state-fast.js` (state sync update). Diff: <paste>."
+Good: "Review `src/auth/session.ts` (added refresh token rotation) and `src/auth/middleware.ts` (updated verification flow). Diff: <paste>."
 
 ## Model selection when delegating
 
