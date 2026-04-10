@@ -66,10 +66,11 @@ that aren't obvious from the codebase.]
 ### 3. Delegate
 
 ```
-/codex:rescue --write --background "<structured prompt>"
+/codex:rescue --write --background -C "$(pwd)" "<structured prompt>"
 ```
 
-The `--write` flag is **required** — it sets Codex's sandbox to `workspace-write`. Without it, Codex runs read-only and cannot modify files.
+- `--write` is **required** — it sets Codex's sandbox to `workspace-write`. Without it, Codex runs read-only and cannot modify files.
+- `-C "$(pwd)"` is **required when running in a worktree** — it sets Codex's working directory (and therefore its writable root) to the worktree path. Without it, Codex resolves its writable root from the Claude Code session's original `process.cwd()`, which is the main repo — blocking writes to the worktree.
 
 Use `--wait` instead of `--background` if the task is quick (<2 min).
 
@@ -245,7 +246,7 @@ go vet ./internal/service/...
 
 | Command | Purpose |
 |---|---|
-| `/codex:rescue --write <task>` | Delegate implementation to Codex |
+| `/codex:rescue --write -C "$(pwd)" <task>` | Delegate implementation to Codex |
 | `/codex:review` | Code review from Codex |
 | `/codex:adversarial-review <focus>` | Challenge review (race conditions, edge cases) |
 | `/codex:status` | Check running jobs |
