@@ -232,8 +232,10 @@ go vet ./internal/service/...
 | Method | When | Setup |
 |---|---|---|
 | Same checkout | Not coding in parallel | Default |
-| Git worktree | Parallel — keep coding while Codex works | `git worktree add ../codex-work -b codex/task main` then `codex exec --cd ../codex-work "..."` |
+| Git worktree | Parallel — keep coding while Codex works | `git worktree add ../codex-work -b codex/task main` then `cd ../codex-work && codex exec "..."` |
 | Git branch | Sequential — Codex finishes before you resume | `git checkout -b codex/task` |
+
+**Important:** Do not use `codex exec --cd <worktree>` — Codex's `workspace-write` sandbox restricts writes to the session workspace, so `--cd` to an external worktree will be rejected. Instead, `cd` into the worktree first, then run `codex exec` without `--cd`.
 
 ## Effort and Model Selection
 
