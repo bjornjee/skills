@@ -66,8 +66,10 @@ that aren't obvious from the codebase.]
 ### 3. Delegate
 
 ```
-/codex:rescue --background "<structured prompt>"
+/codex:rescue --write --background "<structured prompt>"
 ```
+
+The `--write` flag is **required** — it sets Codex's sandbox to `workspace-write`. Without it, Codex runs read-only and cannot modify files.
 
 Use `--wait` instead of `--background` if the task is quick (<2 min).
 
@@ -243,7 +245,7 @@ go vet ./internal/service/...
 
 | Command | Purpose |
 |---|---|
-| `/codex:rescue <task>` | Delegate implementation to Codex |
+| `/codex:rescue --write <task>` | Delegate implementation to Codex |
 | `/codex:review` | Code review from Codex |
 | `/codex:adversarial-review <focus>` | Challenge review (race conditions, edge cases) |
 | `/codex:status` | Check running jobs |
