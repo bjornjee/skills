@@ -11,9 +11,11 @@ GPT-5.4 matches or exceeds Claude Opus 4.6 on agentic coding benchmarks (SWE-ben
 
 ## When to Activate
 
-- Plan is approved and ready for implementation
+- Plan is approved and ready for implementation **in a worktree** (never from the main checkout)
 - Approaching or hit Claude Code usage limits
 - Parallel workstreams — delegate implementation to Codex while continuing other work
+
+**Prerequisite:** The session must be in a git worktree (`git rev-parse --show-toplevel` differs from the main repo root). The feature skill creates worktrees — delegation happens inside them. Do not delegate from the main checkout.
 
 ## Core Workflow: Plan → Delegate → Review → Rectify
 
@@ -226,16 +228,6 @@ go test -race ./internal/service/...
 go vet ./internal/service/...
 </verification>
 ```
-
-## Isolation Options
-
-| Method | When | Setup |
-|---|---|---|
-| Same checkout | Not coding in parallel | Default |
-| Git worktree | Parallel — keep coding while Codex works | `git worktree add ../codex-work -b codex/task main` then `cd ../codex-work && codex exec "..."` |
-| Git branch | Sequential — Codex finishes before you resume | `git checkout -b codex/task` |
-
-**Important:** Do not use `codex exec --cd <worktree>` — Codex's `workspace-write` sandbox restricts writes to the session workspace, so `--cd` to an external worktree will be rejected. Instead, `cd` into the worktree first, then run `codex exec` without `--cd`.
 
 ## Effort and Model Selection
 

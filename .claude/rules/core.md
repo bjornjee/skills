@@ -16,7 +16,7 @@ step lives inside the corresponding subagent definition, not here.
 
 1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 2. **Plan.** Use the built-in `Plan` agent for non-trivial implementation. No code until the approach is approved (`EnterPlanMode` → `ExitPlanMode`). Break work into phases, identify risks and affected files.
-3. **Implement (TDD).** If the Codex CLI is available (`codex --version` succeeds), delegate implementation via `/codex-delegate`. Claude plans, Codex implements, Claude reviews. Only implement directly if Codex is unavailable or the user opts out. When implementing directly, use `tdd-guide` to walk the RED → GREEN → REFACTOR cycle explicitly — the guide refuses to write implementation before a failing test exists, and shows the actual failing run before GREEN. The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes, but a hook is a *gate*, not a *guide* — `tdd-guide` enforces the order of operations the gate cannot see.
+3. **Implement (TDD).** If in a worktree and Codex CLI is available (`codex --version` succeeds), delegate implementation via `/codex-delegate`. Claude plans, Codex implements in the worktree, Claude reviews. Only implement directly if not in a worktree, Codex is unavailable, or the user opts out. When implementing directly, use `tdd-guide` to walk the RED → GREEN → REFACTOR cycle explicitly — the guide refuses to write implementation before a failing test exists, and shows the actual failing run before GREEN. The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes, but a hook is a *gate*, not a *guide* — `tdd-guide` enforces the order of operations the gate cannot see.
 4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
 
@@ -30,7 +30,7 @@ Spawn without waiting for the user to ask:
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
 | Complex feature, refactor, or architectural decision | `Plan` | Claude Code built-in |
-| Plan approved, implementation ready (Codex available) | `codex-delegate` (skill) | bjornjee-skills |
+| Plan approved, in a worktree, Codex available | `codex-delegate` (skill) | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
