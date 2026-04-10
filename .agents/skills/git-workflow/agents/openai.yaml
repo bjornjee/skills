@@ -1,0 +1,6 @@
+interface:
+  display_name: "Git Workflow"
+  short_description: "Branching, conventional commits, merge vs rebase, conflict resolution"
+
+policy:
+  allow_implicit_invocation: true

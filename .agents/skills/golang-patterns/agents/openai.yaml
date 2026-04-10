@@ -1,0 +1,6 @@
+interface:
+  display_name: "Go Patterns"
+  short_description: "Idiomatic Go conventions — interfaces, errors, concurrency, packages"
+
+policy:
+  allow_implicit_invocation: true
