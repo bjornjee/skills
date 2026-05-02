@@ -69,6 +69,23 @@ step lives inside the corresponding subagent definition, not here.
 
    The diff is not proof. The screenshot is.
 
+   **Bug fixes need evidence, not theories.** Before any fix:
+   1. Quote the offending code path — `file:line`, read it, don't infer it.
+   2. Quote the actual log line, error message, or test failure output **verbatim**.
+   3. State the root cause as a falsifiable claim: *"X happens because Y at file:line returns Z."*
+
+   Anti-pattern: *"It's probably because of X."*
+   "Probably" is a guess. Guesses get reverted. Read the code. Read the logs.
+
+   <HARD-GATE>
+   No Edit on a "fix" until you have pasted:
+   - The offending file:line range, AND
+   - The reproducing output (test failure, log line, stack trace).
+   "I think the issue is..." without evidence = stop and gather it.
+   </HARD-GATE>
+
+   The fix is the last step, not the first.
+
 4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
