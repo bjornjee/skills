@@ -15,11 +15,62 @@ step lives inside the corresponding subagent definition, not here.
 
 ## Workflow phases (in what order)
 
-0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree, not on the source branch. Use `/agent-dashboard:feature` for full feature flow, or `git worktree add` directly for ad-hoc work. Don't audit, refactor, or implement on the current branch — even for "quick" investigations that turn into commits.
+0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree.
+
+   Symptoms you're about to skip this wrongly:
+   - "It's just a quick audit, I won't commit."
+   - "The user said 'check it', not 'fix it'."
+   - "I'll move to a worktree if it grows."
+   - You've already run `git checkout` on something that isn't `main`.
+
+   <HARD-GATE>
+   No Edit, no Write, no `git add` on the source branch. Period.
+   Use `/agent-dashboard:feature` or `git worktree add` first.
+   This applies even when the task starts as "just look at it."
+   </HARD-GATE>
+
+   Every audit turns into commits eventually. Every time.
+
 1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
-2. **Plan.** Enter `EnterPlanMode` and use the built-in `Plan` agent if **any** of: the change touches >1 file, multiple valid approaches exist, the user goal is fuzzy, or the user used a verb like "improve", "refactor", "redesign", "audit". A one-line typo fix doesn't need plan mode; almost everything else does. No code until `ExitPlanMode` is approved. Break work into phases, identify risks and affected files.
-3. **Implement (TDD).** If in a worktree and Codex CLI is available (`codex --version` succeeds), delegate implementation via `/codex-delegate`. Claude plans, Codex implements in the worktree, Claude reviews. Only implement directly if not in a worktree, Codex is unavailable, or the user opts out. When implementing directly, use `tdd-guide` to walk the RED → GREEN → REFACTOR cycle explicitly — the guide refuses to write implementation before a failing test exists, and shows the actual failing run before GREEN. The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes, but a hook is a *gate*, not a *guide* — `tdd-guide` enforces the order of operations the gate cannot see. **Visual changes need visual verification.** For any UI/CSS/colour/layout change, drive the running site through Playwright (or the project's browser tool) and confirm the rendered result matches the requirement before declaring done. The diff is not proof — the screenshot is.
+
+2. **Plan.** Enter `EnterPlanMode` BEFORE the first Edit if **any** of: >1 file affected, multiple valid approaches, fuzzy goal, or the request uses a verb like "improve", "refactor", "redesign", "audit", "investigate".
+
+   Anti-pattern: *"This is simple enough to just code."*
+   Every project goes through this rationalization. The plan can be short — but it MUST be presented and approved.
+
+   Symptoms you're about to violate:
+   - You're opening Edit before having written a plan.
+   - You're thinking "I'll plan as I go."
+   - The user used a fuzzy verb and you're already searching for a fix.
+
+   <HARD-GATE>
+   No Edit / Write / mutating Bash until `ExitPlanMode` is approved.
+   The only skip: a literal typo or single-character fix.
+   </HARD-GATE>
+
+3. **Implement (TDD).** RED → GREEN → REFACTOR. In that order. With proof at each step.
+
+   Wrote code before the test? Delete it. Write the test. Watch it fail. Then re-write the code. No exceptions.
+
+   Codex delegation: in a worktree with `codex --version` available, delegate via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive `tdd-guide` directly.
+
+   The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes — but a hook is a *gate*, not a *guide*. `tdd-guide` enforces the order of operations the gate cannot see.
+
+   <HARD-GATE>
+   The failing test run must be PASTED, not paraphrased.
+   "I assume it would fail" is not RED.
+   A compile error is not RED — fix it and re-run until you get a real assertion failure.
+   </HARD-GATE>
+
+   **Visual changes need visual verification.** UI / CSS / colour / layout change?
+   1. Drive the running site through Playwright (or the project's browser tool).
+   2. Match the rendered result against the requirement.
+   3. ONLY THEN claim done.
+
+   The diff is not proof. The screenshot is.
+
 4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
+
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
@@ -39,9 +90,19 @@ Spawn without waiting for the user to ask:
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
 
-**Parallel by default.** Independent agents launch in one message with multiple tool calls. Never serialize when there is no dependency.
+**Parallel by default.** Independent agents launch in **one message** with multiple tool calls.
 
-**Context injection is mandatory.** Subagents get a fresh context window — they do NOT inherit this session's CLAUDE.md, rules, or history. Every spawn must include:
+Sequential dispatch of independent work = wasted minutes every session. Every time.
+
+Anti-pattern: *"I'll send the second one once the first comes back."*
+If the second doesn't read the first's output, send them together. Now.
+
+**Context injection is mandatory.** Subagents start blind. They do NOT inherit your CLAUDE.md, rules, or session history.
+
+Anti-pattern: *"The agent will figure it out."*
+Agents with thin prompts produce shallow, generic work. Every time.
+
+Required in every spawn:
 1. Exact file paths (not descriptions).
 2. Relevant diff or snippet inline.
 3. Enough task context to start without exploring.
