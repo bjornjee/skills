@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical copy. Synced to `~/.claude/rules/core.md`. To change doctrine: edit this file, bump plugin version, then `cp` to the global location. Do not edit the global copy directly.*
+> *Canonical source: `~/Code/bjornjee/skills/.claude/rules/core.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-rules` from the skills repo. Do not edit the destination copy at `~/.claude/rules/core.md` directly.*
 
 Always-on doctrine for the orchestrating agent. Loaded every session.
 What to do, in what order, and who to delegate to. Methodology for each
