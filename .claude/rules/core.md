@@ -1,5 +1,7 @@
 # Core
 
+> *Canonical copy. Synced to `~/.claude/rules/core.md`. To change doctrine: edit this file, bump plugin version, then `cp` to the global location. Do not edit the global copy directly.*
+
 Always-on doctrine for the orchestrating agent. Loaded every session.
 What to do, in what order, and who to delegate to. Methodology for each
 step lives inside the corresponding subagent definition, not here.
@@ -33,26 +35,49 @@ step lives inside the corresponding subagent definition, not here.
 
 1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 
-2. **Plan.** Enter `EnterPlanMode` BEFORE the first Edit if **any** of: >1 file affected, multiple valid approaches, fuzzy goal, or the request uses a verb like "improve", "refactor", "redesign", "audit", "investigate".
+   Symptoms you're about to skip this wrongly:
+   - "I already know this codebase."
+   - "It's faster to just grep myself."
+   - "`Explore` is overkill for one question."
+   - You're about to write code without having read the existing entry point.
+
+2. **Plan.** Use the built-in `Plan` agent (`subagent_type: Plan`) for non-trivial implementation. See the dispatch table below. No code until the approach is approved.
+
+   Trigger if **any** of: >1 file affected, multiple valid approaches, fuzzy goal, or the request uses a verb like "improve", "refactor", "redesign", "audit", "investigate".
+
+   **Terminology — read this once, then never confuse it again.**
+   In this file, *"plan tool"* / *"plan mode"* / *"the planner"* all mean the **`Plan` agent** (`subagent_type: Plan`). They do **NOT** mean the `EnterPlanMode` / `ExitPlanMode` deferred tools — those are a separate Claude Code mechanism that resets the session permission mode and should not be invoked from this doctrine. If the user says *"use the plan tool"*, spawn the Plan agent.
 
    Anti-pattern: *"This is simple enough to just code."*
    Every project goes through this rationalization. The plan can be short — but it MUST be presented and approved.
 
    Symptoms you're about to violate:
-   - You're opening Edit before having written a plan.
+   - You're opening Edit before having spawned the Plan agent.
    - You're thinking "I'll plan as I go."
    - The user used a fuzzy verb and you're already searching for a fix.
 
    <HARD-GATE>
-   No Edit / Write / mutating Bash until `ExitPlanMode` is approved.
+   No Edit / Write / mutating Bash until a plan has been presented and the user has approved it.
    The only skip: a literal typo or single-character fix.
    </HARD-GATE>
+
+   **Red Flags — STOP and Start Over.** If any of these match your self-talk, you are about to violate Phase 2:
+   - *"I correctly skipped the plan-mode tools, but I also skipped the Plan agent."*
+   - *"The user said 'plan tool' so I'll call EnterPlanMode."*
+   - *"I'll just enter plan mode quickly even though it resets permissions."*
+   - *"This is simple enough to just code."*
+   - *"I'll plan as I go."*
+   - *"I already explored, that counts as planning."*
+
+   Anti-pattern: **"Skipping Plan agent because plan-mode tools are deferred."**
+   The deferred tools and the Plan agent are different mechanisms. Deferring the tools doesn't defer the requirement to plan. Spawn the agent.
+
+   Anti-pattern: **"Calling EnterPlanMode because the user said 'plan'."**
+   User shorthand resolves to the Plan agent. Always. Spawn the agent.
 
 3. **Implement (TDD).** RED → GREEN → REFACTOR. In that order. With proof at each step.
 
    Wrote code before the test? Delete it. Write the test. Watch it fail. Then re-write the code. No exceptions.
-
-   Codex delegation: in a worktree with `codex --version` available, delegate via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive `tdd-guide` directly.
 
    The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes — but a hook is a *gate*, not a *guide*. `tdd-guide` enforces the order of operations the gate cannot see.
 
@@ -62,14 +87,28 @@ step lives inside the corresponding subagent definition, not here.
    A compile error is not RED — fix it and re-run until you get a real assertion failure.
    </HARD-GATE>
 
-   **Visual changes need visual verification.** UI / CSS / colour / layout change?
-   1. Drive the running site through Playwright (or the project's browser tool).
-   2. Match the rendered result against the requirement.
-   3. ONLY THEN claim done.
+   ### Delegation choice (orthogonal to TDD)
+
+   In a worktree with `codex --version` available, delegate implementation via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive `tdd-guide` directly. The choice of who implements does not relax the RED → GREEN → REFACTOR requirement above — TDD applies to both paths.
+
+   ### Visual changes need visual verification
+
+   UI / CSS / colour / layout change?
+
+   <GATE-FUNCTION>
+   BEFORE claiming the visual change works:
+   1. IDENTIFY what should look different after the change.
+   2. LOCATE the observable (selector, screenshot region, computed style).
+   3. RUN Playwright (or the project's browser tool) against the running site.
+   4. VERIFY the rendered output matches the requirement.
+   5. ONLY THEN claim done.
+   </GATE-FUNCTION>
 
    The diff is not proof. The screenshot is.
 
-   **Bug fixes need evidence, not theories.** Before any fix:
+   ### Bug fixes need evidence, not theories
+
+   Before any fix:
    1. Quote the offending code path — `file:line`, read it, don't infer it.
    2. Quote the actual log line, error message, or test failure output **verbatim**.
    3. State the root cause as a falsifiable claim: *"X happens because Y at file:line returns Z."*
