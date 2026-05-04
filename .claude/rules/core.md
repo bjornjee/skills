@@ -41,39 +41,51 @@ step lives inside the corresponding subagent definition, not here.
    - "`Explore` is overkill for one question."
    - You're about to write code without having read the existing entry point.
 
-2. **Plan.** Use the built-in `Plan` agent (`subagent_type: Plan`) for non-trivial implementation. See the dispatch table below. No code until the approach is approved.
+2. **Plan.** Use Claude Code's plan mode for any non-trivial implementation. Call `EnterPlanMode`, do read-only research, then call `ExitPlanMode` with the full plan markdown to present it for approval. No code until the plan is approved in the plan-review UI.
 
    Trigger if **any** of: >1 file affected, multiple valid approaches, fuzzy goal, or the request uses a verb like "improve", "refactor", "redesign", "audit", "investigate".
 
    **Terminology — read this once, then never confuse it again.**
-   In this file, *"plan tool"* / *"plan mode"* / *"the planner"* all mean the **`Plan` agent** (`subagent_type: Plan`). They do **NOT** mean the `EnterPlanMode` / `ExitPlanMode` deferred tools — those are a separate Claude Code mechanism that resets the session permission mode and should not be invoked from this doctrine. If the user says *"use the plan tool"*, spawn the Plan agent.
+   In this file, *"plan tool"* / *"plan mode"* / *"the planner"* all mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools**. They do **NOT** mean the `Plan` agent (`subagent_type: Plan`) — that is a separate mechanism whose output lives in a `tool_result` block invisible to the dashboard's plan panel. If the user says *"use the plan tool"* or *"plan it"*, call `EnterPlanMode`.
+
+   Loading: `EnterPlanMode` and `ExitPlanMode` are deferred in CC 2.1.116+. Load them via `ToolSearch` once per session before first use.
+
+   **Why plan mode, not the `Plan` agent:**
+   - Plan mode flips the parent's `permission_mode='plan'`, which the dashboard renders as a visible plan badge.
+   - `ExitPlanMode` triggers CC's native plan-review UI — the user gets a real accept/reject surface.
+   - The `Plan` agent's output lands in a `tool_result` the dashboard cannot surface; planning becomes invisible.
+   - One way to do things. The `Plan` agent is **not** prescribed by this doctrine; only invoke it if the user explicitly asks for delegated planning research.
+
+   Cost: on plan approval, CC drops to its default `permission_mode`, not back to `bypassPermissions`. Subsequent edits in Phase 3 will re-prompt unless the user re-enables bypass. That is the accepted trade-off — visible planning is worth a one-time mode reset.
 
    Anti-pattern: *"This is simple enough to just code."*
-   Every project goes through this rationalization. The plan can be short — but it MUST be presented and approved.
+   Every project goes through this rationalization. The plan can be short — but it MUST be presented via `ExitPlanMode` and approved.
 
    Symptoms you're about to violate:
-   - You're opening Edit before having spawned the Plan agent.
+   - You're opening Edit before having called `EnterPlanMode`.
    - You're thinking "I'll plan as I go."
+   - You're about to call `Agent` with `subagent_type=Plan`.
+   - You're about to paste the plan as conversational text instead of calling `ExitPlanMode`.
    - The user used a fuzzy verb and you're already searching for a fix.
 
    <HARD-GATE>
-   No Edit / Write / mutating Bash until a plan has been presented and the user has approved it.
+   No Edit / Write / mutating Bash until `ExitPlanMode` has been called and the user has approved the plan in the plan-review UI.
    The only skip: a literal typo or single-character fix.
    </HARD-GATE>
 
    **Red Flags — STOP and Start Over.** If any of these match your self-talk, you are about to violate Phase 2:
-   - *"I correctly skipped the plan-mode tools, but I also skipped the Plan agent."*
-   - *"The user said 'plan tool' so I'll call EnterPlanMode."*
-   - *"I'll just enter plan mode quickly even though it resets permissions."*
+   - *"I'll delegate to the `Plan` agent — its output is good enough."*
+   - *"I'll just paste the plan as text instead of calling `ExitPlanMode`."*
+   - *"Plan mode resets `bypassPermissions`, I'll skip it."*
    - *"This is simple enough to just code."*
    - *"I'll plan as I go."*
    - *"I already explored, that counts as planning."*
 
-   Anti-pattern: **"Skipping Plan agent because plan-mode tools are deferred."**
-   The deferred tools and the Plan agent are different mechanisms. Deferring the tools doesn't defer the requirement to plan. Spawn the agent.
+   Anti-pattern: **"Skipping plan mode because it resets `bypassPermissions`."**
+   The reset is a one-time cost per planning session. Visible planning beats the convenience of unbroken bypass.
 
-   Anti-pattern: **"Calling EnterPlanMode because the user said 'plan'."**
-   User shorthand resolves to the Plan agent. Always. Spawn the agent.
+   Anti-pattern: **"Using the `Plan` agent because the user said 'plan'."**
+   User shorthand resolves to `EnterPlanMode`+`ExitPlanMode`. Always.
 
 3. **Implement (TDD).** RED → GREEN → REFACTOR. In that order. With proof at each step.
 
@@ -135,10 +147,10 @@ Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hi
 
 Spawn without waiting for the user to ask:
 
-| Trigger | Agent | Source |
+| Trigger | Agent / tool | Source |
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
-| Complex feature, refactor, or architectural decision | `Plan` | Claude Code built-in |
+| Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
 | Plan approved, in a worktree, Codex available | `codex-delegate` (skill) | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
@@ -174,4 +186,4 @@ Good: "Run `go-reviewer-strict` on `internal/tmux/runner.go` (added new `Output`
 | Research, analysis, code review | `sonnet` | Strong comprehension and synthesis |
 | Code writing, architecture, complex reasoning | `opus` | Best output quality |
 
-Set `model` explicitly on every ad-hoc spawn. Built-in `Plan` and `Explore` pick their own model — don't override unless you have a specific reason. Named agents in `agents/` declare their own model in frontmatter — trust those.
+Set `model` explicitly on every ad-hoc spawn. The built-in `Explore` agent picks its own model — don't override unless you have a specific reason. Named agents in `agents/` declare their own model in frontmatter — trust those. Plan mode runs in the parent session, not as a subagent — model selection doesn't apply.
