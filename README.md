@@ -28,6 +28,7 @@ Dashboard/runtime hooks and the generic workflow skills (`/feature`, `/fix`, `/p
 .claude/rules/         Rules and guidelines (symlinked into ~/.claude/rules/)
 .claude-plugin/        Plugin metadata (plugin.json, marketplace.json)
 skills/                Workflow and specialty skills (slash commands)
+plugins/skills/        Codex plugin package for the same skills
 agents/                Specialized subagents
 scripts/               Helper scripts (rules symlink installer)
 ```
@@ -77,18 +78,38 @@ Run `scripts/install-rules-symlinks.sh` to symlink these into `~/.claude/rules/`
 
 ## Codex Setup
 
-This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can delegate isolated coding tasks from Claude Code. The files live in `.agents/`, `.codex/`, and `AGENTS.md` but need to be copied into your target project.
+This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
 
 ### Install the Codex skill plugin
 
-To install the Codex-ready skills globally in Codex, add this repo as a Codex marketplace and install the `skills` plugin:
+To install the Codex-ready skills globally in Codex, add this repo as a Codex marketplace and install the `skills` plugin. The marketplace lives at `.agents/plugins/marketplace.json` and points Codex at the packaged plugin in `plugins/skills/`.
 
 ```bash
 codex plugin marketplace add github.com/bjornjee/skills
-codex plugin install skills@bjornjee-skills
+codex plugin add skills@bjornjee-skills
 ```
 
-This installs the repo's existing `skills/` directory via the Codex manifest. It does not replace project-local `AGENTS.md` or `.codex/` config when you want repo-specific instructions inside another checkout.
+Restart Codex after adding the marketplace if the plugin list is already open.
+
+The Codex package follows the official plugin layout:
+
+```
+plugins/skills/
+  .codex-plugin/plugin.json
+  skills/
+    search-first/SKILL.md
+    terminal-ops/SKILL.md
+    ...
+```
+
+The top-level `skills/` directory remains the source of truth. The packaged Codex copy in `plugins/skills/skills/` is regenerated from it:
+
+```bash
+make sync-codex-plugin
+make test
+```
+
+Installing the plugin does not replace project-local `AGENTS.md` or `.codex/` config when you want repo-specific instructions inside another checkout.
 
 ### Step 1: Copy project config and AGENTS.md
 
