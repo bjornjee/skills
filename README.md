@@ -79,6 +79,17 @@ Run `scripts/install-rules-symlinks.sh` to symlink these into `~/.claude/rules/`
 
 This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can delegate isolated coding tasks from Claude Code. The files live in `.agents/`, `.codex/`, and `AGENTS.md` but need to be copied into your target project.
 
+### Install the Codex skill plugin
+
+To install the Codex-ready skills globally in Codex, add this repo as a Codex marketplace and install the `skills` plugin:
+
+```bash
+codex plugin marketplace add github.com/bjornjee/skills
+codex plugin install skills@bjornjee-skills
+```
+
+This installs the repo's existing `skills/` directory via the Codex manifest. It does not replace project-local `AGENTS.md` or `.codex/` config when you want repo-specific instructions inside another checkout.
+
 ### Step 1: Copy project config and AGENTS.md
 
 ```bash
