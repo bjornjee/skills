@@ -40,10 +40,10 @@ Coverage goal: 80%+.
 
 All language-specific rules are enforced via skills with implicit invocation. When working on a language, the corresponding skill activates automatically:
 
-- **Go** → `$golang-patterns`, `$golang-testing`
-- **Python** → `$python-patterns`
-- **FastAPI** → `$fastapi-patterns` (in addition to `$python-patterns`)
-- **React Native** → `$react-native-patterns`
-- **AI/ML & Evals** → `$ai-ml-patterns`
-- **Git operations** → `$git-workflow`
-- **Terminal execution** → `$terminal-ops`
+- **Go** → `$skills:golang-patterns`, `$skills:golang-testing`
+- **Python** → `$skills:python-patterns`
+- **FastAPI** → `$skills:fastapi-patterns` (in addition to `$skills:python-patterns`)
+- **React Native** → `$skills:react-native-patterns`
+- **AI/ML & Evals** → `$skills:ai-ml-patterns`
+- **Git operations** → `$skills:git-workflow`
+- **Terminal execution** → `$skills:terminal-ops`
