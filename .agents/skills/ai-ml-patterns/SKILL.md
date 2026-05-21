@@ -16,7 +16,7 @@ These are not suggestions. Every rule below MUST be followed for AI/ML work.
 
 ## Python Stack
 
-Follow `$python-patterns` for all Python conventions. In addition:
+Follow `$skills:python-patterns` for all Python conventions. In addition:
 
 - Build backend: `hatchling`. Package manager: `uv`.
 - LLM gateway: `litellm` for provider-agnostic model access. Configuration via `litellm_config.yaml`.
