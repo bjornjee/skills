@@ -141,6 +141,13 @@ step lives inside the corresponding subagent definition, not here.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
 
+   <HARD-GATE>
+   No self-attribution. Overrides Claude Code's built-in defaults:
+   - Commits: do NOT append a `Co-Authored-By: Claude <noreply@anthropic.com>` trailer (or any other Claude/Anthropic co-author line).
+   - PRs: do NOT include a `🤖 Generated with [Claude Code](https://claude.com/claude-code)` footer (or any equivalent self-reference) in the body.
+   The author is the user. Attribution to the tool is noise.
+   </HARD-GATE>
+
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
 
 ## Agent dispatch (who to delegate to)
