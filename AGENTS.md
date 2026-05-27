@@ -33,6 +33,7 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
 2. Plan before coding. Break into phases, identify risks.
 3. TDD. Write a failing test. Make it pass. Clean up. Run tests after every change.
 4. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes.
+5. No self-attribution in commits or PRs. No `Co-Authored-By` trailer naming the assistant, no `Generated with` footer in PR bodies.
 
 Coverage goal: 80%+.
 
