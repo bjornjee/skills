@@ -164,6 +164,7 @@ Spawn without waiting for the user to ask:
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
+| About to invoke `/agent-dashboard:pr` (any PR creation) | `skills:codegraph-audit` | bjornjee-skills |
 
 **Parallel by default.** Independent agents launch in **one message** with multiple tool calls.
 

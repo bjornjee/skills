@@ -1,40 +1,45 @@
 # codegraph-audit
 
-Repo-context-aware PR review that runs automatically in CI. Builds an ephemeral [codegraph](https://github.com/colbymchenry/codegraph) index for the PR, pulls the slice of the call graph touched by the diff, and runs a strict Claude review with that context — catching issues that file-by-file reviewers miss because they never read the callers, callees, or types involved.
+Repo-context-aware PR review that runs **locally** in your existing Claude Code session, just before `/agent-dashboard:pr` opens the PR. Pulls the slice of the call graph touched by the diff using a local [codegraph](https://github.com/colbymchenry/codegraph) index, then runs a strict review with that context — catching issues that file-by-file reviewers miss because they never read the callers, callees, or types involved.
+
+No CI required. No API keys required (uses your existing Claude Code subscription auth).
 
 ## What ships in this directory
 
 | File | Purpose |
 |---|---|
-| `SKILL.md` | The skill prompt invoked by the workflow. Tells Claude how to query codegraph, dispatch to the strict reviewer, and format findings. |
-| `ci/codegraph-audit.yml` | Reusable GitHub Actions workflow template. Copy into your repo's `.github/workflows/`. |
+| `SKILL.md` | The skill prompt invoked by the orchestrator before PR creation. |
 | `README.md` | This file. |
 
-## How to adopt in your repo
+## How adoption works
 
-1. **Copy the workflow.** Drop `ci/codegraph-audit.yml` into your repo at `.github/workflows/codegraph-audit.yml`.
-2. **Add the secret.** Repo Settings → Secrets and variables → Actions → add `ANTHROPIC_API_KEY`.
-3. **Open a PR.** The workflow runs on `opened | synchronize | reopened`. It posts findings as a PR comment and fails the check on a `BLOCK` verdict.
-
-No plugin install required in the runner — the workflow fetches `SKILL.md` from `bjornjee/skills` over raw HTTP at run time and passes it to `claude --print` as a system prompt.
+1. **Install codegraph** once on your machine:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+   ```
+2. **Add `.codegraph/` to your repo's `.gitignore`** so the local index doesn't get committed.
+3. That's it. The orchestrator auto-invokes `/skills:codegraph-audit` before `/agent-dashboard:pr` per the dispatch row in `.claude/rules/core.md`. If you don't have codegraph installed when the audit runs, it halts with install instructions — install and re-run.
 
 ## Modes
 
-| Mode | When | Cost |
+| Invocation | When | Cost |
 |---|---|---|
-| `minimal` (default) | Every PR push, automatically | Cheap — indexes once, queries only diff symbols + 1-hop neighbors |
-| `full` | Manual via Actions → Run workflow → mode: full | Expensive — walks the whole graph |
+| auto (default `minimal`) | Every `/agent-dashboard:pr` run | Cheap — index is incremental, queries only diff symbols + 1-hop neighbors |
+| `/skills:codegraph-audit` | Manual minimal review | Same as above |
+| `/skills:codegraph-audit full` | When you want a whole-repo audit | Expensive — walks the entire graph |
 
-## Cost drivers
+## How the verdict gates the PR
 
-- **Codegraph index build** — runtime scales with repo size, typically seconds to a couple of minutes.
-- **Claude API tokens** — the context bundle (diff + symbol impact/callers/callees JSON) is the dominant input cost. `full` mode multiplies this.
-- **Runner time** — the YAML caps the job at 20 minutes (`timeout-minutes: 20`); raise if your repo is large.
+- **APPROVE** — orchestrator proceeds to `/agent-dashboard:pr`.
+- **WARNING** — findings surface; orchestrator proceeds.
+- **BLOCK** — orchestrator halts. Acknowledge or fix before retrying.
 
-## Local fallback
+## Index management
 
-None. This skill is CI-only by design. If you want a local pre-push audit, install codegraph yourself and run the CLI directly against your working tree — the equivalent of what the workflow does.
+The local `.codegraph/` index persists between runs (re-indexing every PR is too slow locally). The skill runs `codegraph sync` to update it incrementally against the working tree. If the index is missing, it runs `codegraph init && codegraph index` once.
 
-## Pinning
+To force a full rebuild: `rm -rf .codegraph/` and let the next audit re-init.
 
-The workflow fetches `SKILL.md` from the `main` branch of `bjornjee/skills`. To pin to a specific version, edit the `Fetch codegraph-audit skill prompt` step in your copy of the workflow and replace `main` with a tag or commit SHA.
+## Why not CI?
+
+CI execution was the original design but requires `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` for a Codex equivalent) which not all setups have. The local path uses your existing Claude Code subscription auth — no keys needed. If you later get CI keys, a CI workflow could be re-added as a follow-up.
