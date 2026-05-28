@@ -1,0 +1,113 @@
+# codegraph-audit — reusable GitHub Actions workflow template.
+#
+# Copy this file into your repository's .github/workflows/ directory
+# (alongside your other workflows) to enable repo-context-aware PR review
+# via the codegraph-audit skill from bjornjee/skills.
+#
+# Required secret: ANTHROPIC_API_KEY
+#
+# Why install claude-code CLI directly instead of using anthropics/claude-code-action?
+# claude-code-action does not support loading custom marketplace plugins or
+# skills. We invoke the CLI ourselves with --system-prompt pointing at the
+# fetched SKILL.md. This avoids any plugin-loading machinery in the runner.
+
+name: codegraph-audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Audit scope. `minimal` reviews only the symbols touched by the diff plus 1-hop callers/callees. `full` walks the entire graph — expensive."
+        type: choice
+        options: [minimal, full]
+        default: minimal
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PR (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required so `git diff $BASE_SHA $HEAD_SHA` works
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install codegraph
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
+          codegraph --version
+
+      - name: Install Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Build ephemeral codegraph index
+        run: |
+          codegraph init
+          codegraph index
+
+      - name: Fetch codegraph-audit skill prompt and strict reviewer rules
+        run: |
+          mkdir -p .codegraph-audit
+          BASE=https://raw.githubusercontent.com/bjornjee/skills/main
+          curl -fsSL "$BASE/skills/codegraph-audit/SKILL.md" -o .codegraph-audit/SKILL.md
+          curl -fsSL "$BASE/agents/go-reviewer-strict.md" -o .codegraph-audit/go-reviewer-strict.md
+          curl -fsSL "$BASE/agents/python-reviewer-strict.md" -o .codegraph-audit/python-reviewer-strict.md
+          test -s .codegraph-audit/SKILL.md
+          test -s .codegraph-audit/go-reviewer-strict.md
+          test -s .codegraph-audit/python-reviewer-strict.md
+
+      - name: Run codegraph audit
+        id: audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODE: ${{ github.event.inputs.mode || 'minimal' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          SYSTEM_PROMPT="$(cat .codegraph-audit/SKILL.md .codegraph-audit/go-reviewer-strict.md .codegraph-audit/python-reviewer-strict.md)"
+          claude --print \
+            --system-prompt "$SYSTEM_PROMPT" \
+            "Run the codegraph audit. MODE=$MODE BASE_SHA=$BASE_SHA HEAD_SHA=$HEAD_SHA" \
+            > .codegraph-audit/output.md
+          # Extract verdict for the gating step.
+          VERDICT="$(grep -oE 'Verdict:[[:space:]]*(APPROVE|WARNING|BLOCK)' .codegraph-audit/output.md | tail -1 | awk '{print $2}')"
+          echo "verdict=${VERDICT:-UNKNOWN}" >> "$GITHUB_OUTPUT"
+
+      - name: Post findings as PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.codegraph-audit/output.md';
+            if (!fs.existsSync(path)) {
+              core.warning('codegraph-audit produced no output file; skipping comment.');
+              return;
+            }
+            const body = fs.readFileSync(path, 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail check on BLOCK verdict
+        if: steps.audit.outputs.verdict == 'BLOCK'
+        run: |
+          echo "::error::codegraph-audit verdict is BLOCK — see PR comment for findings."
+          exit 1
