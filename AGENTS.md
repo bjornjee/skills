@@ -37,6 +37,20 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
 
 Coverage goal: 80%+.
 
+## Decision discipline
+
+Before implementing CI, automation, agent workflows, security-sensitive code, or user-visible generated output, define the decision frame explicitly:
+
+- **Execution authority.** What code runs, where it runs, with which credentials/permissions, and which source revision it is allowed to execute from.
+- **Ownership boundaries.** Which layer owns orchestration, deterministic logic, AI synthesis, persistence, publishing, cleanup, and error handling.
+- **Bootstrap vs steady state.** What happens before the new code/config exists on the default branch, after it lands, and when required artifacts or dependencies are missing.
+- **User-facing output contract.** Who reads the output, what action they should take, what should be hidden, and whether output is create-only, append-only, upserted, or deleted.
+- **Failure mode.** Whether failure should block, fail soft, emit an artifact, skip, retry, or require manual action.
+
+Do not let the easiest implementation surface become the architecture. Choose responsibility boundaries first, then place code in YAML, scripts, prompts, app modules, or docs according to ownership.
+
+If implementation requires more than two corrective iterations in the same area, stop patching and reframe the missing invariant before continuing.
+
 ## Language Conventions
 
 All language-specific rules are enforced via skills with implicit invocation. When working on a language, the corresponding skill activates automatically:
