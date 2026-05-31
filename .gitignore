@@ -28,3 +28,7 @@ tmp/
 # Worktree sentinel files
 .env-setup-done
 .env-setup-failed
+.feature-plan-path
+
+# uiux-design-loop artifacts (per-project, not source-controlled)
+.uiux-loop/
