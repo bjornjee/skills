@@ -40,14 +40,7 @@ The `uiux-grader` returns one of three overall verdicts:
 
 ## Per-project customisation
 
-Drop any of these into the host project's worktree to override defaults:
-
-| File | Effect |
-|---|---|
-| `.uiux-loop/weights.json` | Re-weight rubric dimensions (e.g., a content-heavy site weights `content-density` 1.5). |
-| `.uiux-loop/project-rules.md` | Project-specific Layer 2 rules the grader cites verbatim (e.g., "brand voice follows the source docx, do not stamp the practitioner's name on every block"). |
-
-The skill loads these if present; otherwise uses the canonical `rubric.md` as-is.
+Drop override files into the host project's worktree. See `rubric.md` → "How to override per project" for the full list and effect of each.
 
 ## Out of scope
 

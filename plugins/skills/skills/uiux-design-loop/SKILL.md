@@ -48,7 +48,7 @@ Three artifacts must exist on disk in the project's worktree before any edit:
 2. **`.uiux-loop/register.md`** — Filled from `templates/register.md`. Declares the chosen visual register (editorial / dramatic / spacious / brutalist / refined-minimal / …), why, reference mockups, and what the register specifically rejects.
 3. **`.uiux-loop/weights.json`** (optional) — Per-dimension weight overrides. Default = all weights = 1.0 and skill loads `rubric.md` as-is.
 
-**HARD-GATE.** No `Edit`, no `Write` on source files, no `git add` until all three artifacts exist. If the user pushes back ("the flow is obvious"), the answer is: the flow being obvious to the implementer is exactly the bias the grader exists to correct. Spend the 90 seconds.
+**HARD-GATE.** No `Edit`, no `Write` on source files, no `git add` until all three artifacts exist. If the user pushes back ("the flow is obvious"), the answer is: the flow being obvious to the implementer is exactly the bias the grader exists to correct.
 
 If the user has not chosen a register, present 2–3 mockup directions (image refs or short prose) before they pick. Polish is *not* a register.
 
@@ -124,14 +124,13 @@ Add `.uiux-loop/` to the project's `.gitignore`. None of this is committed.
 
 ## Anti-patterns
 
-- **Skipping Gate 0 because "the flow is obvious."** The flow being obvious to the implementer is exactly the bias the grader exists to correct.
+- **Skipping Gate 0 because "the flow is obvious."** See Gate 0 — the gate exists precisely because of this instinct.
 - **Showing the grader the implementer's narrative.** Defeats the cold-context invariant. Pass screenshots + flow map + register only. If the grader's verdict ever cites the implementer's reasoning, the dispatch leaked context — fix the orchestrator, not the grader.
 - **Inferring visual register from "the user seems to want polish."** Register must be explicitly declared from a finite set. *Polish is not a register* — it is what you do once a register has been chosen.
 - **Treating strict-content-rules as a licence for sparse UI.** The `content-density` dimension exists precisely to catch this. If respecting a content rule (e.g. "use the docx wording verbatim") would produce a visually impoverished page, surface the tradeoff to the user *before* shipping the sparse version — do not call sparse "minimal" without a register that asks for minimal.
 - **Diff-as-proof for visual change.** Screenshot or it didn't happen.
 - **"Card with just a heading and arrow" as a cross-link affordance.** Visually anaemic; flagged by `affordance-honesty`. Reach for a richer pattern (image-led card, integrated tab system, visual scroll-cue) or argue for the content rule being too strict.
 - **Iterating without a critique brief.** The inner loop's only input is the brief. If you find yourself "improving" without a brief item to point to, stop — re-dispatch the grader for a fresh brief.
-- **Reusing the grader's previous conversation context.** Every Gate-3 dispatch is a *new* subagent. Continuity in the grader is the same as continuity in the implementer — it erodes coldness.
 - **Manufacturing brief items to keep iterating after a PASS.** PASS means PASS. Exit.
 
 ## Reuse, don't duplicate
