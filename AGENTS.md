@@ -33,8 +33,17 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
 1. Research before writing. Check the repo, docs, and package registries first.
 2. Plan before coding. Break into phases, identify risks.
 3. TDD. Write a failing test. Make it pass. Clean up. Run tests after every change.
-4. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes.
-5. No self-attribution in commits or PRs. No `Co-Authored-By` trailer naming the assistant, no `Generated with` footer in PR bodies.
+   - When adding a new test file, verify it is included by the package's normal test command. If tests are explicitly listed in a manifest or runner config, update that manifest/config and run the package test command.
+   - For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
+   - For merge-style state writes, fields that must be cleared must be written explicitly with their cleared value. Do not omit a key when omission preserves stale state.
+4. Review all changes before commit.
+   - Run a security boundary review for every changed input, output, auth, storage, file, network, and browser boundary. Look for injection, SQL/command/template injection, XSS, CSRF, auth/authz bypass, secret exposure, unsafe deserialization, SSRF, path traversal, insecure defaults, and missing validation or escaping.
+   - Check predicate/source-of-truth correctness, merge/update semantics, path-shape edge cases, test command inclusion, and cross-adapter drift when equivalent files changed.
+5. Before PR/push, run the same checks in a neutral correctness and security audit scoped to the changed-file list plus package manifests, CI config, and test runner config.
+   - The reviewer is read-only.
+   - High/Critical findings block push. Medium findings are fixed when cheap or called out.
+6. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes.
+7. No self-attribution in commits or PRs. No `Co-Authored-By` trailer naming the assistant, no `Generated with` footer in PR bodies.
 
 Coverage goal: 80%+.
 
