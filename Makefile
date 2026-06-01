@@ -7,7 +7,7 @@ sync-rules: ## Copy .claude/rules/core.md to ~/.claude/rules/core.md
 	@cp .claude/rules/core.md $$HOME/.claude/rules/core.md
 	@echo "✓ synced $$HOME/.claude/rules/core.md from .claude/rules/core.md"
 
-sync-codex-plugin: ## Sync top-level skills into the Codex plugin package
+sync-codex-plugin: ## Verify (and repair) the plugins/skills/skills symlink
 	./scripts/sync-codex-plugin.sh
 
 test: ## Run repository tests
