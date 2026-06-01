@@ -1,4 +1,4 @@
-# UI/UX rubric — 6 dimensions
+# UI/UX rubric — 7 dimensions
 
 This file is the single source of truth for the dimensions, score anchors, and pass thresholds used by `/skills:uiux-design-loop` and the `uiux-grader` subagent. If a rule needs to change, change it here.
 
@@ -24,7 +24,7 @@ Weighted score = raw score × weight.
 
 ## Pass threshold
 
-The **weakest weighted score** across all scored dimensions determines the overall verdict:
+The **weakest weighted score** across all scored dimensions determines the overall verdict. For redesign work with a `preservation-contract.md`, the weakest weighted score across BOTH in-scope and preservation surfaces must be >= 4:
 
 | Weakest weighted score | Overall |
 |---|---|
@@ -161,11 +161,37 @@ You may cite a violation. You may **not** suggest the replacement copy. The impl
 
 ---
 
+## Dimension 7 — `preservation-regression`
+
+**Definition.** For every compatibility surface named in `preservation-contract.md`, did the redesign preserve visible output and expected behavior outside the declared redesign scope?
+
+### Anchors
+- **1.** A preservation surface is visibly regressed, unreachable, crashes, renders raw text, loses required CSS, logs blocking console errors, or has dead interactions that previously worked.
+- **3.** Preservation surfaces mostly render, but there are visible differences or behavior gaps that the contract did not authorize.
+- **4.** No visible change vs. before the redesign, and the behavior evidence shows the compatibility surface still works.
+- **5.** No visible change vs. before the redesign, behavior evidence passes, and the preservation surface has clear evidence from screenshots plus live checks.
+
+### Common failures
+- A visual PASS on redesigned screenshots hides a crashed usage view, dead settings click, broken detail tab, or dropped CSS after a parser error.
+- The contract says a surface is out of scope but does not enumerate the JS primitives or CSS classes needed to preserve it.
+- The grader receives only screenshots and cannot inspect console messages, click behavior, tab switching, or computed styles.
+
+### Score from
+- `preservation-contract.md`.
+- Before/after screenshots for preserved surfaces, when available.
+- Live URL evidence: clicks, tab switches, console messages, computedStyle checks, and route/state changes.
+- `.uiux-loop/behavior-check.md` at Gate 4.
+
+### Score `N/A` when
+- `preservation-contract.md` explicitly says there are no reachable surfaces outside the redesign scope.
+
+---
+
 ## How to cite findings
 
 When the grader writes a critique-brief item, every item must:
 
-1. Name the dimension (verbatim from the 6 fixed names).
+1. Name the dimension (verbatim from the 7 fixed names).
 2. Reference at least one screenshot (`step-<n>-<viewport>`).
 3. Describe the *visible change* that would raise the score.
 4. If a `project-rules.md` rule is cited, quote it verbatim with `[Layer 2: "<quote>"]`.
