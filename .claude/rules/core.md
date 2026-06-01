@@ -124,6 +124,9 @@ step lives inside the corresponding subagent definition, not here.
    1. Quote the offending code path — `file:line`, read it, don't infer it.
    2. Quote the actual log line, error message, or test failure output **verbatim**.
    3. State the root cause as a falsifiable claim: *"X happens because Y at file:line returns Z."*
+   4. If you add a new test file, verify it runs under the package's normal test command. If tests are explicitly listed in a manifest or runner config, update that file and run the package test command, not just the new file directly.
+   5. For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
+   6. For merge-style state writes, fields that must be cleared must be written explicitly with their cleared value. Do not omit a key when omission preserves stale state.
 
    Anti-pattern: *"It's probably because of X."*
    "Probably" is a guess. Guesses get reverted. Read the code. Read the logs.
@@ -138,6 +141,16 @@ step lives inside the corresponding subagent definition, not here.
    The fix is the last step, not the first.
 
 4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
+
+   Every review must include an adversarial correctness and security pass against the stated execution context and scale shape. Check:
+   - Security boundaries: every changed input, output, auth, storage, file, network, and browser boundary. Look for injection, SQL/command/template injection, XSS, CSRF, auth/authz bypass, secret exposure, unsafe deserialization, SSRF, path traversal, insecure defaults, and missing validation or escaping.
+   - Predicate/source-of-truth correctness, especially filesystem/git/process identity versus cached state fields.
+   - Merge/update semantics where omitted fields preserve stale values.
+   - Path-shape edge cases such as repo roots versus subdirectories, linked worktrees, detached worktrees, symlinks, and missing directories.
+   - New tests being included in normal package or CI test commands.
+   - Cross-adapter drift when equivalent Claude/Codex, CLI/API, or platform-specific files changed.
+
+   Before PR/push, run the same checks in a neutral read-only audit scoped to the changed-file list plus package manifests, CI config, and test runner config. High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
 
