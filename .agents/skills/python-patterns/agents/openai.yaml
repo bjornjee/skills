@@ -1,6 +1,0 @@
-interface:
-  display_name: "Python Patterns"
-  short_description: "PEP 8, type annotations, Pydantic, DI, async safety, test isolation"
-
-policy:
-  allow_implicit_invocation: true

@@ -25,13 +25,16 @@ Dashboard/runtime hooks and the generic workflow skills (`/feature`, `/fix`, `/p
 ## Structure
 
 ```
-.claude/rules/         Rules and guidelines (symlinked into ~/.claude/rules/)
-.claude-plugin/        Plugin metadata (plugin.json, marketplace.json)
-skills/                Workflow and specialty skills (slash commands)
-plugins/skills/        Codex plugin package for the same skills
+skills/                Canonical workflow and specialty skills (slash commands)
 agents/                Specialized subagents
-scripts/               Helper scripts (rules symlink installer)
+.claude/rules/         Rules and guidelines (symlinked into ~/.claude/rules/)
+.claude-plugin/        Claude plugin manifest + marketplace
+plugins/skills/        Codex plugin package; plugins/skills/skills is a symlink → ../../skills
+.agents/plugins/       Codex marketplace pointer (marketplace.json)
+scripts/               Helper scripts (rules symlink installer, codex plugin link verifier)
 ```
+
+Both plugins read from the same `skills/` directory: the Claude plugin loads it directly, and the Codex plugin sees it through `plugins/skills/skills` → `../../skills`. There is no second copy to keep in sync.
 
 ## Skills
 
@@ -82,7 +85,7 @@ This repo includes configuration for [OpenAI Codex CLI](https://github.com/opena
 
 ### Install the Codex skill plugin
 
-To install the Codex-ready skills globally in Codex, add this repo as a Codex marketplace and install the `skills` plugin. The marketplace lives at `.agents/plugins/marketplace.json` and points Codex at the packaged plugin in `plugins/skills/`.
+Add this repo as a Codex marketplace and install the `skills` plugin. The marketplace pointer at `.agents/plugins/marketplace.json` directs Codex at the packaged plugin in `plugins/skills/`.
 
 ```bash
 codex plugin marketplace add github.com/bjornjee/skills
@@ -96,55 +99,32 @@ The Codex package follows the official plugin layout:
 ```
 plugins/skills/
   .codex-plugin/plugin.json
-  skills/
-    search-first/SKILL.md
-    terminal-ops/SKILL.md
-    ...
+  skills/                       # symlink → ../../skills (canonical)
 ```
 
-The top-level `skills/` directory remains the source of truth. The packaged Codex copy in `plugins/skills/skills/` is regenerated from it:
+`skills/` and `plugins/skills/skills/` are the same directory on disk. The packaged plugin needs no separate sync step; `scripts/sync-codex-plugin.sh` only verifies (or repairs) the symlink.
 
 ```bash
-make sync-codex-plugin
-make test
+make sync-codex-plugin   # verifies / repairs the symlink
+make test                # asserts the symlink shape and skill content
 ```
 
-Installing the plugin does not replace project-local `AGENTS.md` or `.codex/` config when you want repo-specific instructions inside another checkout.
+### Project-local Codex config
 
-### Step 1: Copy project config and AGENTS.md
+The marketplace install ships skills only. If you also want this repo's project-level Codex config (`AGENTS.md`, `.codex/`) inside another checkout, copy them in:
 
 ```bash
-# From the root of your target project:
 SKILLS_REPO="$HOME/Code/bjornjee/skills"  # adjust to your clone path
-
 cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
 cp -r "$SKILLS_REPO/.codex" ./.codex
 chmod +x .codex/hooks/validate-command.sh
 ```
 
-### Step 2: Copy Codex skills
-
-```bash
-cp -r "$SKILLS_REPO/.agents" ./.agents
-```
-
-### Step 3: Re-sync skills after updates
-
-When skills change in this repo, re-run the sync script to update `.agents/skills/`:
-
-```bash
-"$SKILLS_REPO/scripts/sync-skills-to-codex.sh"
-```
-
-Then copy the updated `.agents/` directory to your target project again.
-
-### Step 4: Verify
+Then verify:
 
 ```bash
 codex exec "summarize the current instructions"
 ```
-
-Codex should reference AGENTS.md conventions and discover the ported skills.
 
 ### Delegation from Claude Code
 

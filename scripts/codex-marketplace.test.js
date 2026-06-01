@@ -83,6 +83,17 @@ describe('codex marketplace', () => {
     assert.equal(fs.existsSync(path.join(REPO, '.codex-plugin/plugin.json')), false);
   });
 
+  it('exposes the Codex skills as a symlink to the canonical skills tree', () => {
+    const linkPath = path.join(REPO, 'plugins/skills/skills');
+    const stat = fs.lstatSync(linkPath);
+    assert.equal(stat.isSymbolicLink(), true, 'plugins/skills/skills should be a symlink');
+    assert.equal(fs.readlinkSync(linkPath), '../../skills');
+    assert.equal(
+      fs.realpathSync(linkPath),
+      fs.realpathSync(path.join(REPO, 'skills')),
+    );
+  });
+
   it('has an idempotent sync check for the packaged Codex skills', () => {
     childProcess.execFileSync(
       path.join(REPO, 'scripts/sync-codex-plugin.sh'),

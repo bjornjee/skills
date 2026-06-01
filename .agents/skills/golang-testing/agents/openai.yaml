@@ -1,6 +1,0 @@
-interface:
-  display_name: "Go Testing"
-  short_description: "TDD, table-driven tests, benchmarks, fuzzing for Go"
-
-policy:
-  allow_implicit_invocation: true
