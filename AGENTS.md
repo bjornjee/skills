@@ -5,13 +5,14 @@ Claude Code plugin repo: skills, agents, and rules. Pure configuration — no ru
 ## Layout
 
 ```
-skills/           Slash command skills (SKILL.md per directory)
-agents/           Named subagent definitions (.md files)
-.claude/rules/    Claude Code rules (glob-scoped .md files)
-.claude-plugin/   Plugin metadata (plugin.json, marketplace.json)
-.agents/skills/   Codex-compatible skills (mirrored from skills/)
-.codex/           Codex project config and rules
-scripts/          Utility scripts
+skills/                  Slash command skills (SKILL.md per directory) — canonical
+agents/                  Named subagent definitions (.md files)
+.claude/rules/           Claude Code rules (glob-scoped .md files)
+.claude-plugin/          Claude plugin metadata (plugin.json, marketplace.json)
+plugins/skills/          Codex plugin package (.codex-plugin/plugin.json + skills/ symlink to ../../skills)
+.agents/plugins/         Codex marketplace pointer (marketplace.json)
+.codex/                  Codex project config and rules
+scripts/                 Utility scripts
 ```
 
 ## Versioning

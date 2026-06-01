@@ -1,6 +1,0 @@
-interface:
-  display_name: "AI/ML & Evals"
-  short_description: "Eval-first methodology, labelled datasets, systematic prompt testing"
-
-policy:
-  allow_implicit_invocation: true
