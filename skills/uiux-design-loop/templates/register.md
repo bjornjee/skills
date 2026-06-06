@@ -2,6 +2,8 @@
 
 > Fill this in **before** Gate 1 of `/skills:uiux-design-loop`. Without a declared register, the grader will REJECT — by design. Polish is not a register; it is what you do once a register has been chosen.
 
+> If your project uses the `impeccable` skill, you can source this declaration from `PRODUCT.md` (chosen register + theme scene sentence) and `DESIGN.md` (color tokens + named anchors) instead of writing from scratch. See `skills/uiux-design-loop/impeccable-map.md` for the full sourcing table. The artifact still has to exist on disk — sourcing does not skip Gate 0.
+
 ## Chosen register
 
 Pick one. If your project's register is not in the list, name your own — but commit.
@@ -34,6 +36,7 @@ Paste links, file paths, or short descriptions of 1–3 references the chosen re
 > - `references/healing-page-mockup-v3.png`
 > - A Working Library (typography rhythm, ledes-with-pull-quotes)
 > - Aesop product pages (refined-minimal applied to body type)
+> - `DESIGN.md` color tokens + named anchors (if the project uses `impeccable`)
 
 ## Out-of-bounds
 

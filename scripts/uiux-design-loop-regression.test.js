@@ -60,4 +60,49 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(rubric, /no visible change vs\. before the redesign/i);
     assert.match(rubric, /weakest weighted score across BOTH in-scope and preservation surfaces/i);
   });
+
+  it('threads optional impeccable integration into Gate 0 and Gate 4 without weakening gates', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+    const register = read('skills/uiux-design-loop/templates/register.md');
+    const readme = read('skills/uiux-design-loop/README.md');
+
+    assert.match(skill, /impeccable-map\.md/);
+    assert.match(skill, /impeccable/i);
+    assert.match(skill, /PRODUCT\.md/);
+
+    assert.equal(
+      (skill.match(/\*\*HARD-GATE\.\*\*/g) || []).length,
+      4,
+      'HARD-GATE count must remain 4 — the integration is additive, not subtractive'
+    );
+
+    assert.match(map, /Gate 0/);
+    assert.match(map, /Gate 4/);
+    assert.match(map, /PRODUCT\.md/);
+    assert.match(map, /DESIGN\.md/);
+    assert.match(map, /\/impeccable polish/);
+    assert.match(map, /\/impeccable harden/);
+    for (const dim of [
+      'user-flow-fidelity',
+      'visual-register-match',
+      'content-density',
+      'affordance-honesty',
+      'brand-voice-adherence',
+      'cross-locale-consistency',
+      'preservation-regression',
+    ]) {
+      assert.match(map, new RegExp(dim), `impeccable-map.md must reference ${dim} verbatim`);
+    }
+
+    assert.match(register, /impeccable/i);
+    assert.match(register, /PRODUCT\.md/);
+    assert.match(readme, /impeccable-map\.md/);
+  });
+
+  it('keeps plugin.json and marketplace.json versions in lockstep', () => {
+    const plugin = JSON.parse(read('.claude-plugin/plugin.json'));
+    const marketplace = JSON.parse(read('.claude-plugin/marketplace.json'));
+    assert.equal(plugin.version, marketplace.plugins[0].version);
+  });
 });

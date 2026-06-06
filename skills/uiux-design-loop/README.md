@@ -15,6 +15,7 @@ Purpose: prevent the single-pass "polish" failure mode where the implementer shi
 | `templates/preservation-contract.md` | Compatibility-surface declaration template. Filled per project. |
 | `templates/behavior-check.md` | Exit behavior evidence template. Filled before the skill exits. |
 | `templates/critique-brief.md` | What the grader writes back; mirror of the verdict contract. |
+| `impeccable-map.md` | Optional integration seams with the `impeccable` skill (Gate 0 register sourcing, Gate 4 named exit-pass). Loaded only when impeccable is available. |
 | `README.md` | This file. |
 
 The grader subagent itself lives at `agents/uiux-grader.md` at the repo root (same level as other strict-review agents).
@@ -43,6 +44,10 @@ The `uiux-grader` returns one of three overall verdicts:
 ## Per-project customisation
 
 Drop override files into the host project's worktree. See `rubric.md` → "How to override per project" for the full list and effect of each.
+
+## Composes with `impeccable`
+
+If the host project uses the `impeccable` skill (`~/.claude/skills/impeccable/`), this loop reads `impeccable-map.md` at Gate 0 (source `register.md` from `PRODUCT.md` / `DESIGN.md` / a `/impeccable shape` brief) and Gate 4 (recommend a named exit-pass like `/impeccable polish <target>`). Otherwise the loop runs standalone. Division of labor: the loop owns *whether the design is right*; impeccable owns *how to make it right*.
 
 ## Out of scope
 
