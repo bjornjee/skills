@@ -1,6 +1,6 @@
 # uiux-design-loop
 
-Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against a 6-dimension rubric plus a binary preservation gate; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, and screenshot plus behavior proof per iteration.
+Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and — when the `impeccable` skill is installed — a parallel `impeccable audit` pass that blocks PASS on P0/P1 a11y / perf / structural findings.
 
 Purpose: prevent the single-pass "polish" failure mode where the implementer ships something that *sounds* disciplined but visually impoverishes the page, because the implementer is the only reviewer.
 
@@ -8,14 +8,14 @@ Purpose: prevent the single-pass "polish" failure mode where the implementer shi
 
 | File | Purpose |
 |---|---|
-| `SKILL.md` | The skill prompt — workflow gates, anti-patterns, dispatch contract. |
-| `rubric.md` | The 6 grading dimensions with 1/3/5 anchor descriptions, the preservation gate (PASS/WARN/FAIL/N/A), and pass thresholds. |
+| `SKILL.md` | The skill prompt — workflow gates (incl. Gate 0 pre-flight, Gate 1.5/3.5 audit half-gates, Gate 4 active exit-pass prompt), anti-patterns, dispatch contract. |
+| `rubric.md` | The 8 grading dimensions with 1/3/5 anchor descriptions, the preservation gate (PASS/WARN/FAIL/N/A), the audit gate (PASS/WARN/FAIL/N/A), and pass thresholds. |
 | `templates/flow-map.md` | Visitor-flow declaration template. Filled per project. |
 | `templates/register.md` | Visual register declaration template. Filled per project. |
 | `templates/preservation-contract.md` | Compatibility-surface declaration template. Filled per project. |
 | `templates/behavior-check.md` | Exit behavior evidence template. Filled before the skill exits. |
 | `templates/critique-brief.md` | What the grader writes back; mirror of the verdict contract. |
-| `impeccable-map.md` | Optional integration seams with the `impeccable` skill (Gate 0 register sourcing, Gate 4 named exit-pass). Loaded only when impeccable is available. |
+| `impeccable-map.md` | Integration seams with the `impeccable` skill: Gate 0 pre-flight + register-taxonomy table (brand/product → loop registers), Gate 1.5/3.5 `impeccable audit` contract, Gate 4 active exit-pass prompt, dimension → reference lookup. Auto-detected; the loop runs standalone if impeccable is absent. |
 | `README.md` | This file. |
 
 The grader subagent itself lives at `agents/uiux-grader.md` at the repo root (same level as other strict-review agents).
@@ -35,10 +35,10 @@ The grader subagent itself lives at `agents/uiux-grader.md` at the repo root (sa
 
 ## How the verdict gates iteration
 
-The `uiux-grader` returns one of three overall verdicts. PASS requires both inputs:
+The `uiux-grader` returns one of three overall verdicts. PASS requires all three inputs:
 
-- **PASS** — weakest of the 6 dimension scores ≥ 4 **and** preservation gate ∈ {`PASS`, `N/A`}. Skill exits.
-- **ITERATE** — any dimension below threshold, or preservation gate is `WARN` / `FAIL`. Critique brief (plus the `## Brief diff` section comparing to the prior verdict) drives the next inner-loop pass.
+- **PASS** — weakest of the 8 dimension scores ≥ 4 **and** preservation gate ∈ {`PASS`, `N/A`} **and** audit gate ∈ {`PASS`, `N/A`}. Skill exits (after the Gate 4 exit-pass AskUserQuestion roundtrip when impeccable is installed).
+- **ITERATE** — any dimension below threshold, or either gate is `WARN` / `FAIL`. Critique brief (plus the `## Brief diff` section comparing to the prior verdict) drives the next inner-loop pass; the audit pass at Gate 3.5 re-runs `impeccable audit` on the changed files.
 - **REJECT** — design needs broader rework than the loop can deliver in its 6-iteration budget. Surface to the user; do not continue iterating mechanically.
 
 Each verdict is emitted as prose followed by a fenced ` ```json ` block carrying the same data. The orchestrator writes both: `verdict-iter-<n>.md` (prose + JSON) and `verdict-iter-<n>.json` (extracted JSON) for CI / dashboards.
@@ -49,7 +49,14 @@ Drop override files into the host project's worktree. See `rubric.md` → "How t
 
 ## Composes with `impeccable`
 
-If the host project uses the `impeccable` skill (`~/.claude/skills/impeccable/`), this loop reads `impeccable-map.md` at Gate 0 (source `register.md` from `PRODUCT.md` / `DESIGN.md` / a `/impeccable shape` brief) and Gate 4 (recommend a named exit-pass like `/impeccable polish <target>`). Otherwise the loop runs standalone. Division of labor: the loop owns *whether the design is right*; impeccable owns *how to make it right*.
+If the host project uses the `impeccable` skill (`~/.claude/skills/impeccable/`), this loop plumbs four seams from `impeccable-map.md`:
+
+1. **Gate 0 pre-flight** — runs `context.mjs` to auto-populate `register.md` from `PRODUCT.md` (mapped through the register-taxonomy table); recommends `/impeccable init` if `NO_PRODUCT_MD`.
+2. **Gate 1.5 + 3.5** — dispatches `impeccable audit <changed-files>` in parallel with each grader pass. P0/P1 findings = audit gate `FAIL` = block PASS.
+3. **Dimensions 7 + 8** — `accessibility` and `technical-quality` score from the audit findings (severity → score mapping in `rubric.md`).
+4. **Gate 4 active exit-pass** — at PASS, fires `AskUserQuestion` with a single suggested `/impeccable <pass> <target>` command pre-selected as Recommended.
+
+Otherwise the loop runs standalone (dimensions 7+8 and the audit gate all score `N/A`). Division of labor: the loop owns *whether the design is right*; impeccable owns *how to make it right* + *whether the code is right*.
 
 ## Out of scope
 
