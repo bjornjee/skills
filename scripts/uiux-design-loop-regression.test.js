@@ -60,7 +60,11 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(rubric, /## Preservation gate/);
     assert.match(rubric, /PASS \| WARN \| FAIL \| N\/A/);
     assert.match(rubric, /preservation-contract\.md/);
-    assert.doesNotMatch(rubric, /## Dimension 7/);
+    // Dimensions 7 (accessibility) and 8 (technical-quality) are legitimate scored
+    // dimensions. Preservation must never become a scored dimension — guard against
+    // a future Dimension 9 named "preservation" or similar.
+    assert.doesNotMatch(rubric, /## Dimension 9/);
+    assert.doesNotMatch(rubric, /## Dimension \d+ — `preservation`/);
     assert.match(grader, /## Preservation gate/);
     assert.doesNotMatch(grader, /preservation-regression: +<n>/);
   });
@@ -113,8 +117,8 @@ describe('uiux-design-loop regression gates', () => {
 
     assert.equal(
       (skill.match(/\*\*HARD-GATE\.\*\*/g) || []).length,
-      4,
-      'HARD-GATE count must remain 4 — the integration is additive, not subtractive'
+      6,
+      'HARD-GATE count must remain 6 — Gates 0, 1, 1.5 (audit), 2, 3.5 (re-audit), 4 each carry one. The integration is additive: Gate 1.5 and 3.5 audit gates harden the loop without weakening existing gates.'
     );
 
     assert.match(map, /Gate 0/);
@@ -144,5 +148,90 @@ describe('uiux-design-loop regression gates', () => {
     const plugin = JSON.parse(read('.claude-plugin/plugin.json'));
     const marketplace = JSON.parse(read('.claude-plugin/marketplace.json'));
     assert.equal(plugin.version, marketplace.plugins[0].version);
+  });
+
+  it('wires impeccable context.mjs into Gate 0 pre-flight', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const register = read('skills/uiux-design-loop/templates/register.md');
+
+    assert.match(skill, /context\.mjs/);
+    assert.match(skill, /NO_PRODUCT_MD/);
+    assert.match(skill, /auto-populate/i);
+    assert.match(skill, /\/impeccable init/);
+    assert.match(register, /Auto-populated from PRODUCT\.md/i);
+  });
+
+  it('runs impeccable audit at Gate 1.5 and Gate 3.5 and gates Overall on P1s', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const rubric = read('skills/uiux-design-loop/rubric.md');
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+
+    assert.match(skill, /### Gate 1\.5/);
+    assert.match(skill, /### Gate 3\.5/);
+    assert.match(skill, /impeccable audit/);
+    assert.match(skill, /P0 or P1|P0\/P1/);
+    assert.match(skill, /audit-baseline\.md/);
+    assert.match(skill, /audit-iter-<n>\.md/);
+
+    assert.match(rubric, /## Audit gate/);
+    // Audit gate states match the canonical four; the same line shows up for the
+    // preservation gate too, so we anchor to the Audit gate section.
+    const auditBlock = rubric.split('## Audit gate')[1] || '';
+    assert.match(auditBlock, /PASS \| WARN \| FAIL \| N\/A/);
+    assert.match(auditBlock, /P0|P1/);
+
+    assert.match(map, /Gate 1\.5/);
+    assert.match(map, /Gate 3\.5/);
+    assert.match(map, /impeccable audit/);
+  });
+
+  it('adds accessibility and technical-quality as dimensions 7 and 8', () => {
+    const rubric = read('skills/uiux-design-loop/rubric.md');
+    const grader = read('agents/uiux-grader.md');
+
+    assert.match(rubric, /## Dimension 7 — `accessibility`/);
+    assert.match(rubric, /## Dimension 8 — `technical-quality`/);
+
+    assert.match(grader, /accessibility/);
+    assert.match(grader, /technical-quality/);
+    assert.match(grader, /"dimension": "accessibility"/);
+    assert.match(grader, /"dimension": "technical-quality"/);
+
+    // Per-dimension scores block lists both new names.
+    assert.match(grader, /- accessibility:/);
+    assert.match(grader, /- technical-quality:/);
+  });
+
+  it('prompts an exit-pass via AskUserQuestion at Gate 4 when impeccable is installed', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+
+    // The AskUserQuestion mention must land inside Gate 4 specifically, not
+    // somewhere else in the file. Split on the Gate 4 heading and check the tail.
+    const gate4 = skill.split(/### Gate 4/)[1] || '';
+    assert.match(gate4, /AskUserQuestion/);
+    assert.match(gate4, /\/impeccable/);
+    assert.match(gate4, /default|recommended/i);
+  });
+
+  it('maps impeccable brand|product register to uiux-loop named registers', () => {
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+
+    assert.match(map, /Register taxonomy/i);
+    // Two-column table covering both impeccable registers and at least three
+    // loop registers per family.
+    assert.match(map, /\| `product` \|/);
+    assert.match(map, /\| `brand` \|/);
+    assert.match(map, /refined-minimal/);
+    assert.match(map, /editorial/);
+    assert.match(map, /dramatic/);
+  });
+
+  it('extends the grader audit-gate contract', () => {
+    const grader = read('agents/uiux-grader.md');
+
+    assert.match(grader, /## Audit gate/);
+    assert.match(grader, /audit-findings\.md/);
+    assert.match(grader, /"audit_gate"/);
+    assert.match(grader, /audit_gate.*state|state.*audit_gate/s);
   });
 });

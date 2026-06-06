@@ -1,6 +1,8 @@
-# UI/UX rubric — 6 dimensions + preservation gate
+# UI/UX rubric — 8 dimensions + preservation gate + audit gate
 
-This file is the single source of truth for the dimensions, score anchors, the preservation gate, and pass thresholds used by `/skills:uiux-design-loop` and the `uiux-grader` subagent. If a rule needs to change, change it here.
+This file is the single source of truth for the dimensions, score anchors, the preservation gate, the audit gate, and pass thresholds used by `/skills:uiux-design-loop` and the `uiux-grader` subagent. If a rule needs to change, change it here.
+
+Dimensions 1–6 are visually-graded from screenshots and live behavior. Dimensions 7 (`accessibility`) and 8 (`technical-quality`) are code-graded — the cold-context grader cannot reliably infer them from renders and must inherit findings from an `impeccable audit` pass when impeccable is installed, or score `N/A` otherwise. This split is the whole reason the audit gate exists.
 
 ## Scoring scale
 
@@ -24,9 +26,9 @@ Weighted score = raw score × weight.
 
 ## Pass threshold
 
-The verdict has two independent inputs that must both hold:
+The verdict has three independent inputs that must all hold:
 
-1. **Weakest weighted score across the 6 scored dimensions** determines the overall verdict candidate:
+1. **Weakest weighted score across the 8 scored dimensions** determines the overall verdict candidate:
 
    | Weakest weighted score | Verdict candidate |
    |---|---|
@@ -34,9 +36,11 @@ The verdict has two independent inputs that must both hold:
    | 2 – 3.99 | `ITERATE` |
    | < 2 OR > 5 critique items needed | `REJECT` |
 
-   Skipped dimensions (`N/A`) do not contribute to the weakest score.
+   Skipped dimensions (`N/A`) do not contribute to the weakest score. Dimensions 7 and 8 typically score `N/A` when impeccable is not installed; that is intentional, not a workaround.
 
 2. **Preservation gate state** (see `## Preservation gate` below) must be `PASS` or `N/A`. A `WARN` or `FAIL` gate downgrades the candidate to `ITERATE` regardless of dimension scores. The gate is binary by design — it never contributes a fractional score that screenshot-supply alone can move.
+
+3. **Audit gate state** (see `## Audit gate` below) must be `PASS` or `N/A`. A `WARN` or `FAIL` gate downgrades the candidate to `ITERATE`. Symmetric to the preservation gate; same binary logic. P0/P1 findings from `impeccable audit` on changed files = `FAIL` = block PASS.
 
 ---
 
@@ -165,9 +169,76 @@ You may cite a violation. You may **not** suggest the replacement copy. The impl
 
 ---
 
+## Dimension 7 — `accessibility`
+
+**Definition.** Does the render meet the WCAG-AA bar for the surfaces it ships? This dimension is code-graded: the cold-context grader sees screenshots, which cannot reliably reveal keyboard traversal order, ARIA role correctness, focus-visible state, label associations, or contrast against computed backgrounds. Score inherits from `audit-findings.md` (produced by Gate 1.5 / 3.5 `impeccable audit`) plus any keyboard-traversal evidence captured in `behavior-check.md`.
+
+### Anchors
+- **1.** P0 finding present and unresolved (e.g., `role="tablist"` misuse blocking AT navigation, missing `<label for>` on a primary form input, body text contrast ≤ WCAG AA fail). Visitor using a screen reader or keyboard cannot complete the declared flow.
+- **3.** Only P2 findings remain (e.g., decorative SVG missing `aria-hidden`, focus ring uses outline shorthand that hides on dark themes). Page is usable but not crisp.
+- **5.** Zero P0/P1 findings on changed files AND `behavior-check.md` records a successful keyboard traversal of the declared flow.
+
+### Common failures
+- "Card with click handler but no `tabindex` or `role`" patterns. The screenshot looks fine; the keyboard doesn't reach it.
+- Missing `prefers-reduced-motion` media query alongside any animated element. The audit catches this; the screenshot doesn't.
+- Submit / primary CTA below the 44×44 touch-target floor.
+- Form inputs with placeholder-as-label.
+
+### Score from
+- `audit-findings.md` (inherited from `impeccable audit` at Gate 1.5 / 3.5).
+- `behavior-check.md` keyboard traversal row(s).
+
+### Severity → score mapping (when audit is supplied)
+- Zero P0/P1 + keyboard-traversal row PASS → **5**
+- Zero P0/P1 but no keyboard-traversal evidence → **4**
+- Only P2 findings → **3**
+- One or more P1 findings → **2**
+- One or more P0 findings → **1**
+
+### When to score `N/A`
+- Impeccable is not installed AND no equivalent a11y audit (axe-core, lighthouse) was supplied.
+- The cold-context grader must not invent a11y findings from screenshots — see hard rule on this dimension below.
+
+### Hard rule on this dimension
+You may not score `accessibility` above `N/A` without an `audit-findings.md` input. Inferring keyboard traversal from a screenshot is the failure mode this dimension exists to prevent.
+
+---
+
+## Dimension 8 — `technical-quality`
+
+**Definition.** Does the implementation respect production-quality craft rules that don't show up in screenshots? Motion has a `prefers-reduced-motion` alternative; interactive elements don't trigger console errors; Core Web Vitals are within budget on the changed surfaces; no `position: absolute` dropdowns inside `overflow: hidden` parents; structural-integrity primitives (balanced braces, resolved CSS vars, defined imports) all hold. This dimension is code-graded — inherits from `audit-findings.md`. **Does not overlap with the preservation gate**: tech-quality scores *new code's* craft; the preservation gate scores *out-of-scope surfaces*' regression.
+
+### Anchors
+- **1.** P0 finding present (e.g., reveal animation gated on a class transition that never fires on hidden tabs, leaving the section blank; console error on primary CTA click; LCP > 4s budget on changed page).
+- **3.** Only P2 findings (e.g., motion lacks easing curve consistency, one dropdown could escape its stacking context with `position: fixed`).
+- **5.** Zero P0/P1 on changed files; motion has reduced-motion fallback; computed performance budgets hold; console clean during the declared flow.
+
+### Common failures
+- Animations applied uniformly to every section (the "single reflex" anti-pattern from impeccable's general rules).
+- `background-clip: text` gradient text or side-stripe borders that the impeccable bans list catches.
+- Heroes that ship with text overflowing the container at mobile breakpoints.
+- Reveal-on-scroll patterns that pause on hidden tabs and ship blank in headless renderers.
+
+### Score from
+- `audit-findings.md` perf/motion/structural findings.
+- `behavior-check.md` console-message row(s) for the declared flow.
+
+### Severity → score mapping (when audit is supplied)
+- Zero P0/P1 + clean console during flow → **5**
+- Zero P0/P1 but stale or missing console evidence → **4**
+- Only P2 findings → **3**
+- One or more P1 findings → **2**
+- One or more P0 findings → **1**
+
+### When to score `N/A`
+- Impeccable is not installed AND no equivalent tooling (lighthouse, structural-integrity check) was supplied.
+- Same hard rule as Dimension 7: do not score above `N/A` without an audit input.
+
+---
+
 ## Preservation gate
 
-**Not a scored dimension.** A binary gate with four states, evaluated independently from the 6 dimension scores. Exists because preservation evidence either holds or it doesn't — there is no useful 1–5 gradient between "surfaces work" and "surfaces broken," and the previous 1–5 scoring let evidence-absence drift upward to PASS simply by supplying screenshots.
+**Not a scored dimension.** A binary gate with four states, evaluated independently from the 8 dimension scores. Exists because preservation evidence either holds or it doesn't — there is no useful 1–5 gradient between "surfaces work" and "surfaces broken," and the previous 1–5 scoring let evidence-absence drift upward to PASS simply by supplying screenshots.
 
 ### States
 
@@ -189,7 +260,7 @@ One of: `PASS | WARN | FAIL | N/A`.
 
 ### Hard rules
 
-- **`WARN` blocks PASS.** A `WARN` gate downgrades the overall verdict to `ITERATE` no matter how high the 6 dimension scores are.
+- **`WARN` blocks PASS.** A `WARN` gate downgrades the overall verdict to `ITERATE` no matter how high the 8 dimension scores are.
 - **`N/A` does not block.** A project with no preservation surfaces can still PASS.
 - **No fresh evidence = not PASS.** If `behavior-check.md` is empty or stale for any contract surface, the gate is `WARN` at best, never `PASS`. Supplying screenshots alone is not evidence — the orchestrator must record what was clicked, what console said, what computedStyle resolved.
 
@@ -201,16 +272,54 @@ One of: `PASS | WARN | FAIL | N/A`.
 
 ---
 
+## Audit gate
+
+**Not a scored dimension.** A binary gate with four states, evaluated independently from the 8 dimension scores. Exists because code-quality evidence either holds or it doesn't — the cold-context grader cannot infer a11y, perf, or motion-opt-out from screenshots, so the loop refuses to ship PASS while `impeccable audit` reports unresolved P0/P1 findings on changed files. Symmetric to the preservation gate; same binary logic.
+
+### States
+
+One of: `PASS | WARN | FAIL | N/A`.
+
+| State | When |
+|---|---|
+| `PASS` | `impeccable audit <changed-files>` ran AND reported zero P0/P1 findings on changed files. `audit-findings.md` is fresh (regenerated at Gate 1.5 or Gate 3.5 of the current iteration). |
+| `WARN` | Audit ran but only P2 findings remain, OR the changed-files set was empty so no audit was meaningful, OR `audit-findings.md` exists but is stale (from an earlier iteration, not the current one). |
+| `FAIL` | Audit ran AND one or more P0 or P1 findings remain unaddressed. |
+| `N/A` | Impeccable is not installed AND no equivalent tooling (axe-core, lighthouse, custom audit) was supplied. The two new dimensions (`accessibility`, `technical-quality`) also score `N/A` in this case. |
+
+### Inputs (verbatim, in order)
+
+- `audit-findings.md` — the orchestrator-supplied output of Gate 1.5 / Gate 3.5 `impeccable audit`, with severity-tagged findings (P0/P1/P2) plus file:line citations.
+- `.uiux-loop/audit-baseline.json` / `audit-iter-<n>.json` — structured findings the orchestrator wrote.
+
+### Hard rules
+
+- **`FAIL` blocks PASS.** A `FAIL` gate downgrades the overall verdict to `ITERATE` regardless of dimension scores.
+- **`WARN` blocks PASS.** Same as preservation: any state below `PASS` (other than `N/A`) is a block, not a discount.
+- **`N/A` does not block.** A project without impeccable can still reach PASS, but `accessibility` and `technical-quality` will score `N/A` and not contribute to the weakest-dimension calculation.
+- **No fresh audit = not PASS.** If `audit-findings.md` is missing or stale relative to the current iteration, the gate is at most `WARN`. Re-run `impeccable audit` after every iter-N edit that touches changed files.
+- **Tradeoff escape hatch.** If the user explicitly accepts a P1 (e.g., a long-tail finding that is out of scope for this PR), record it in `.uiux-loop/tradeoff-audit.md` with the verbatim finding + reason + sign-off. The gate then reads `PASS` for that finding only. Use sparingly; the gate exists precisely to surface these.
+
+### Common failures
+
+- Treating "the screenshots look fine" as a substitute for the audit. The whole point of dimensions 7+8 is that screenshots can't see what the audit catches.
+- Re-running the grader without re-running the audit. The grader inherits last-iteration's audit; if you edited code, the audit is stale.
+- Quietly downgrading P1 findings to P2 in the audit output to make the gate green. The audit is the source of truth; if you disagree, raise it and either fix or record a tradeoff.
+
+---
+
 ## How to cite findings
 
 When the grader writes a critique-brief item, every item must:
 
-1. Name the dimension (verbatim from the 6 fixed names — preservation findings do **not** go here; they go in the preservation gate's evidence summary).
-2. Reference at least one screenshot (`step-<n>-<viewport>`).
-3. Describe the *visible change* that would raise the score.
+1. Name the dimension (verbatim from the 8 fixed names — preservation and audit findings do **not** go here; they go in their respective gate evidence summaries).
+2. Reference at least one screenshot (`step-<n>-<viewport>`), OR a specific finding row in `audit-findings.md` when the item targets dimension 7 or 8.
+3. Describe the *visible change* that would raise the score. For dimensions 7+8, the "visible change" may be a code-level fix (e.g., "add `<label for="email">` to the freeform input on step-2-desktop") because audit findings cite file:line.
 4. If a `project-rules.md` rule is cited, quote it verbatim with `[Layer 2: "<quote>"]`.
 
 Preservation findings are recorded in the grader's `## Preservation gate` block: state plus one-line evidence summary citing the offending `behavior-check.md` row or the missing-evidence reason. They are not critique-brief items.
+
+Audit findings are recorded in the grader's `## Audit gate` block: state plus one-line evidence summary naming the top P0/P1 finding paraphrased, or `"impeccable not installed"` for `N/A`. They are not critique-brief items, but they may drive dimension 7/8 scores and therefore *indirectly* generate critique-brief items naming those dimensions.
 
 See `agents/uiux-grader.md` for the full verdict-block contract.
 

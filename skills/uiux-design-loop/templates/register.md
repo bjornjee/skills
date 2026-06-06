@@ -2,7 +2,17 @@
 
 > Fill this in **before** Gate 1 of `/skills:uiux-design-loop`. Without a declared register, the grader will REJECT — by design. Polish is not a register; it is what you do once a register has been chosen.
 
-> If your project uses the `impeccable` skill, you can source this declaration from `PRODUCT.md` (chosen register + theme scene sentence) and `DESIGN.md` (color tokens + named anchors) instead of writing from scratch. See `skills/uiux-design-loop/impeccable-map.md` for the full sourcing table. The artifact still has to exist on disk — sourcing does not skip Gate 0.
+> **Auto-populated from PRODUCT.md** when impeccable is installed and `PRODUCT.md` exists. At Gate 0 pre-flight, the loop runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` and fills `Chosen register`, `Why this register`, and `Reference mockups / sources` from PRODUCT.md's `register:` field, theme scene sentence, and named anchors, mapped through the register-taxonomy table in `skills/uiux-design-loop/impeccable-map.md`. Confirm or override the auto-fill before proceeding; the artifact still has to exist on disk — sourcing does not skip Gate 0.
+
+## Auto-populated from PRODUCT.md (Gate 0 pre-flight, when applicable)
+
+The orchestrator fills the block below from `context.mjs` output. If you are filling this template by hand (impeccable not installed, or PRODUCT.md missing), delete this section and complete the manual blocks below.
+
+- Source: `PRODUCT.md` `register:` → `<impeccable family: brand | product>`
+- Mapped via impeccable-map.md taxonomy → `<loop register member>`
+- Theme scene sentence (verbatim from PRODUCT.md): `<paste>`
+- Named anchors (from PRODUCT.md / DESIGN.md): `<list>`
+- User confirmed at Gate 0: `<yes | overridden to: …>`
 
 ## Chosen register
 
