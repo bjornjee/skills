@@ -47,18 +47,58 @@ describe('uiux-design-loop regression gates', () => {
     const template = read('skills/uiux-design-loop/templates/behavior-check.md');
 
     assert.match(skill, /\.uiux-loop\/behavior-check\.md/);
-    assert.match(skill, /every preservation surface passes/i);
+    assert.match(skill, /preservation gate is `PASS` or `N\/A`/);
+    assert.match(template, /Preservation gate state/);
     assert.match(template, /Pass\/fail/);
     assert.match(template, /Evidence/);
   });
 
-  it('scores preserved surfaces as a first-class regression dimension', () => {
+  it('enforces preservation as a binary gate, not a scored dimension', () => {
     const rubric = read('skills/uiux-design-loop/rubric.md');
+    const grader = read('agents/uiux-grader.md');
 
-    assert.match(rubric, /preservation-regression/);
+    assert.match(rubric, /## Preservation gate/);
+    assert.match(rubric, /PASS \| WARN \| FAIL \| N\/A/);
     assert.match(rubric, /preservation-contract\.md/);
-    assert.match(rubric, /no visible change vs\. before the redesign/i);
-    assert.match(rubric, /weakest weighted score across BOTH in-scope and preservation surfaces/i);
+    assert.doesNotMatch(rubric, /## Dimension 7/);
+    assert.match(grader, /## Preservation gate/);
+    assert.doesNotMatch(grader, /preservation-regression: +<n>/);
+  });
+
+  it('emits a structured JSON block alongside the prose verdict', () => {
+    const grader = read('agents/uiux-grader.md');
+
+    assert.match(grader, /```json/);
+    assert.match(grader, /"preservation_gate"/);
+    assert.match(grader, /"critique_brief"/);
+    assert.match(grader, /"brief_diff"/);
+    assert.match(grader, /"scores"/);
+  });
+
+  it('threads the prior verdict into the next grader dispatch', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const grader = read('agents/uiux-grader.md');
+
+    assert.match(skill, /verdict-iter-<n-1>\.md/);
+    assert.match(grader, /prior-verdict/i);
+    assert.match(grader, /Brief diff/);
+  });
+
+  it('lets register.md anchor visual-register-match with reference screenshots', () => {
+    const template = read('skills/uiux-design-loop/templates/register.md');
+    const grader = read('agents/uiux-grader.md');
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+
+    assert.match(template, /Reference screenshots/);
+    assert.match(grader, /register-anchor/i);
+    assert.match(skill, /register-anchors\//);
+  });
+
+  it('runs a hot-reload detection in prerequisites', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+
+    assert.match(skill, /Hot.?reload/i);
+    assert.match(skill, /make dev|npm run dev|vite/i);
   });
 
   it('threads optional impeccable integration into Gate 0 and Gate 4 without weakening gates', () => {
@@ -90,10 +130,10 @@ describe('uiux-design-loop regression gates', () => {
       'affordance-honesty',
       'brand-voice-adherence',
       'cross-locale-consistency',
-      'preservation-regression',
     ]) {
       assert.match(map, new RegExp(dim), `impeccable-map.md must reference ${dim} verbatim`);
     }
+    assert.match(map, /preservation-gate/, 'impeccable-map.md must reference preservation-gate');
 
     assert.match(register, /impeccable/i);
     assert.match(register, /PRODUCT\.md/);

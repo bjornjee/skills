@@ -28,6 +28,8 @@ The loop's `register.md` must still be written to disk before Gate 1 (the HARD-G
 
 **Conflict policy.** If `register.md` (loop) and `PRODUCT.md` (impeccable) disagree, **`register.md` wins** — it is the declared scope of this specific iteration. Log the divergence in a one-line comment at the top of `register.md` so the next pass through the loop can resolve.
 
+**Anchor sourcing.** If `PRODUCT.md` references concrete brand exemplars or screenshots, copy them into `.uiux-loop/register-anchors/` and list them in `register.md`'s `## Reference screenshots` block. Anchors are positive references the grader uses to score `visual-register-match` against your committed register, instead of falling back to its training-data prior.
+
 ## Gate 4 — exit-pass picks
 
 After the loop reaches `Overall: PASS`, the verdict-final summary names which dimension was weakest on the way to PASS. Use that signal to pick a single named impeccable exit-pass command. The pass is optional; the user accepts or skips.
@@ -59,7 +61,7 @@ For implementers who want to dig into the craft detail behind a critique-brief i
 | `affordance-honesty` | `reference/interaction-design.md`, `reference/polish.md` | Affordance language; hover/focus states. |
 | `brand-voice-adherence` | `reference/clarify.md`, `reference/brand.md` | UX copy aligned to brand. |
 | `cross-locale-consistency` | `reference/harden.md`, `reference/adapt.md` | i18n + responsive parity. |
-| `preservation-regression` | `reference/audit.md` | Technical-quality regression checks. |
+| `preservation-gate` | `reference/audit.md` | Technical-quality regression checks. The loop tracks preservation as a binary gate (PASS/WARN/FAIL/N/A), not a scored dimension; impeccable's `audit` covers the same craft surface. |
 
 The implementer reads the impeccable reference for *technique* if they want to. The loop still grades on rendered evidence — diff-as-proof remains a failure mode.
 

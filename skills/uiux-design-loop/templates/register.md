@@ -38,6 +38,14 @@ Paste links, file paths, or short descriptions of 1–3 references the chosen re
 > - Aesop product pages (refined-minimal applied to body type)
 > - `DESIGN.md` color tokens + named anchors (if the project uses `impeccable`)
 
+## Reference screenshots (optional but recommended)
+
+Drop concrete screenshots of designs whose register you want this one to anchor against. Place files under `.uiux-loop/register-anchors/` and list them here. The grader will include these in its dispatch bundle and anchor `visual-register-match` against them — without anchors it falls back to its training-data prior, which generalises poorly for committed registers and tends to misread intentional negative space as "icons floating mid-row."
+
+> Example:
+> - `.uiux-loop/register-anchors/codex-mobile-chat-header.png` — flush-right icon group, 20px edge padding, intentional negative space.
+> - `.uiux-loop/register-anchors/arc-browser-sidebar.png` — same register class on a different surface.
+
 ## Out-of-bounds
 
 What does this register specifically reject? The grader uses this to catch drift toward generic defaults.
