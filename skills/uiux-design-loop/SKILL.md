@@ -33,6 +33,7 @@ Result: UI/UX work cannot ship without (a) a declared flow, (b) a declared regis
 1. The project is running and the page(s) under work are reachable (local dev server or live URL).
 2. A browser-driving tool is available (Playwright MCP or equivalent) for screenshot capture.
 3. The orchestrator can dispatch the `uiux-grader` subagent (lives at `agents/uiux-grader.md` in this repo).
+4. Optional: if `~/.claude/skills/impeccable/SKILL.md` is present, the loop will consult `skills/uiux-design-loop/impeccable-map.md` at Gate 0 (register sourcing) and Gate 4 (named exit-pass). Not required — the loop runs standalone if impeccable is absent.
 
 If any of these is missing, halt and tell the user what's needed. Do not silently degrade to "describe the design in prose" — the grader needs renders.
 
@@ -48,6 +49,8 @@ Three artifacts must exist on disk in the project's worktree before any edit, pl
 2. **`.uiux-loop/register.md`** — Filled from `templates/register.md`. Declares the chosen visual register (editorial / dramatic / spacious / brutalist / refined-minimal / …), why, reference mockups, and what the register specifically rejects.
 3. **`.uiux-loop/preservation-contract.md`** — Filled from `templates/preservation-contract.md`. For every reachable surface not being redesigned, enumerate the compatibility surface and the JS primitives + CSS classes it depends on.
 4. **`.uiux-loop/weights.json`** (optional) — Per-dimension weight overrides. Default = all weights = 1.0 and skill loads `rubric.md` as-is.
+
+If the host project has `PRODUCT.md`, `DESIGN.md`, or a prior `/impeccable shape` brief, load `skills/uiux-design-loop/impeccable-map.md` and use the Gate 0 sourcing table to populate `register.md` instead of re-declaring from scratch. The artifact must still exist on disk — sourcing does not skip the gate.
 
 **HARD-GATE.** No `Edit`, no `Write` on source files, no `git add` until all required artifacts exist and `preservation-contract.md` lists each compatibility surface. If the user pushes back ("the flow is obvious" or "out of scope means unchanged"), the answer is: implicit scope is exactly the bias the grader exists to correct.
 
@@ -100,6 +103,7 @@ If the user has not chosen a register, present 2–3 mockup directions (image re
 3. Fill `.uiux-loop/behavior-check.md` from `templates/behavior-check.md`. For each surface in `preservation-contract.md`, run the live app and record pass/fail with evidence.
 4. User confirms. Skill exits only after every preservation surface passes or the user accepts a documented tradeoff.
 5. Downstream `verify` skill (if active) can still run broader project verification. This skill owns preservation behavior checks because an in-scope visual PASS must not hide out-of-scope regressions.
+6. If `impeccable` is installed, consult `skills/uiux-design-loop/impeccable-map.md`'s Gate 4 table and recommend a single named exit-pass command to the user (e.g. `/impeccable polish src/routes/home`). The pass is optional; the user accepts or skips. Do not auto-run it.
 
 **HARD-GATE.** The skill refuses to exit until `.uiux-loop/behavior-check.md` shows every preservation surface passes.
 
@@ -151,3 +155,4 @@ Add `.uiux-loop/` to the project's `.gitignore`. None of this is committed.
 - **Component generation from scratch** — `frontend-design` skill. This skill wraps iteration; it does not replace generation.
 - **Project-specific Layer 2 rules** — `.uiux-loop/project-rules.md` in the host project. The grader reads it; this skill does not duplicate its contents.
 - **Brand-voice guidance** — host project's documentation (e.g., source-of-truth docs, memory entries). Grader cites; this skill does not embed.
+- **Production-grade craft + register vocabulary** — `impeccable` skill. The loop owns the verdict; impeccable owns the craft. See `skills/uiux-design-loop/impeccable-map.md` for the seams (Gate 0 register sourcing, Gate 4 exit pass). Optional — the loop runs standalone if impeccable is absent.
