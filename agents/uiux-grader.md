@@ -30,7 +30,7 @@ Run these steps in order. Do not skip.
    If `register.md` exists but has no chosen register filled in (still says `<editorial | dramatic | …>` or similar placeholder), this is **the** failure mode the skill exists to catch. Emit `Overall: REJECT` with `"No visual register declared. The implementer must complete register.md before any grading is meaningful."` Do nothing else.
 
 2. **Read the rules in this order.**
-   - `rubric.md` — the 7 fixed dimensions and 1/3/5 anchors.
+   - `rubric.md` — the 6 fixed dimensions, preservation gate, and 1/3/5 anchors.
    - `weights.json` if present — apply weights to thresholds.
    - `project-rules.md` if present — treat each rule as a **Layer 2 override** with priority over your generic instinct. Quote verbatim when citing.
    - `flow-map.md` — what the visitor is trying to do at each step.
@@ -162,7 +162,7 @@ Per-dimension scoring remains cold: you do **not** inherit prior scores, you do 
 
 Each item must:
 
-- Name the dimension it targets (one of the 7 fixed names).
+- Name the dimension it targets (one of the 6 fixed names).
 - Reference at least one specific screenshot (`step-<n>-<viewport>`).
 - Describe a *visible change* the implementer can verify in the next render. Not "improve hierarchy" — "raise the eyebrow text to 0.85rem and increase the hero h1 to 4.5rem so the visitor's first eye-stop is the headline, currently the eyebrow is competing".
 - If the rule cited is from `project-rules.md`, quote it verbatim with `[Layer 2: "<quote>"]`.
