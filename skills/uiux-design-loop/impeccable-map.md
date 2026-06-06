@@ -16,7 +16,7 @@ test -f "$HOME/.claude/skills/impeccable/SKILL.md" || {
 }
 ```
 
-`PRODUCT.md` / `DESIGN.md` in the host project are downstream signals (used by the Gate 0 pre-flight to source the register declaration) — they are not substitutes for the install check. Without `~/.claude/skills/impeccable/SKILL.md`, the loop halts immediately. There is no degraded path.
+`PRODUCT.md` / `DESIGN.md` in the host project are downstream signals — they source the register declaration via the Gate 0 pre-flight. They are **not substitutes** for the install check. Without `~/.claude/skills/impeccable/SKILL.md`, the loop halts immediately. There is no degraded path.
 
 Once the precondition passes, the loop **actively runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` at Gate 0 pre-flight** to auto-populate register declaration (see Gate 0 sourcing below). The script either prints `PRODUCT.md` content or reports `NO_PRODUCT_MD`; both branches are handled in `SKILL.md`.
 
