@@ -1,6 +1,6 @@
 # uiux-design-loop
 
-Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and — when the `impeccable` skill is installed — a parallel `impeccable audit` pass that blocks PASS on P0/P1 a11y / perf / structural findings.
+Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and a parallel `impeccable audit` pass that blocks PASS on P0/P1 a11y / perf / structural findings. The `impeccable` skill is a **required dependency** — the loop refuses to start without it.
 
 Purpose: prevent the single-pass "polish" failure mode where the implementer ships something that *sounds* disciplined but visually impoverishes the page, because the implementer is the only reviewer.
 
@@ -15,7 +15,7 @@ Purpose: prevent the single-pass "polish" failure mode where the implementer shi
 | `templates/preservation-contract.md` | Compatibility-surface declaration template. Filled per project. |
 | `templates/behavior-check.md` | Exit behavior evidence template. Filled before the skill exits. |
 | `templates/critique-brief.md` | What the grader writes back; mirror of the verdict contract. |
-| `impeccable-map.md` | Integration seams with the `impeccable` skill: Gate 0 pre-flight + register-taxonomy table (brand/product → loop registers), Gate 1.5/3.5 `impeccable audit` contract, Gate 4 active exit-pass prompt, dimension → reference lookup. Auto-detected; the loop runs standalone if impeccable is absent. |
+| `impeccable-map.md` | Integration seams with the `impeccable` skill: Gate 0 pre-flight + register-taxonomy table (brand/product → loop registers), Gate 1.5/3.5 `impeccable audit` contract, Gate 4 mandatory exit-pass prompt, dimension → reference lookup. Impeccable is a required dependency; the loop refuses to start without it (Gate 0 precondition HARD-GATE). |
 | `README.md` | This file. |
 
 The grader subagent itself lives at `agents/uiux-grader.md` at the repo root (same level as other strict-review agents).
@@ -37,7 +37,7 @@ The grader subagent itself lives at `agents/uiux-grader.md` at the repo root (sa
 
 The `uiux-grader` returns one of three overall verdicts. PASS requires all three inputs:
 
-- **PASS** — weakest of the 8 dimension scores ≥ 4 **and** preservation gate ∈ {`PASS`, `N/A`} **and** audit gate ∈ {`PASS`, `N/A`}. Skill exits (after the Gate 4 exit-pass AskUserQuestion roundtrip when impeccable is installed).
+- **PASS** — weakest of the 8 dimension scores ≥ 4 **and** preservation gate ∈ {`PASS`, `N/A`} **and** audit gate ∈ {`PASS`, `N/A`}. Skill exits after the Gate 4 mandatory exit-pass AskUserQuestion roundtrip — the user confirms which `/impeccable <pass>` to run; there is no Skip option.
 - **ITERATE** — any dimension below threshold, or either gate is `WARN` / `FAIL`. Critique brief (plus the `## Brief diff` section comparing to the prior verdict) drives the next inner-loop pass; the audit pass at Gate 3.5 re-runs `impeccable audit` on the changed files.
 - **REJECT** — design needs broader rework than the loop can deliver in its 6-iteration budget. Surface to the user; do not continue iterating mechanically.
 
@@ -47,16 +47,16 @@ Each verdict is emitted as prose followed by a fenced ` ```json ` block carrying
 
 Drop override files into the host project's worktree. See `rubric.md` → "How to override per project" for the full list and effect of each.
 
-## Composes with `impeccable`
+## Requires `impeccable`
 
-If the host project uses the `impeccable` skill (`~/.claude/skills/impeccable/`), this loop plumbs four seams from `impeccable-map.md`:
+The `impeccable` skill (`~/.claude/skills/impeccable/`) is a required dependency. The loop's Gate 0 precondition HARD-GATE refuses to start without it. Four seams from `impeccable-map.md` fire on every run:
 
 1. **Gate 0 pre-flight** — runs `context.mjs` to auto-populate `register.md` from `PRODUCT.md` (mapped through the register-taxonomy table); recommends `/impeccable init` if `NO_PRODUCT_MD`.
 2. **Gate 1.5 + 3.5** — dispatches `impeccable audit <changed-files>` in parallel with each grader pass. P0/P1 findings = audit gate `FAIL` = block PASS.
 3. **Dimensions 7 + 8** — `accessibility` and `technical-quality` score from the audit findings (severity → score mapping in `rubric.md`).
-4. **Gate 4 active exit-pass** — at PASS, fires `AskUserQuestion` with a single suggested `/impeccable <pass> <target>` command pre-selected as Recommended.
+4. **Gate 4 mandatory exit-pass** — at PASS, fires `AskUserQuestion` with a single suggested `/impeccable <pass> <target>` command pre-selected as Recommended. There is no Skip option; the user confirms the pass or aborts the loop.
 
-Otherwise the loop runs standalone (dimensions 7+8 and the audit gate all score `N/A`). Division of labor: the loop owns *whether the design is right*; impeccable owns *how to make it right* + *whether the code is right*.
+Division of labor: the loop owns *whether the design is right*; impeccable owns *how to make it right* + *whether the code is right*. To install impeccable, run `/plugin install impeccable` from the skills marketplace before invoking `/skills:uiux-design-loop`.
 
 ## Out of scope
 

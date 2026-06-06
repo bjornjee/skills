@@ -105,7 +105,7 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(skill, /make dev|npm run dev|vite/i);
   });
 
-  it('threads optional impeccable integration into Gate 0 and Gate 4 without weakening gates', () => {
+  it('makes impeccable mandatory in Gate 0 and Gate 4 and adds a Gate 0 precondition HARD-GATE', () => {
     const skill = read('skills/uiux-design-loop/SKILL.md');
     const map = read('skills/uiux-design-loop/impeccable-map.md');
     const register = read('skills/uiux-design-loop/templates/register.md');
@@ -115,10 +115,12 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(skill, /impeccable/i);
     assert.match(skill, /PRODUCT\.md/);
 
+    // HARD-GATE count grows by one: a new Gate 0 precondition HARD-GATE refuses to run
+    // without impeccable installed, on top of the existing six (Gates 0, 1, 1.5, 2, 3.5, 4).
     assert.equal(
       (skill.match(/\*\*HARD-GATE\.\*\*/g) || []).length,
-      6,
-      'HARD-GATE count must remain 6 — Gates 0, 1, 1.5 (audit), 2, 3.5 (re-audit), 4 each carry one. The integration is additive: Gate 1.5 and 3.5 audit gates harden the loop without weakening existing gates.'
+      7,
+      'HARD-GATE count must be 7 — the six gate HARD-GATEs plus a new Gate 0 precondition HARD-GATE that halts when impeccable is not installed.'
     );
 
     assert.match(map, /Gate 0/);
@@ -142,6 +144,38 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(register, /impeccable/i);
     assert.match(register, /PRODUCT\.md/);
     assert.match(readme, /impeccable-map\.md/);
+  });
+
+  it('refuses to start the loop when impeccable is not installed', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+
+    // The Gate 0 precondition must reference the install check and a halt message.
+    assert.match(skill, /impeccable is required/i);
+    assert.match(skill, /test -f .*impeccable\/SKILL\.md/);
+    assert.match(skill, /halt/i);
+
+    // No "standalone" or "degraded" mode left anywhere.
+    assert.doesNotMatch(skill, /runs standalone/i);
+    assert.doesNotMatch(skill, /standalone flow/i);
+    assert.doesNotMatch(map, /runs standalone/i);
+    assert.doesNotMatch(map, /optional seam/i);
+  });
+
+  it('drops every "when impeccable is installed" conditional from the orchestration files', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+    const readme = read('skills/uiux-design-loop/README.md');
+    const rubric = read('skills/uiux-design-loop/rubric.md');
+    const register = read('skills/uiux-design-loop/templates/register.md');
+
+    for (const file of [skill, map, readme, rubric, register]) {
+      assert.doesNotMatch(file, /when impeccable is installed/i);
+      assert.doesNotMatch(file, /if impeccable is installed/i);
+      assert.doesNotMatch(file, /when impeccable is not installed/i);
+      assert.doesNotMatch(file, /if impeccable is not installed/i);
+      assert.doesNotMatch(file, /impeccable is absent/i);
+    }
   });
 
   it('keeps plugin.json and marketplace.json versions in lockstep', () => {
@@ -202,7 +236,7 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(grader, /- technical-quality:/);
   });
 
-  it('prompts an exit-pass via AskUserQuestion at Gate 4 when impeccable is installed', () => {
+  it('forces an impeccable exit-pass at Gate 4 — no Skip option, no standalone branch', () => {
     const skill = read('skills/uiux-design-loop/SKILL.md');
 
     // The AskUserQuestion mention must land inside Gate 4 specifically, not
@@ -211,6 +245,32 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(gate4, /AskUserQuestion/);
     assert.match(gate4, /\/impeccable/);
     assert.match(gate4, /default|recommended/i);
+
+    // Skip — ship as-is is gone; impeccable is mandatory so the user cannot bypass
+    // the exit-pass via the gate. The only escape is aborting the loop entirely.
+    assert.doesNotMatch(gate4, /Skip — ship as-is/);
+    assert.doesNotMatch(gate4, /Skip[^\n]*ship as-is/);
+    // The "When impeccable is not installed" branch is gone — Gate 0 precondition guarantees it.
+    assert.doesNotMatch(gate4, /impeccable is not installed/i);
+  });
+
+  it('removes N/A-via-missing-impeccable fallbacks from rubric and grader', () => {
+    const rubric = read('skills/uiux-design-loop/rubric.md');
+    const grader = read('agents/uiux-grader.md');
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+
+    // The phrase "impeccable not installed" must no longer appear as an evidence string
+    // or scoring fallback. Dimensions 7+8 always score from audit-findings.md.
+    assert.doesNotMatch(rubric, /impeccable not installed/i);
+    assert.doesNotMatch(grader, /impeccable not installed/i);
+    assert.doesNotMatch(map, /impeccable not installed/i);
+
+    // The grader description must call audit-findings.md required, not optional.
+    assert.doesNotMatch(grader, /optional impeccable audit-findings/i);
+
+    // The rubric must no longer document N/A as the consequence of impeccable absence.
+    assert.doesNotMatch(rubric, /typically score `?N\/A`? when impeccable is not installed/i);
+    assert.doesNotMatch(rubric, /`N\/A` without impeccable/i);
   });
 
   it('maps impeccable brand|product register to uiux-loop named registers', () => {

@@ -1,21 +1,24 @@
 # impeccable ↔ uiux-design-loop integration map
 
-This file is the optional seam between `/skills:uiux-design-loop` (graded review) and the `impeccable` skill (production frontend craft). The loop owns *whether the design is right*; impeccable owns *how to make it right*. They compose; they do not overlap.
+This file is the **required** integration contract between `/skills:uiux-design-loop` (graded review) and the `impeccable` skill (production frontend craft). The loop owns *whether the design is right*; impeccable owns *how to make it right*. They compose; they do not overlap.
 
-Load this file only when impeccable is available. The loop runs standalone if it is not.
+Load this file at session start. The loop refuses to run without impeccable — see the Gate 0 precondition HARD-GATE in `SKILL.md`.
 
-## Detection
+## Precondition
 
-The orchestrator treats impeccable as available when either signal is true:
+The orchestrator asserts impeccable is installed before any Gate 0 work:
 
 ```bash
-test -f "$HOME/.claude/skills/impeccable/SKILL.md"
-test -f PRODUCT.md -o -f DESIGN.md   # host project already opted in
+test -f "$HOME/.claude/skills/impeccable/SKILL.md" || {
+  echo "impeccable skill is required by /skills:uiux-design-loop."
+  echo "Install it from the skills marketplace, then re-run."
+  exit 1
+}
 ```
 
-If neither is true, skip the rest of this file and proceed with the loop's standalone flow. Dimensions 7 and 8 and the audit gate will all score `N/A` in that case.
+`PRODUCT.md` / `DESIGN.md` in the host project are downstream signals (used by the Gate 0 pre-flight to source the register declaration) — they are not substitutes for the install check. Without `~/.claude/skills/impeccable/SKILL.md`, the loop halts immediately. There is no degraded path.
 
-When impeccable is detected, the loop **actively runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` at Gate 0 pre-flight** to auto-populate register declaration (see Gate 0 sourcing below). The script either prints `PRODUCT.md` content or reports `NO_PRODUCT_MD`; both branches are handled in `SKILL.md`.
+Once the precondition passes, the loop **actively runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` at Gate 0 pre-flight** to auto-populate register declaration (see Gate 0 sourcing below). The script either prints `PRODUCT.md` content or reports `NO_PRODUCT_MD`; both branches are handled in `SKILL.md`.
 
 ## Gate 0 — sourcing the register declaration from impeccable artifacts
 
@@ -51,7 +54,7 @@ The two skills speak different register dialects. impeccable picks the **family*
 
 The cold-context grader cannot see the code. `impeccable audit` is the right tool for implementation fidelity (a11y, perf, motion, structural integrity); the grader is the right tool for visual fidelity. Gate 1.5 and Gate 3.5 plumb them so each gate knows what the other can see.
 
-**Trigger.** Impeccable installed AND at least one changed file present in `git status` (or staged for the surfaces being graded).
+**Trigger.** At least one changed file present in `git status` (or staged for the surfaces being graded). Impeccable's presence is guaranteed by the Gate 0 precondition; no install check at this gate.
 
 **Dispatch.** The loop's orchestrator runs `impeccable audit <changed-files>` in **parallel** with the corresponding grader pass (Gate 1 for baseline, Gate 3 for re-grade). Two valid implementations:
 
@@ -80,13 +83,13 @@ The cold-context grader cannot see the code. `impeccable audit` is the right too
 | Zero P0/P1 findings + fresh `audit-findings.md` | `PASS` | No impact (does not block) |
 | Only P2 findings, OR changed-files set empty, OR `audit-findings.md` stale | `WARN` | Downgrades Overall to `ITERATE` |
 | One or more P0/P1 findings unaddressed | `FAIL` | Downgrades Overall to `ITERATE` |
-| Impeccable not installed | `N/A` | No impact (does not block); dimensions 7+8 also `N/A` |
+| Changed-files set empty AND no audit-relevant code paths touched | `N/A` | No impact (does not block); rare — most UI loops touch at least one audit-relevant surface |
 
 **Tradeoff escape.** A user may sign off on a specific P1 by recording `.uiux-loop/tradeoff-audit.md` with the verbatim finding row, reason, and acceptance. The audit then reads as PASS for that finding only. The gate exists precisely to surface these — do not use tradeoffs as a routine workaround.
 
 ## Gate 4 — exit-pass picks
 
-After the loop reaches `Overall: PASS`, the verdict-final summary names which dimension was weakest on the way to PASS. The orchestrator picks a single named impeccable exit-pass command from the table below and **fires `AskUserQuestion` with that command pre-selected as Recommended**. The user either accepts (orchestrator runs it; loop re-grades + re-audits afterwards) or skips (loop exits clean). Today's recommendation-only flow led to silent exits; the active prompt makes the exit pass visible.
+After the loop reaches `Overall: PASS`, the verdict-final summary names which dimension was weakest on the way to PASS. The orchestrator picks a single named impeccable exit-pass command from the table below and **fires `AskUserQuestion` with that command pre-selected as Recommended**. The exit-pass is **mandatory** — the user confirms which pass to run, but a `Skip — ship as-is` option is not offered inside the gate. The only escape is aborting the loop entirely; shipping past Gate 4 without running the suggested pass is the failure mode this gate exists to prevent.
 
 | Weakest pre-final dimension or remaining gap | Suggested exit pass |
 |---|---|
@@ -101,7 +104,7 @@ After the loop reaches `Overall: PASS`, the verdict-final summary names which di
 | UX copy, labels, or errors still generic | `/impeccable clarify <target>` |
 | Final verdict already strong on every dimension | No pass needed; ship. |
 
-**Do not auto-run.** Present one suggestion to the user; they decide.
+**Do not auto-run the pass without `AskUserQuestion`.** The roundtrip is unconditional: even when the table row is `No pass needed; ship.`, the orchestrator fires `AskUserQuestion` to confirm the no-op ship. Skip is not an option — the user picks the pass to run or aborts the loop.
 
 ## Dimension → impeccable reference (informational lookup)
 
@@ -115,8 +118,8 @@ For implementers who want to dig into the craft detail behind a critique-brief i
 | `affordance-honesty` | `reference/interaction-design.md`, `reference/polish.md` | Affordance language; hover/focus states. |
 | `brand-voice-adherence` | `reference/clarify.md`, `reference/brand.md` | UX copy aligned to brand. |
 | `cross-locale-consistency` | `reference/harden.md`, `reference/adapt.md` | i18n + responsive parity. |
-| `accessibility` | `reference/audit.md`, `reference/harden.md` | A11y P0/P1 findings drive this dimension. Score inherited from `audit-findings.md` at Gate 1.5 / 3.5; `N/A` without impeccable. |
-| `technical-quality` | `reference/audit.md`, `reference/optimize.md` | Motion-opt-out, perf budget, structural integrity. Same severity → score mapping as `accessibility`; `N/A` without impeccable. |
+| `accessibility` | `reference/audit.md`, `reference/harden.md` | A11y P0/P1 findings drive this dimension. Score inherited from `audit-findings.md` at Gate 1.5 / 3.5; always present because impeccable is mandatory. |
+| `technical-quality` | `reference/audit.md`, `reference/optimize.md` | Motion-opt-out, perf budget, structural integrity. Same severity → score mapping as `accessibility`; always present because impeccable is mandatory. |
 | `preservation-gate` | `reference/audit.md` | Out-of-scope regression checks. The loop tracks preservation as a binary gate (PASS/WARN/FAIL/N/A), not a scored dimension. Distinct from `technical-quality`: preservation scores regression in untouched surfaces; tech-quality scores craft of *new* code. |
 | `audit-gate` | `reference/audit.md` | Binary gate fed by `impeccable audit`. Symmetric to preservation gate. P0/P1 on changed files = `FAIL` = block PASS. |
 
@@ -127,7 +130,7 @@ The implementer reads the impeccable reference for *technique* if they want to. 
 - **Don't re-run impeccable on the in-scope surface after PASS unless you also re-grade and re-audit.** The loop owns the verdict, not impeccable. Any visible change after PASS requires a fresh grader pass (Gate 1) and a fresh audit pass (Gate 1.5).
 - **Don't let impeccable's `craft` rewrite a preservation surface.** `preservation-contract.md` is binding. If `/impeccable craft` would touch a preservation surface, scope it down or escalate to the user.
 - **Don't substitute `/impeccable critique` for the `uiux-grader` subagent.** Cold-context grading is the loop's invariant; `/impeccable critique` sees the implementer's session and is not cold. Use both, but the loop's grader is the gate.
-- **Don't declare register without consulting `PRODUCT.md`'s `register:` field.** When impeccable is installed and PRODUCT.md exists, run the Gate 0 pre-flight and map through the register-taxonomy table above. Re-declaring from screenshots produces the dialect mismatch the table exists to prevent.
-- **Don't skip `impeccable audit` at Gate 1.5/3.5 because "the screenshots look fine."** The audit gate exists precisely to surface what screenshots can't: keyboard traversal, ARIA correctness, motion-opt-out, structural integrity. Skipping it means dimensions 7+8 cannot score above `N/A` and the loop is back to its pre-2026 screenshot-only blind spot.
+- **Don't declare register without consulting `PRODUCT.md`'s `register:` field.** When `PRODUCT.md` exists, run the Gate 0 pre-flight and map through the register-taxonomy table above. Re-declaring from screenshots produces the dialect mismatch the table exists to prevent. (If `PRODUCT.md` is absent, run `/impeccable init` first — it is the recommended path through the `NO_PRODUCT_MD` branch.)
+- **Don't skip `impeccable audit` at Gate 1.5/3.5 because "the screenshots look fine."** The audit gate exists precisely to surface what screenshots can't: keyboard traversal, ARIA correctness, motion-opt-out, structural integrity. Skipping it means dimensions 7+8 cannot score and the loop is back to its pre-2026 screenshot-only blind spot.
 - **Don't paste impeccable's `brand` / `product` register verbatim into `register.md`.** The loop grades against named members (editorial, refined-minimal, etc.). The taxonomy table maps families to members; use it.
-- **Don't run the Gate 4 exit-pass silently.** If impeccable is installed and the loop reached PASS, the orchestrator MUST fire `AskUserQuestion` with the suggested command pre-selected. Printing the recommendation as text and exiting is the failure mode the active prompt exists to fix.
+- **Don't run the Gate 4 exit-pass silently.** When the loop reaches PASS, the orchestrator MUST fire `AskUserQuestion` with the suggested command pre-selected. Printing the recommendation as text and exiting is the failure mode the mandatory prompt exists to fix. There is no Skip — the user confirms which pass to run or aborts the loop entirely.

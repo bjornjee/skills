@@ -2,11 +2,11 @@
 
 > Fill this in **before** Gate 1 of `/skills:uiux-design-loop`. Without a declared register, the grader will REJECT — by design. Polish is not a register; it is what you do once a register has been chosen.
 
-> **Auto-populated from PRODUCT.md** when impeccable is installed and `PRODUCT.md` exists. At Gate 0 pre-flight, the loop runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` and fills `Chosen register`, `Why this register`, and `Reference mockups / sources` from PRODUCT.md's `register:` field, theme scene sentence, and named anchors, mapped through the register-taxonomy table in `skills/uiux-design-loop/impeccable-map.md`. Confirm or override the auto-fill before proceeding; the artifact still has to exist on disk — sourcing does not skip Gate 0.
+> **Auto-populated from PRODUCT.md** when `PRODUCT.md` exists. At Gate 0 pre-flight, the loop runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` and fills `Chosen register`, `Why this register`, and `Reference mockups / sources` from PRODUCT.md's `register:` field, theme scene sentence, and named anchors, mapped through the register-taxonomy table in `skills/uiux-design-loop/impeccable-map.md`. Confirm or override the auto-fill before proceeding; the artifact still has to exist on disk — sourcing does not skip Gate 0. (Impeccable is a Gate 0 precondition for the loop, so the script is always available.)
 
 ## Auto-populated from PRODUCT.md (Gate 0 pre-flight, when applicable)
 
-The orchestrator fills the block below from `context.mjs` output. If you are filling this template by hand (impeccable not installed, or PRODUCT.md missing), delete this section and complete the manual blocks below.
+The orchestrator fills the block below from `context.mjs` output. If `PRODUCT.md` is missing, run `/impeccable init` first to declare register + theme + anti-references, then re-enter Gate 0. Manual filling of this template is reserved for projects whose register cannot be sourced from PRODUCT.md after init; complete the manual blocks below and note `Source: manual` in the auto-populated block.
 
 - Source: `PRODUCT.md` `register:` → `<impeccable family: brand | product>`
 - Mapped via impeccable-map.md taxonomy → `<loop register member>`
@@ -46,7 +46,7 @@ Paste links, file paths, or short descriptions of 1–3 references the chosen re
 > - `references/healing-page-mockup-v3.png`
 > - A Working Library (typography rhythm, ledes-with-pull-quotes)
 > - Aesop product pages (refined-minimal applied to body type)
-> - `DESIGN.md` color tokens + named anchors (if the project uses `impeccable`)
+> - `DESIGN.md` color tokens + named anchors
 
 ## Reference screenshots (optional but recommended)
 
