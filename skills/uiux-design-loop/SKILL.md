@@ -34,7 +34,7 @@ Result: UI/UX work cannot ship without (a) a declared flow, (b) a declared regis
 2. A browser-driving tool is available (Playwright MCP or equivalent) for screenshot capture.
 3. The orchestrator can dispatch the `uiux-grader` subagent (lives at `agents/uiux-grader.md` in this repo).
 4. **Hot-reload check (informational).** The orchestrator runs a one-shot detection looking for any of: `package.json` `"dev"` script, `vite.config.*`, `webpack.config.*`, a `make dev` target, `next dev` / `astro dev` / `nuxt dev` in scripts, or a watcher process already listening. If at least one signal is present, log `"Hot reload detected — fast iteration expected (~2s per pass)."` If none, log `"Hot reload not detected — each iteration likely rebuilds the binary (~30s+ per pass). Recommend reducing the Gate 3 loop budget from 6 to 3 unless you have a faster pipeline."` This is informational; it does not block.
-5. Optional but recommended: if `~/.claude/skills/impeccable/SKILL.md` is present, the loop will run `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` at Gate 0 pre-flight (auto-populate register from `PRODUCT.md` if present, else recommend `/impeccable init`), dispatch `impeccable audit` on changed files at Gate 1.5 and Gate 3.5 (the audit gate blocks PASS on P0/P1 findings), and fire `AskUserQuestion` at Gate 4 with a single suggested `/impeccable <pass>` command pre-selected. Consult `skills/uiux-design-loop/impeccable-map.md` for the full seam contracts including the register-taxonomy table mapping impeccable's `brand|product` to the loop's named registers. Not required — the loop runs standalone if impeccable is absent (dimensions 7, 8 and the audit gate all score `N/A` in that case).
+5. **Impeccable detection (informational).** The orchestrator checks for `~/.claude/skills/impeccable/SKILL.md`. When present, the loop activates three seams automatically: Gate 0 pre-flight (auto-populates register from `PRODUCT.md` or recommends `/impeccable init`), Gate 1.5 / 3.5 (`impeccable audit` runs on changed files; P0/P1 findings block PASS), and Gate 4 (`AskUserQuestion` with a suggested `/impeccable <pass>` pre-selected). Full seam contracts live in `skills/uiux-design-loop/impeccable-map.md`. When impeccable is absent, the loop runs standalone — dimensions 7, 8 and the audit gate all score `N/A`.
 
 If any of items 1–3 is missing, halt and tell the user what's needed. Do not silently degrade to "describe the design in prose" — the grader needs renders.
 
@@ -58,8 +58,6 @@ The HARD-GATE on artifact existence below is unaffected — `register.md` must e
 2. **`.uiux-loop/register.md`** — Filled from `templates/register.md`. Declares the chosen visual register (editorial / dramatic / spacious / brutalist / refined-minimal / …), why, reference mockups, and what the register specifically rejects. If the template's `## Reference screenshots` block is filled in, place those screenshots under `.uiux-loop/register-anchors/` — the grader will use them to anchor `visual-register-match` against your positive references rather than its training-data prior, which is the failure mode behind "intentional negative space scored as icons floating mid-row."
 3. **`.uiux-loop/preservation-contract.md`** — Filled from `templates/preservation-contract.md`. For every reachable surface not being redesigned, enumerate the compatibility surface and the JS primitives + CSS classes it depends on.
 4. **`.uiux-loop/weights.json`** (optional) — Per-dimension weight overrides. Default = all weights = 1.0 and skill loads `rubric.md` as-is.
-
-If the host project has `PRODUCT.md`, `DESIGN.md`, or a prior `/impeccable shape` brief, load `skills/uiux-design-loop/impeccable-map.md` and use the Gate 0 sourcing table to populate `register.md` instead of re-declaring from scratch. The artifact must still exist on disk — sourcing does not skip the gate.
 
 **HARD-GATE.** No `Edit`, no `Write` on source files, no `git add` until all required artifacts exist and `preservation-contract.md` lists each compatibility surface. If the user pushes back ("the flow is obvious" or "out of scope means unchanged"), the answer is: implicit scope is exactly the bias the grader exists to correct.
 
@@ -88,14 +86,12 @@ If the user has not chosen a register, present 2–3 mockup directions (image re
 
 The cold-context grader cannot see the code. Every P0/P1 finding from `impeccable audit` — role misuse, missing `<label for>`, undersized touch targets, missing `prefers-reduced-motion`, animations that ship blank in headless renderers — is invisible to a screenshot-only grader. Gate 1.5 closes that hole by running the audit in parallel with Gate 1 and merging findings into the grader's bundle.
 
-1. **When to run.** Impeccable is installed (`~/.claude/skills/impeccable/SKILL.md` exists) AND at least one changed file shows up in `git status --short` (or the user has staged edits to the surfaces being graded).
-2. **What runs.** Dispatch an impeccable-audit pass on the changed files. Two valid implementations:
-   - **Subagent dispatch:** spawn a subagent with `subagent_type: claude`, model `sonnet`, prompt: "Run `/impeccable audit <changed-files>`. Emit findings as a severity-tagged list (P0/P1/P2) with file:line citations. Do not edit any files. Output prose to `.uiux-loop/audit-baseline.md` and the same data as structured JSON to `.uiux-loop/audit-baseline.json`."
-   - **CLI dispatch** if the `npx impeccable audit` CLI is detected: `npx impeccable audit <changed-files> --format=json > .uiux-loop/audit-baseline.json` plus a prose render to `.uiux-loop/audit-baseline.md`.
-3. **Merge into Gate 1 grader bundle.** Pass `.uiux-loop/audit-baseline.md` to the Gate 1 grader dispatch as `audit-findings.md`. The grader uses it to score dimensions 7 (`accessibility`) and 8 (`technical-quality`) and emit the `## Audit gate` block.
-4. **Parallel-by-default.** Dispatch the audit and the grader in a single message with two tool calls. They share no state mid-run; merging happens on completion.
+1. **When to run.** Impeccable is installed AND `git status --short` shows at least one changed file in the surfaces being graded.
+2. **What runs.** Dispatch `impeccable audit <changed-files>` writing findings to `.uiux-loop/audit-baseline.md` + `.uiux-loop/audit-baseline.json`. See `impeccable-map.md` `## Gate 1.5 / 3.5 — impeccable audit contract` for the dispatch options (subagent vs CLI), output schema, and severity → score mapping.
+3. **Merge into the Gate 1 grader bundle.** Pass `.uiux-loop/audit-baseline.md` to the grader as `audit-findings.md`. The grader scores dimensions 7+8 from it and emits the `## Audit gate` block.
+4. **Parallel-by-default.** Fire the audit and the grader in a single message with two tool calls. They share no state mid-run; merging happens on completion.
 
-**HARD-GATE.** When impeccable is installed, the loop refuses to ship PASS while `impeccable audit` reports P0 or P1 findings on changed files. The audit-gate state derived from these findings (rubric `## Audit gate`) downgrades Overall to `ITERATE` regardless of dimension scores. The only escape is a documented tradeoff in `.uiux-loop/tradeoff-audit.md` signed off by the user. When impeccable is not installed, the gate is `N/A` and does not block. **The audit gate is symmetric to the preservation gate — both are required, neither is optional.**
+**HARD-GATE.** When impeccable is installed, the loop refuses to ship PASS while `impeccable audit` reports P0 or P1 findings on changed files. The audit gate downgrades Overall to `ITERATE` regardless of dimension scores. The only escape is a tradeoff in `.uiux-loop/tradeoff-audit.md` signed off by the user. When impeccable is not installed, the gate is `N/A` and does not block. The audit gate is symmetric to the preservation gate — both are required, neither is optional.
 
 ### Gate 2 — Inner-loop iteration
 
@@ -132,16 +128,13 @@ Mirror of Gate 1.5. The Gate 2 iteration may have introduced new P0/P1 findings 
 ### Gate 4 — Exit
 
 1. Final verdict copied to `.uiux-loop/verdict-final.md` and `.uiux-loop/verdict-final.json` (prose + JSON, same as iteration verdicts).
-2. Summary written to `.uiux-loop/summary.md`: number of iterations, per-dimension trajectory (baseline → final), preservation gate trajectory, tradeoffs accepted, total screenshots captured.
+2. Summary written to `.uiux-loop/summary.md`: number of iterations, per-dimension trajectory (baseline → final), preservation + audit gate trajectories, tradeoffs accepted, total screenshots captured.
 3. Fill `.uiux-loop/behavior-check.md` from `templates/behavior-check.md`. For each surface in `preservation-contract.md`, run the live app and record pass/fail with evidence. The file's top-of-document state line (`Preservation gate state: PASS | WARN | FAIL | N/A`) is what feeds the grader's preservation gate.
 4. **Preservation gate check.** Read the final verdict's `## Preservation gate` block. The state must be `PASS` or `N/A` to exit. If `WARN` or `FAIL`, either fix the regression and re-grade, or record an explicit tradeoff in `.uiux-loop/tradeoff-preservation.md` that the user signs off on.
-5. User confirms.
-6. Downstream `verify` skill (if active) can still run broader project verification. This skill owns preservation behavior checks because an in-scope visual PASS must not hide out-of-scope regressions.
-7. **Active exit-pass prompt (when impeccable is installed).** Read `verdict-final.md` for the weakest pre-final dimension and look it up in `impeccable-map.md`'s Gate 4 exit-pass table to pick a single suggested `/impeccable <pass> <target>` command. Then fire `AskUserQuestion` with exactly two options:
-   - `"Run /impeccable <pass> <target> (Recommended)"` — orchestrator dispatches the command. **Default action** = run. The Recommended option goes first.
-   - `"Skip — ship as-is"` — exit clean.
-
-   If the user picks Run, dispatch the impeccable command; on completion, re-run Gate 1 + Gate 1.5 once more (visible change after PASS requires a fresh grader pass + audit pass — the loop owns the verdict, not impeccable). If the user picks Skip, exit. **Do not auto-run** without the AskUserQuestion roundtrip; the user owns the choice. If impeccable is not installed, skip this step entirely.
+5. Downstream `verify` skill (if active) can still run broader project verification. This skill owns preservation behavior checks because an in-scope visual PASS must not hide out-of-scope regressions.
+6. **Exit confirmation.**
+   - **When impeccable is installed:** read `verdict-final.md` for the weakest pre-final dimension, look it up in `impeccable-map.md`'s Gate 4 exit-pass table, and fire `AskUserQuestion` with exactly two options — `"Run /impeccable <pass> <target> (Recommended)"` (orchestrator dispatches the command; **default action**) and `"Skip — ship as-is"`. If the user picks Run, dispatch and then re-enter Gate 1 + Gate 1.5 once more (visible change after PASS requires a fresh grade + audit). If the user picks Skip, exit. **Do not auto-run** without the AskUserQuestion roundtrip.
+   - **When impeccable is not installed:** print the verdict summary and ask the user to confirm exit. No exit-pass available; this is the original loop's confirmation path.
 
 **HARD-GATE.** The skill refuses to exit until the final verdict's preservation gate is `PASS` or `N/A` AND the final verdict's audit gate is `PASS` or `N/A`. `WARN` and `FAIL` on either gate block exit — they are not sliding scores you can iterate around.
 
@@ -214,4 +207,4 @@ Add `.uiux-loop/` to the project's `.gitignore`. None of this is committed.
 - **Component generation from scratch** — `frontend-design` skill. This skill wraps iteration; it does not replace generation.
 - **Project-specific Layer 2 rules** — `.uiux-loop/project-rules.md` in the host project. The grader reads it; this skill does not duplicate its contents.
 - **Brand-voice guidance** — host project's documentation (e.g., source-of-truth docs, memory entries). Grader cites; this skill does not embed.
-- **Production-grade craft + register vocabulary + code-fidelity audit** — `impeccable` skill. The loop owns the verdict; impeccable owns the craft. See `skills/uiux-design-loop/impeccable-map.md` for the seams (Gate 0 pre-flight + register-taxonomy table, Gate 1.5/3.5 audit gate, Gate 4 active exit-pass prompt). The audit-gate seam is **required** when impeccable is installed; the others are auto-detected and optional. The loop runs standalone if impeccable is absent — dimensions 7, 8 and the audit gate all score `N/A`.
+- **Production-grade craft + register vocabulary + code-fidelity audit** — `impeccable` skill. The loop owns the verdict; impeccable owns the craft. See `skills/uiux-design-loop/impeccable-map.md` for the seams (Gate 0 pre-flight + register-taxonomy table, Gate 1.5/3.5 audit gate, Gate 4 active exit-pass prompt). All three seams fire automatically when impeccable is installed; impeccable itself is optional. The loop runs standalone when impeccable is absent — dimensions 7, 8 and the audit gate all score `N/A`.

@@ -17,7 +17,11 @@ If neither is true, skip the rest of this file and proceed with the loop's stand
 
 When impeccable is detected, the loop **actively runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` at Gate 0 pre-flight** to auto-populate register declaration (see Gate 0 sourcing below). The script either prints `PRODUCT.md` content or reports `NO_PRODUCT_MD`; both branches are handled in `SKILL.md`.
 
-## Register taxonomy — impeccable ↔ uiux-loop
+## Gate 0 — sourcing the register declaration from impeccable artifacts
+
+The loop's `register.md` must still be written to disk before Gate 1 (the HARD-GATE is unchanged). But the *content* is sourced from impeccable's brief artifacts at pre-flight rather than re-declared from scratch.
+
+### Register taxonomy
 
 The two skills speak different register dialects. impeccable picks the **family** (`brand` vs `product`); the loop picks the **member** (10 named registers). The dialects are orthogonal — a `product` register can still be `refined-minimal` OR `industrial` OR `playful`. Without an explicit mapping, the two skills get decided independently and the implementer ends up declaring both, in opposite order, with different names.
 
@@ -26,22 +30,20 @@ The two skills speak different register dialects. impeccable picks the **family*
 | `product` | `refined-minimal`, `industrial`, `playful` (rare for dashboards) |
 | `brand` | `editorial`, `dramatic`, `spacious`, `luxury`, `brutalist`, `organic`, `retro` |
 
-**Rule.** impeccable's register chooses the family; uiux-loop picks the member; never override. If `PRODUCT.md` says `register: product`, the loop's `register.md` must pick a member from row 1. Re-declaring `editorial` (a `brand`-family register) when PRODUCT.md says `product` is a dialect mismatch — fix PRODUCT.md or pick a row-1 member, do not override.
+**Rule.** impeccable's register chooses the family; the loop picks the member; never override. If `PRODUCT.md` says `register: product`, the loop's `register.md` must pick a member from row 1. Re-declaring `editorial` (a `brand`-family register) when PRODUCT.md says `product` is a dialect mismatch — fix PRODUCT.md or pick a row-1 member, do not override.
 
-**At pre-flight (Gate 0).** The orchestrator reads `register:` from `PRODUCT.md`, looks up the row above, and either auto-picks the most context-fitting member (when only one row member matches the theme scene sentence) or asks the user to choose among row members. Either way, the final `register.md` `Chosen register` field is a row member, never the impeccable family name verbatim.
-
-## Gate 0 — sourcing the register declaration from impeccable artifacts
-
-The loop's `register.md` must still be written to disk before Gate 1 (the HARD-GATE is unchanged). But the *content* may be sourced from impeccable's existing brief artifacts rather than re-declared from scratch.
+### Field-level mapping (what the pre-flight populates)
 
 | impeccable source | `register.md` field |
 |---|---|
-| `PRODUCT.md` `register:` field (Brand vs. Product register) | **Chosen register** — map through the **register taxonomy table above** to pick a member of the corresponding family (brand → editorial/dramatic/etc.; product → refined-minimal/industrial/playful). Never paste `brand` or `product` verbatim into `register.md`; the loop scores against named members, not families. |
+| `PRODUCT.md` `register:` field | **Chosen register** — map through the taxonomy table above to pick a member of the corresponding family. Never paste `brand` or `product` verbatim; the loop scores against named members, not families. |
 | `PRODUCT.md` theme scene sentence (who uses this, where, ambient light, mood) | **Why this register** — paste; this is exactly the sentence the loop wants. |
 | `DESIGN.md` color tokens + 2–3 named anchor references | **Reference mockups / sources** — link the file plus list each named anchor (specific products, brands, objects). |
 | `DESIGN.md` "absolute bans" or "reflex-reject" notes; `/impeccable shape` brief sections 3 (Design Direction) and 5 (Layout Strategy) | **Out-of-bounds** + **How this register interacts with the rubric** — quote the bans verbatim; they are what the register specifically rejects. |
 
-**Conflict policy.** If `register.md` (loop) and `PRODUCT.md` (impeccable) disagree, **`register.md` wins** — it is the declared scope of this specific iteration. Log the divergence in a one-line comment at the top of `register.md` so the next pass through the loop can resolve.
+**Pre-flight behavior.** The orchestrator reads `register:` from `PRODUCT.md`, looks up the row in the taxonomy table, and either auto-picks the most context-fitting member (when only one matches the theme scene sentence) or asks the user to choose among row members via `AskUserQuestion`. Either way, the final `register.md` `Chosen register` field is a row member, never the impeccable family name verbatim.
+
+**Conflict policy.** Gate 0 pre-flight resolves conflicts *before* `register.md` is written: the orchestrator auto-populates from `PRODUCT.md` and asks the user to confirm or override. Whatever the user picks lands in `register.md` as the declared scope for this iteration. If the user overrides PRODUCT.md (rare), record the divergence in the `User confirmed at Gate 0` line of the template's `## Auto-populated from PRODUCT.md` block — the next pass reads that line to know which artifact won.
 
 **Anchor sourcing.** If `PRODUCT.md` references concrete brand exemplars or screenshots, copy them into `.uiux-loop/register-anchors/` and list them in `register.md`'s `## Reference screenshots` block. Anchors are positive references the grader uses to score `visual-register-match` against your committed register, instead of falling back to its training-data prior.
 
