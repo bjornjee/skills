@@ -1,6 +1,6 @@
-# UI/UX rubric — 7 dimensions
+# UI/UX rubric — 6 dimensions + preservation gate
 
-This file is the single source of truth for the dimensions, score anchors, and pass thresholds used by `/skills:uiux-design-loop` and the `uiux-grader` subagent. If a rule needs to change, change it here.
+This file is the single source of truth for the dimensions, score anchors, the preservation gate, and pass thresholds used by `/skills:uiux-design-loop` and the `uiux-grader` subagent. If a rule needs to change, change it here.
 
 ## Scoring scale
 
@@ -24,15 +24,19 @@ Weighted score = raw score × weight.
 
 ## Pass threshold
 
-The **weakest weighted score** across all scored dimensions determines the overall verdict. For redesign work with a `preservation-contract.md`, the weakest weighted score across BOTH in-scope and preservation surfaces must be >= 4:
+The verdict has two independent inputs that must both hold:
 
-| Weakest weighted score | Overall |
-|---|---|
-| ≥ 4 | `PASS` |
-| 2 – 3.99 | `ITERATE` |
-| < 2 OR > 5 critique items needed | `REJECT` |
+1. **Weakest weighted score across the 6 scored dimensions** determines the overall verdict candidate:
 
-Skipped dimensions (`N/A`) do not contribute to the weakest score.
+   | Weakest weighted score | Verdict candidate |
+   |---|---|
+   | ≥ 4 | `PASS` |
+   | 2 – 3.99 | `ITERATE` |
+   | < 2 OR > 5 critique items needed | `REJECT` |
+
+   Skipped dimensions (`N/A`) do not contribute to the weakest score.
+
+2. **Preservation gate state** (see `## Preservation gate` below) must be `PASS` or `N/A`. A `WARN` or `FAIL` gate downgrades the candidate to `ITERATE` regardless of dimension scores. The gate is binary by design — it never contributes a fractional score that screenshot-supply alone can move.
 
 ---
 
@@ -161,29 +165,39 @@ You may cite a violation. You may **not** suggest the replacement copy. The impl
 
 ---
 
-## Dimension 7 — `preservation-regression`
+## Preservation gate
 
-**Definition.** For every compatibility surface named in `preservation-contract.md`, did the redesign preserve visible output and expected behavior outside the declared redesign scope?
+**Not a scored dimension.** A binary gate with four states, evaluated independently from the 6 dimension scores. Exists because preservation evidence either holds or it doesn't — there is no useful 1–5 gradient between "surfaces work" and "surfaces broken," and the previous 1–5 scoring let evidence-absence drift upward to PASS simply by supplying screenshots.
 
-### Anchors
-- **1.** A preservation surface is visibly regressed, unreachable, crashes, renders raw text, loses required CSS, logs blocking console errors, or has dead interactions that previously worked.
-- **3.** Preservation surfaces mostly render, but there are visible differences or behavior gaps that the contract did not authorize.
-- **4.** No visible change vs. before the redesign, and the behavior evidence shows the compatibility surface still works.
-- **5.** No visible change vs. before the redesign, behavior evidence passes, and the preservation surface has clear evidence from screenshots plus live checks.
+### States
+
+One of: `PASS | WARN | FAIL | N/A`.
+
+| State | When |
+|---|---|
+| `PASS` | Every surface in `preservation-contract.md` has fresh evidence in `behavior-check.md` (or before/after screenshots + live checks) showing no visible regression and the contract's JS primitives + CSS classes still resolve. |
+| `WARN` | Surfaces render and basic behavior works, but visible differences exist that the contract did not authorize (e.g., padding shifted, type weight changed). The redesign leaked. |
+| `FAIL` | Any surface visibly regressed, unreachable, crashes, renders raw text, drops required CSS, logs blocking console errors, or has dead interactions that previously worked. |
+| `N/A` | `preservation-contract.md` explicitly declares no reachable surfaces outside the redesign scope. |
+
+### Inputs (verbatim, in order)
+
+- `preservation-contract.md` — the binding declaration.
+- Before/after screenshots for preserved surfaces, when available.
+- Live URL evidence: clicks, tab switches, console messages, computedStyle checks, route/state changes.
+- `.uiux-loop/behavior-check.md` — the orchestrator-filled evidence file at Gate 4.
+
+### Hard rules
+
+- **`WARN` blocks PASS.** A `WARN` gate downgrades the overall verdict to `ITERATE` no matter how high the 6 dimension scores are.
+- **`N/A` does not block.** A project with no preservation surfaces can still PASS.
+- **No fresh evidence = not PASS.** If `behavior-check.md` is empty or stale for any contract surface, the gate is `WARN` at best, never `PASS`. Supplying screenshots alone is not evidence — the orchestrator must record what was clicked, what console said, what computedStyle resolved.
 
 ### Common failures
+
 - A visual PASS on redesigned screenshots hides a crashed usage view, dead settings click, broken detail tab, or dropped CSS after a parser error.
 - The contract says a surface is out of scope but does not enumerate the JS primitives or CSS classes needed to preserve it.
-- The grader receives only screenshots and cannot inspect console messages, click behavior, tab switching, or computed styles.
-
-### Score from
-- `preservation-contract.md`.
-- Before/after screenshots for preserved surfaces, when available.
-- Live URL evidence: clicks, tab switches, console messages, computedStyle checks, and route/state changes.
-- `.uiux-loop/behavior-check.md` at Gate 4.
-
-### Score `N/A` when
-- `preservation-contract.md` explicitly says there are no reachable surfaces outside the redesign scope.
+- The grader receives only screenshots and cannot inspect console messages, click behavior, tab switching, or computed styles — gate caps at `WARN`.
 
 ---
 
@@ -191,10 +205,12 @@ You may cite a violation. You may **not** suggest the replacement copy. The impl
 
 When the grader writes a critique-brief item, every item must:
 
-1. Name the dimension (verbatim from the 7 fixed names).
+1. Name the dimension (verbatim from the 6 fixed names — preservation findings do **not** go here; they go in the preservation gate's evidence summary).
 2. Reference at least one screenshot (`step-<n>-<viewport>`).
 3. Describe the *visible change* that would raise the score.
 4. If a `project-rules.md` rule is cited, quote it verbatim with `[Layer 2: "<quote>"]`.
+
+Preservation findings are recorded in the grader's `## Preservation gate` block: state plus one-line evidence summary citing the offending `behavior-check.md` row or the missing-evidence reason. They are not critique-brief items.
 
 See `agents/uiux-grader.md` for the full verdict-block contract.
 

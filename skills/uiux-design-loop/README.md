@@ -1,6 +1,6 @@
 # uiux-design-loop
 
-Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against a fixed 7-dimension rubric; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, and screenshot plus behavior proof per iteration.
+Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against a 6-dimension rubric plus a binary preservation gate; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, and screenshot plus behavior proof per iteration.
 
 Purpose: prevent the single-pass "polish" failure mode where the implementer ships something that *sounds* disciplined but visually impoverishes the page, because the implementer is the only reviewer.
 
@@ -9,7 +9,7 @@ Purpose: prevent the single-pass "polish" failure mode where the implementer shi
 | File | Purpose |
 |---|---|
 | `SKILL.md` | The skill prompt — workflow gates, anti-patterns, dispatch contract. |
-| `rubric.md` | The 7 grading dimensions with 1/3/5 anchor descriptions and pass thresholds. |
+| `rubric.md` | The 6 grading dimensions with 1/3/5 anchor descriptions, the preservation gate (PASS/WARN/FAIL/N/A), and pass thresholds. |
 | `templates/flow-map.md` | Visitor-flow declaration template. Filled per project. |
 | `templates/register.md` | Visual register declaration template. Filled per project. |
 | `templates/preservation-contract.md` | Compatibility-surface declaration template. Filled per project. |
@@ -35,11 +35,13 @@ The grader subagent itself lives at `agents/uiux-grader.md` at the repo root (sa
 
 ## How the verdict gates iteration
 
-The `uiux-grader` returns one of three overall verdicts:
+The `uiux-grader` returns one of three overall verdicts. PASS requires both inputs:
 
-- **PASS** — every dimension meets threshold. Skill exits.
-- **ITERATE** — at least one dimension below threshold. Critique brief drives the next inner-loop pass.
+- **PASS** — weakest of the 6 dimension scores ≥ 4 **and** preservation gate ∈ {`PASS`, `N/A`}. Skill exits.
+- **ITERATE** — any dimension below threshold, or preservation gate is `WARN` / `FAIL`. Critique brief (plus the `## Brief diff` section comparing to the prior verdict) drives the next inner-loop pass.
 - **REJECT** — design needs broader rework than the loop can deliver in its 6-iteration budget. Surface to the user; do not continue iterating mechanically.
+
+Each verdict is emitted as prose followed by a fenced ` ```json ` block carrying the same data. The orchestrator writes both: `verdict-iter-<n>.md` (prose + JSON) and `verdict-iter-<n>.json` (extracted JSON) for CI / dashboards.
 
 ## Per-project customisation
 
