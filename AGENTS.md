@@ -27,6 +27,7 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
 3. No just-in-case code. No feature flags or backwards-compat shims without a migration plan.
 4. One way to do things. Follow existing patterns. Do not introduce alternatives.
 5. Battle-tested over hand-rolled. If an OSS project solves 80%+, use it.
+6. The ladder. Stop at the first rung that holds: YAGNI → reuse what's already in this codebase → stdlib → native platform feature → installed dependency → one line → minimum code. Read the problem and trace the real flow before picking a rung. Never simplify away trust-boundary validation, data-loss handling, security, or accessibility. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path.
 
 ## Workflow
 
