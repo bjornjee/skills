@@ -79,7 +79,7 @@ Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to
 - **Building MCP servers** → `mcp-server-patterns`.
 - **Building agent systems** → `agentic-engineering`, `agent-harness-construction`.
 - **Parsing structured text** → `regex-vs-llm-structured-text` (start with regex; add LLM only for low-confidence edges).
-- **User says "be lazy", "yagni", "simplest", "minimal", "shortest path", or complains about over-engineering / bloat / boilerplate** → `ponytail`.
+- **User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering / bloat / boilerplate** → `ponytail`.
 
 **Parallel by default.** Independent tool calls go in one batch. Never serialize without a dependency.
 
