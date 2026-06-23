@@ -14,6 +14,16 @@ step lives inside the corresponding subagent definition, not here.
 - **One way to do things.** If a pattern exists, follow it. Don't introduce alternatives.
 - **Battle-tested over hand-rolled.** If an OSS project solves 80%+, adopt or port it.
 - **Stay in declared scope.** If the task says "X only," don't touch Y. When you spot something else worth changing, surface it as a separate proposal — do not silently expand the diff.
+- **The ladder.** Read the task and trace the real flow first. Then stop at the first rung that holds:
+  1. Does this need to exist? (YAGNI)
+  2. Already in this codebase? Reuse, don't re-implement — grep before you write.
+  3. Stdlib does it? Use it.
+  4. Native platform feature? Use it.
+  5. Installed dependency? Use it.
+  6. Can it be one line? One line.
+  7. Only then: the minimum that works.
+
+  Lazy about the solution, never about reading the problem. Trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path (e.g. `// ponytail: global lock, per-account locks if throughput matters`).
 
 ## Workflow phases (in what order)
 
@@ -127,6 +137,7 @@ step lives inside the corresponding subagent definition, not here.
    4. If you add a new test file, verify it runs under the package's normal test command. If tests are explicitly listed in a manifest or runner config, update that file and run the package test command, not just the new file directly.
    5. For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
    6. For merge-style state writes, fields that must be cleared must be written explicitly with their cleared value. Do not omit a key when omission preserves stale state.
+   7. Root cause, not symptom. Grep every caller of the function you touch. One guard in the shared function is a smaller diff than a guard per caller, and patching only the path the ticket names leaves siblings broken.
 
    Anti-pattern: *"It's probably because of X."*
    "Probably" is a guess. Guesses get reverted. Read the code. Read the logs.
@@ -178,6 +189,7 @@ Spawn without waiting for the user to ask:
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
 | About to invoke `/agent-dashboard:pr` (any PR creation) | `skills:codegraph-audit` | bjornjee-skills |
+| User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `ponytail` (skill) | bjornjee-skills |
 
 **Parallel by default.** Independent agents launch in **one message** with multiple tool calls.
 
