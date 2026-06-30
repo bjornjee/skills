@@ -66,6 +66,14 @@ Solve one dominant failure at a time:
 - only escalate to a bigger build/test pass after the local failure is addressed
 - if a command keeps failing with the same signature, stop broad retries and narrow scope
 
+Use the verification profile taxonomy from the active AGENTS.md/core rules. Terminal Ops owns evidence execution, not profile definitions:
+
+- state the selected profile before editing
+- run the smallest proof command that bounds the risk
+- escalate to a broader command only when the smaller proof cannot answer the risk
+
+Do not run `make test`, `make fmt`, or equivalent whole-repo commands by reflex. Use them when the profile calls for them, before PR/push when available, or when no smaller command can bound the risk.
+
 ### 4. Report exact execution state
 
 Use exact status words:
@@ -105,5 +113,6 @@ STATUS
 ## Verification
 
 - the response names the proving command or test
+- the response distinguishes targeted proof from full-suite/PR gate proof
 - git-related work names the repo path and branch
 - any push claim includes the target branch and exact result
