@@ -190,7 +190,7 @@ Spawn without waiting for the user to ask:
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
 | Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
 | Plan approved, in a worktree, Codex available | `codex-delegate` (skill) | bjornjee-skills |
-| New feature, bug fix, or refactor (any stack) | `tdd-guide` | bjornjee-skills |
+| New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
