@@ -36,7 +36,13 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.
    - **Scale shape.** State the data volume the change scales with and whether that volume is bounded by the current request/selection or by global accumulated state. If it scales with global state, the plan must include a bounding strategy.
    - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout must move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
-3. **Implement (TDD).** RED → GREEN → REFACTOR. Test fails before code, passes after. Show the failing test output before writing implementation; show the passing output before refactoring.
+3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
+   - **Verification profile.** Pick one before editing and escalate if the diff grows:
+     - Surgical: docs, rules, config, generated metadata, or trivial isolated helpers. No implementation-only tests.
+     - Targeted: isolated behavior with nearby coverage. Run the specific test/package/validator command.
+     - Full: public APIs, shared state, persistence, auth/security, migrations, concurrency, test/build infrastructure, broad refactors, or unbounded risk. Run the full project gate.
+   - Prefer scoped commands during the loop (`pytest path::test`, `go test ./pkg`, `node --test file.test.js`, `terraform validate` in the touched module). Reserve `make test`/full suites for Full-profile changes, before PR/push when available, or when the scoped proof cannot bound the risk.
+   - When TDD applies, the test fails before code and passes after. Show the failing output before writing implementation; show the passing output before refactoring.
    - **One assertion focus per test.** Do not bundle create/get/list/patch/delete into a single test — split into separate `test_*` functions. Failure localization matters.
    - **Cover golden path + edge cases + error paths separately.** Three atomic tests beat one fat test that asserts everything.
    - **Use a shared fixture** (e.g. `client` in `conftest.py`) for setup. Don't instantiate `TestClient(app)` or equivalent inside every test.
@@ -44,7 +50,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - **Root cause, not symptom.** Grep every caller of the function you touch. One guard in the shared function is a smaller diff than a guard per caller, and patching only the path the ticket names leaves siblings broken.
 4. **Review.** Every change reviewed for correctness, security, convention. Address critical and high; fix medium when cheap.
    - Review the implementation against its stated execution context and scale shape. Look for accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
-5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include diff-against-base summary and a test plan.
+5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
 

@@ -97,21 +97,26 @@ step lives inside the corresponding subagent definition, not here.
    Anti-pattern: **"Using the `Plan` agent because the user said 'plan'."**
    User shorthand resolves to `EnterPlanMode`+`ExitPlanMode`. Always.
 
-3. **Implement (TDD).** RED → GREEN → REFACTOR. In that order. With proof at each step.
+3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
 
-   Wrote code before the test? Delete it. Write the test. Watch it fail. Then re-write the code. No exceptions.
+   Pick a Verification profile before editing:
+   - **Surgical:** docs, rules, config, generated metadata, or trivial isolated helpers. No implementation-only tests.
+   - **Targeted:** isolated behavior with nearby coverage. Run the specific test/package/validator command.
+   - **Full:** public APIs, shared state, persistence, auth/security, migrations, concurrency, test/build infrastructure, broad refactors, or unbounded risk. Run the full project gate.
 
-   The hook layer (`agent-dashboard`'s `test-gate`) blocks `git commit` unless `make test` passes — but a hook is a *gate*, not a *guide*. `tdd-guide` enforces the order of operations the gate cannot see.
+   Prefer scoped commands during the loop (`pytest path::test`, `go test ./pkg`, `node --test file.test.js`, `terraform validate` in the touched module). Reserve `make test`/full suites for Full-profile changes, before PR/push when available, or when the scoped proof cannot bound the risk.
+
+   The hook layer (`agent-dashboard`'s `test-gate`) may block commits unless the repo's pre-commit gate passes — but a hook is a *gate*, not a *guide*. Use the profile to guide implementation, then satisfy the gate at commit/PR time.
 
    <HARD-GATE>
-   The failing test run must be PASTED, not paraphrased.
+   When TDD applies, the failing test run must be PASTED, not paraphrased.
    "I assume it would fail" is not RED.
    A compile error is not RED — fix it and re-run until you get a real assertion failure.
    </HARD-GATE>
 
    ### Delegation choice (orthogonal to TDD)
 
-   In a worktree with `codex --version` available, delegate implementation via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive `tdd-guide` directly. The choice of who implements does not relax the RED → GREEN → REFACTOR requirement above — TDD applies to both paths.
+   In a worktree with `codex --version` available, delegate implementation via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive the implementation loop directly. The choice of who implements does not relax the selected Verification profile.
 
    ### Visual changes need visual verification
 
