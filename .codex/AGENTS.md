@@ -41,6 +41,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
      - Surgical: docs, rules, config, generated metadata, or trivial isolated helpers. No implementation-only tests.
      - Targeted: isolated behavior with nearby coverage. Run the specific test/package/validator command.
      - Full: public APIs, shared state, persistence, auth/security, migrations, concurrency, test/build infrastructure, broad refactors, or unbounded risk. Run the full project gate.
+   - **Ownership boundary.** This core doctrine owns the profile taxonomy. Workflow plugins and skills, including agent-dashboard, may require selecting a profile and proof command, but must reference these rules instead of redefining the profile meanings.
    - Prefer scoped commands during the loop (`pytest path::test`, `go test ./pkg`, `node --test file.test.js`, `terraform validate` in the touched module). Reserve `make test`/full suites for Full-profile changes, before PR/push when available, or when the scoped proof cannot bound the risk.
    - When TDD applies, the test fails before code and passes after. Show the failing output before writing implementation; show the passing output before refactoring.
    - **One assertion focus per test.** Do not bundle create/get/list/patch/delete into a single test — split into separate `test_*` functions. Failure localization matters.

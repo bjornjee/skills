@@ -33,7 +33,7 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
 
 1. Research before writing. Check the repo, docs, and package registries first.
 2. Plan before coding. Break into phases, identify risks.
-3. Proportional proof. Use TDD for behavior changes, bug fixes, and regressions; do not add padding tests for docs/config/mechanical edits. Choose Surgical, Targeted, or Full verification before editing, run the smallest command that bounds the risk during the loop, and reserve full suites for broad/shared changes or PR/push gates.
+3. Proportional proof. Use TDD for behavior changes, bug fixes, and regressions; do not add padding tests for docs/config/mechanical edits. Choose Surgical, Targeted, or Full verification before editing, run the smallest command that bounds the risk during the loop, and reserve full suites for broad/shared changes or PR/push gates. The core rules own the profile taxonomy; agent-dashboard owns orchestration/state and should carry profile names plus proof commands without redefining them.
    - When adding a new test file, verify it is included by the package's normal test command. If tests are explicitly listed in a manifest or runner config, update that manifest/config and run the package test command.
    - For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
    - For merge-style state writes, fields that must be cleared must be written explicitly with their cleared value. Do not omit a key when omission preserves stale state.

@@ -66,11 +66,11 @@ Solve one dominant failure at a time:
 - only escalate to a bigger build/test pass after the local failure is addressed
 - if a command keeps failing with the same signature, stop broad retries and narrow scope
 
-Choose the verification profile before editing:
+Use the verification profile taxonomy from the active AGENTS.md/core rules. Terminal Ops owns evidence execution, not profile definitions:
 
-- **Surgical:** docs/config/mechanical edits. Run no test unless a relevant validator exists.
-- **Targeted:** isolated code behavior. Run the specific test, package test, or module validator that covers the change.
-- **Full:** public API, shared state, persistence, auth/security, migrations, concurrency, build/test tooling, or broad refactor. Run the repo's full gate.
+- state the selected profile before editing
+- run the smallest proof command that bounds the risk
+- escalate to a broader command only when the smaller proof cannot answer the risk
 
 Do not run `make test`, `make fmt`, or equivalent whole-repo commands by reflex. Use them when the profile calls for them, before PR/push when available, or when no smaller command can bound the risk.
 

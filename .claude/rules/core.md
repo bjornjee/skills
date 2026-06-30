@@ -104,6 +104,8 @@ step lives inside the corresponding subagent definition, not here.
    - **Targeted:** isolated behavior with nearby coverage. Run the specific test/package/validator command.
    - **Full:** public APIs, shared state, persistence, auth/security, migrations, concurrency, test/build infrastructure, broad refactors, or unbounded risk. Run the full project gate.
 
+   This core doctrine owns the profile taxonomy. Workflow plugins and skills, including agent-dashboard, may require selecting a profile and proof command, but must reference these rules instead of redefining the profile meanings.
+
    Prefer scoped commands during the loop (`pytest path::test`, `go test ./pkg`, `node --test file.test.js`, `terraform validate` in the touched module). Reserve `make test`/full suites for Full-profile changes, before PR/push when available, or when the scoped proof cannot bound the risk.
 
    The hook layer (`agent-dashboard`'s `test-gate`) may block commits unless the repo's pre-commit gate passes — but a hook is a *gate*, not a *guide*. Use the profile to guide implementation, then satisfy the gate at commit/PR time.
