@@ -1,7 +1,6 @@
 ---
 name: agentic-engineering
-description: Operate as an agentic engineer using eval-first execution, decomposition, and cost-aware model routing.
-origin: ECC
+description: Use when orchestrating agent workflows — eval-first execution, task decomposition, and cost-aware model routing decisions.
 ---
 
 # Agentic Engineering

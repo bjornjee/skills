@@ -1,7 +1,6 @@
 ---
 name: golang-testing
 description: Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage. Follows TDD methodology with idiomatic Go practices.
-origin: ECC
 ---
 
 # Go Testing Patterns
@@ -706,7 +705,7 @@ test:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
+        go-version: 'stable'
 
     - name: Run tests
       run: go test -race -coverprofile=coverage.out ./...

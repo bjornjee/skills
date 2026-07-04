@@ -1,7 +1,6 @@
 ---
 name: git-workflow
 description: Git workflow patterns including branching strategies, commit conventions, merge vs rebase, conflict resolution, and collaborative development best practices for teams of all sizes.
-origin: ECC
 ---
 
 # Git Workflow Patterns
@@ -619,6 +618,8 @@ git commit --amend --no-edit
 ```
 
 ## Git Hooks
+
+> In repos managed by the agent-dashboard plugin, hooks are owned by that plugin (`test-gate`, `warn-destructive`, `block-main-commit`) — prefer those over hand-rolled `.git/hooks` scripts. The examples below are for repos without a managed hook layer.
 
 ### Pre-Commit Hook
 

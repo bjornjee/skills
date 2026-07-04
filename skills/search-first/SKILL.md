@@ -1,7 +1,6 @@
 ---
 name: search-first
 description: Research-before-coding workflow. Search for existing tools, libraries, and patterns before writing custom code. Invokes the researcher agent.
-origin: ECC
 ---
 
 # /search-first — Research Before You Code
@@ -82,6 +81,8 @@ Task(subagent_type="general-purpose", prompt="
 ")
 ```
 
+(Claude Code `Task` syntax — in Codex, run the research in a separate `codex exec` session.)
+
 ## Search Shortcuts by Category
 
 ### Development Tooling
@@ -106,20 +107,14 @@ Task(subagent_type="general-purpose", prompt="
 
 ## Integration Points
 
-### With planner agent
-The planner should invoke researcher before Phase 1 (Architecture Review):
-- Researcher identifies available tools
-- Planner incorporates them into the implementation plan
+### With plan mode
+Run this skill before presenting a plan:
+- The research identifies available tools
+- The plan incorporates them instead of custom builds
 - Avoids "reinventing the wheel" in the plan
 
-### With architect agent
-The architect should consult researcher for:
-- Technology stack decisions
-- Integration pattern discovery
-- Existing reference architectures
-
-### With iterative-retrieval skill
-Combine for progressive discovery:
+### Progressive discovery
+Repeat search cycles when the first pass is inconclusive:
 - Cycle 1: Broad search (npm, PyPI, MCP)
 - Cycle 2: Evaluate top candidates in detail
 - Cycle 3: Test compatibility with project constraints

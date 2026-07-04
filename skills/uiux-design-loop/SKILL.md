@@ -1,6 +1,6 @@
 ---
 name: uiux-design-loop
-description: Two-loop discipline for UI/UX work — a cold-context grader subagent (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates while the implementer (inner loop) iterates from critique briefs. Prevents single-pass "polish" failures by forcing declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and an `impeccable audit` pass that gates PASS on a11y/perf/structural P1s. The `impeccable` skill is a hard precondition — the loop refuses to run without it. Use when the user asks to improve UX, storyline, flow, layout, register, or polish on a page or component — anything where the failure mode is "ship something that looks plausible but is actually wrong."
+description: Two-loop UI/UX discipline — a cold-context grader scores renders against an 8-dimension rubric with binary preservation and audit gates while the implementer iterates from critique briefs; the `impeccable` skill is a hard precondition. Use when asked to improve UX, flow, layout, register, or polish on a page or component.
 ---
 
 # /skills:uiux-design-loop — Outer-grade / inner-implement loop for UI/UX

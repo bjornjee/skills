@@ -1,7 +1,6 @@
 ---
 name: safety-guard
 description: Use this skill to prevent destructive operations when working on production systems or running agents autonomously.
-origin: ECC
 ---
 
 # Safety Guard — Prevent Destructive Operations
@@ -66,10 +65,9 @@ Agents can read anything but only write to `src/api/`. Destructive commands are 
 
 ## Implementation
 
-Uses PreToolUse hooks to intercept Bash, Write, Edit, and MultiEdit tool calls. Checks the command/path against the active rules before allowing execution.
+Modes 1–3 describe PreToolUse hooks that intercept Bash, Write, Edit, and MultiEdit tool calls and check the command/path against the active rules before allowing execution. **This plugin ships no hooks** — to get automatic interception, wire the rules manually in `~/.claude/settings.json`. Without that wiring, treat this skill as a checklist the agent applies itself before destructive operations. The agent-dashboard plugin's `warn-destructive` and `block-main-commit` hooks already cover a subset of Mode 1.
 
 ## Integration
 
 - Enable by default for `codex -a never` sessions
-- Pair with observability risk scoring in ECC 2.0
-- Logs all blocked actions to `~/.claude/safety-guard.log`
+- If wired as hooks, log blocked actions to `~/.claude/safety-guard.log`

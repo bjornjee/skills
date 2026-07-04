@@ -1,7 +1,6 @@
 ---
 name: strategic-compact
 description: Suggests manual context compaction at logical intervals to preserve context through task phases rather than arbitrary auto-compaction.
-origin: ECC
 ---
 
 # Strategic Compact Skill
@@ -30,15 +29,15 @@ Strategic compaction at logical boundaries:
 
 ## How It Works
 
-The `suggest-compact.js` script runs on PreToolUse (Edit/Write) and:
+The `suggest-compact.sh` script runs on PreToolUse (Edit/Write) and:
 
 1. **Tracks tool calls** — Counts tool invocations in session
 2. **Threshold detection** — Suggests at configurable threshold (default: 50 calls)
 3. **Periodic reminders** — Reminds every 25 calls after threshold
 
-## Hook Setup
+## Hook Setup (optional)
 
-Add to your `~/.claude/settings.json`:
+The skill works on demand with no hook — this plugin deliberately ships zero hooks. If you want automatic reminders, wire the script manually in your `~/.claude/settings.json`:
 
 ```json
 {
@@ -46,11 +45,11 @@ Add to your `~/.claude/settings.json`:
     "PreToolUse": [
       {
         "matcher": "Edit",
-        "hooks": [{ "type": "command", "command": "node ~/.claude/skills/strategic-compact/suggest-compact.js" }]
+        "hooks": [{ "type": "command", "command": "bash ~/.claude/skills/strategic-compact/suggest-compact.sh" }]
       },
       {
         "matcher": "Write",
-        "hooks": [{ "type": "command", "command": "node ~/.claude/skills/strategic-compact/suggest-compact.js" }]
+        "hooks": [{ "type": "command", "command": "bash ~/.claude/skills/strategic-compact/suggest-compact.sh" }]
       }
     ]
   }
@@ -82,14 +81,14 @@ Understanding what persists helps you compact with confidence:
 | Persists | Lost |
 |----------|------|
 | CLAUDE.md instructions | Intermediate reasoning and analysis |
-| TodoWrite task list | File contents you previously read |
+| Task list (TodoWrite or notes file) | File contents you previously read |
 | Memory files (`~/.claude/memory/`) | Multi-step conversation context |
 | Git state (commits, branches) | Tool call history and counts |
 | Files on disk | Nuanced user preferences stated verbally |
 
 ## Best Practices
 
-1. **Compact after planning** — Once plan is finalized in TodoWrite, compact to start fresh
+1. **Compact after planning** — Once the plan is finalized in the task list or a file, compact to start fresh
 2. **Compact after debugging** — Clear error-resolution context before continuing
 3. **Don't compact mid-implementation** — Preserve context for related changes
 4. **Read the suggestion** — The hook tells you *when*, you decide *if*
@@ -103,9 +102,9 @@ Instead of loading full skill content at session start, use a trigger table that
 
 | Trigger | Skill | Load When |
 |---------|-------|-----------|
-| "test", "tdd", "coverage" | tdd-workflow | User mentions testing |
-| "security", "auth", "xss" | security-review | Security-related work |
-| "deploy", "ci/cd" | deployment-patterns | Deployment context |
+| "test", "tdd", "coverage" | tdd-guide | User mentions testing |
+| "security", "auth", "xss" | /security-review | Security-related work |
+| "issues", "pr", "release" | github-ops | GitHub operational work |
 
 ### Context Composition Awareness
 Monitor what's consuming your context window:
@@ -121,11 +120,9 @@ Common sources of duplicate context:
 - Multiple skills covering overlapping domains
 
 ### Context Optimization Tools
-- `token-optimizer` MCP — Automated 95%+ token reduction via content deduplication
-- `context-mode` — Context virtualization (315KB to 5.4KB demonstrated)
+Third-party, install separately if wanted: `token-optimizer` MCP (content deduplication), `context-mode` (context virtualization).
 
 ## Related
 
-- [The Longform Guide](https://x.com/affaanmustafa/status/2014040193557471352) — Token optimization section
-- Memory persistence hooks — For state that survives compaction
-- `continuous-learning` skill — Extracts patterns before session ends
+- `context-budget` skill — Audits what is actually consuming the context window
+- Memory files (`~/.claude/memory/`) — For state that survives compaction

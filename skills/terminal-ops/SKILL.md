@@ -1,7 +1,6 @@
 ---
 name: terminal-ops
-description: Evidence-first repo execution workflow for ECC. Use when the user wants a command run, a repo checked, a CI failure debugged, or a narrow fix pushed with exact proof of what was executed and verified.
-origin: ECC
+description: Evidence-first repo execution workflow. Use when the user wants a command run, a repo checked, a CI failure debugged, or a narrow fix pushed with exact proof of what was executed and verified.
 ---
 
 # Terminal Ops
@@ -12,13 +11,13 @@ This skill is intentionally narrower than general coding guidance. It is an oper
 
 ## Skill Stack
 
-Pull these ECC-native skills into the workflow when relevant:
+Pull these skills and agents into the workflow when relevant:
 
-- `verification-loop` for exact proving steps after changes
-- `tdd-workflow` when the right fix needs regression coverage
-- `security-review` when secrets, auth, or external inputs are involved
+- the project's test suite for exact proving steps after changes
+- the `tdd-guide` agent when the right fix needs regression coverage
+- `/security-review` when secrets, auth, or external inputs are involved
 - `github-ops` when the task depends on CI runs, PR state, or release status
-- `knowledge-ops` when the verified outcome needs to be captured into durable project context
+- LEARNINGS.md / project memory when the verified outcome needs to be captured into durable project context
 
 ## When to Use
 

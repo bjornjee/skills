@@ -1,9 +1,11 @@
 ---
 name: hookify-rules
-description: This skill should be used when the user asks to create a hookify rule, write a hook rule, configure hookify, add a hookify rule, or needs guidance on hookify rule syntax and patterns.
+description: Use when creating or editing hookify rule files (ECC plugin format) that intercept bash commands, file edits, or prompt events — rule syntax, patterns, and configuration guidance.
 ---
 
 # Writing Hookify Rules
+
+> **Prerequisite:** the `/hookify*` commands referenced below ship with the ECC plugin — without ECC installed, write the rule files by hand using this reference. This plugin itself ships no hooks; runtime hook enforcement in this setup lives in the agent-dashboard plugin.
 
 ## Overview
 
@@ -107,7 +109,7 @@ python3 -c "import re; print(re.search(r'your_pattern', 'test text'))"
 - **Naming**: `.claude/hookify.{descriptive-name}.local.md`
 - **Gitignore**: Add `.claude/*.local.md` to `.gitignore`
 
-## Commands
+## Commands (ECC plugin)
 
 - `/hookify [description]` - Create new rules (auto-analyzes conversation if no args)
 - `/hookify-list` - View all rules in table format
