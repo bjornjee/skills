@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.claude/rules/core.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-rules` from the skills repo. Do not edit the destination copy at `~/.claude/rules/core.md` directly.*
+> *Canonical source: `~/Code/bjornjee/skills/.claude/rules/core.md`. To change doctrine: edit the canonical file and bump the skills-plugin version. `make sync-rules` installs `~/.claude/rules/*.md` as symlinks to the repo, so once installed, edits propagate automatically — run it once (or again after adding a new rule file). Do not edit `~/.claude/rules/core.md` directly.*
 
 Always-on doctrine for the orchestrating agent. Loaded every session.
 What to do, in what order, and who to delegate to. Methodology for each

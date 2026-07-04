@@ -2,7 +2,7 @@
 
 Personal skills, agents, and rules for Claude Code.
 
-This plugin is a pure configuration plugin — **rules, skills, and agents only**. It ships no hooks, no scripts, and no runtime code.
+This plugin is a pure configuration plugin — **rules, skills, and agents only**. It ships no hooks and no runtime code; `scripts/` holds only repo-maintenance helpers (rules symlink installer, Codex link verifier, tests).
 
 ## Related plugins
 
@@ -43,28 +43,38 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 | `/agent-harness-construction` | Design and optimize AI agent action spaces, tool definitions, and observation formatting |
 | `/agent-introspection-debugging` | Structured self-debugging workflow for AI agent failures |
 | `/agentic-engineering` | Eval-first execution, decomposition, and cost-aware model routing |
+| `/ai-ml-patterns` | Eval-first AI/ML workflow (lockstep copy of the `ai-ml.md` rule) |
 | `/claude-api` | Anthropic Claude API patterns for Python and TypeScript |
+| `/codegraph-audit` | Call-graph-aware pre-PR review via the local codegraph CLI |
+| `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
 | `/context-budget` | Audit Claude Code context window consumption across agents, skills, MCP servers, and rules |
+| `/fastapi-patterns` | FastAPI service-layer conventions (lockstep copy of the `fastapi.md` rule) |
 | `/git-workflow` | Git branching, commits, merge vs rebase, conflict resolution |
 | `/github-ops` | GitHub repository operations and automation via `gh` CLI |
 | `/golang-patterns` | Idiomatic Go patterns and conventions |
 | `/golang-testing` | Go testing patterns (table-driven, subtests, benchmarks, fuzzing) |
-| `/hookify-rules` | Create hookify rules and configure hook syntax |
+| `/hookify-rules` | Create hookify rules and configure hook syntax (ECC plugin format) |
 | `/mcp-server-patterns` | Build MCP servers with Node/TypeScript SDK |
+| `/ponytail` | Forces the laziest solution that actually works (YAGNI, stdlib-first) |
+| `/python-patterns` | Python style, typing, and tooling conventions (lockstep copy of the `python.md` rule) |
+| `/react-native-patterns` | React Native platform + worktree isolation conventions (lockstep copy of the `react-native.md` rule) |
 | `/regex-vs-llm-structured-text` | Decision framework for choosing between regex and LLM for parsing |
 | `/safety-guard` | Prevent destructive operations when working on production systems |
 | `/search-first` | Research-before-coding workflow |
 | `/strategic-compact` | Suggests manual context compaction at logical intervals |
 | `/terminal-ops` | Evidence-first repo execution workflow |
+| `/uiux-design-loop` | Two-loop UI/UX discipline with a cold-context grader (requires `impeccable`) |
 
 ## Agents
 
 | Agent | Description |
 |-------|-------------|
 | `go-reviewer-strict` | Strict Go code reviewer enforcing evidence-based principles from CLAUDE.md/AGENTS.md |
-| `performance-optimizer` | Performance analysis and optimization specialist |
+| `performance-optimizer` | Performance analysis and optimization specialist (stack-aware: Go/Python/JS) |
 | `python-reviewer-strict` | Strict Python code reviewer enforcing evidence-based principles |
-| `refactor-cleaner` | Dead code cleanup and consolidation specialist |
+| `refactor-cleaner` | Dead code cleanup and consolidation specialist (stack-aware: Go/Python/JS) |
+| `tdd-guide` | Proportional-proof guide (Surgical/Targeted/Full profiles, RED → GREEN → REFACTOR) |
+| `uiux-grader` | Cold-context UI/UX grader — internal to `/uiux-design-loop`, never invoked standalone |
 
 ## Rules
 
@@ -77,7 +87,9 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 | `react-native.md` | `**/*.ts{,x}` | Expo, worktree isolation, Metro ports |
 | `ai-ml.md` | `**/evals/**` | Eval pipelines, prompt testing, experiments |
 
-Run `scripts/install-rules-symlinks.sh` to symlink these into `~/.claude/rules/` so Claude Code loads them at user scope.
+Run `make sync-rules` (wraps `scripts/install-rules-symlinks.sh`) to symlink these into `~/.claude/rules/` so Claude Code loads them at user scope. Because they are symlinks, later edits in the repo propagate automatically.
+
+The `python.md`, `fastapi.md`, `react-native.md`, and `ai-ml.md` rule bodies are mirrored 1:1 by the matching `*-patterns` skills (so Codex gets the same content); `scripts/language-skills.test.js` enforces the lockstep.
 
 ## Codex Setup
 
@@ -117,8 +129,9 @@ The marketplace install ships skills only. If you also want this repo's project-
 SKILLS_REPO="$HOME/Code/bjornjee/skills"  # adjust to your clone path
 cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
 cp -r "$SKILLS_REPO/.codex" ./.codex
-chmod +x .codex/hooks/validate-command.sh
 ```
+
+To install the always-on Codex doctrine globally instead, run `make sync-codex-rules` from the skills repo (copies `.codex/AGENTS.md` to `~/.codex/AGENTS.md`).
 
 Then verify:
 

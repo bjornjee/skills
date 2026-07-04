@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install-rules-symlinks.sh
 #
-# Symlinks the 6 rule files from this plugin repo into ~/.claude/rules/
+# Symlinks every rule file from this plugin repo into ~/.claude/rules/
 # so that Claude Code actually loads them at user scope.
 #
 # Why: Claude Code's plugin manifest schema has no `rules` field, so any
@@ -23,23 +23,10 @@ fi
 
 mkdir -p "$USER_RULES_DIR"
 
-RULE_FILES=(
-  core.md
-  python.md
-  golang.md
-  fastapi.md
-  react-native.md
-  ai-ml.md
-)
-
-for f in "${RULE_FILES[@]}"; do
-  src="$REPO_RULES_DIR/$f"
+# Every .md in the repo rules dir — new rule files are picked up automatically.
+for src in "$REPO_RULES_DIR"/*.md; do
+  f="$(basename "$src")"
   dst="$USER_RULES_DIR/$f"
-
-  if [[ ! -f "$src" ]]; then
-    echo "skip: $f (not in repo)"
-    continue
-  fi
 
   if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
     echo "ok:   $f (already symlinked)"
