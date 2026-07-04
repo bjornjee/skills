@@ -51,7 +51,12 @@ Coverage goal: 80%+.
 
 ## Language Conventions
 
-All language-specific rules are enforced via skills with implicit invocation. When working on a language, the corresponding skill activates automatically:
+Language-specific conventions ship two ways, same content:
+
+- **Skills** (`skills/<name>-patterns/`) — invoked on demand, work in both Claude Code and Codex.
+- **Claude Code rules** (`.claude/rules/*.md`) — auto-loaded via glob `paths` frontmatter when a matching file is edited (Claude Code only; installed by `make sync-rules`).
+
+`scripts/language-skills.test.js` keeps the python/fastapi/react-native/ai-ml skill bodies byte-identical to their rules files; the Go skills are standalone references. When working on a language, reach for the matching skill:
 
 - **Go** → `$skills:golang-patterns`, `$skills:golang-testing`
 - **Python** → `$skills:python-patterns`
