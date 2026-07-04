@@ -1,11 +1,12 @@
 # Versioning
 
-## Two Version Files — Keep in Sync
+## Three Version Files — Keep in Sync
 
 - `.claude-plugin/plugin.json` → `version` field
 - `.claude-plugin/marketplace.json` → `plugins[0].version` field
+- `plugins/skills/.codex-plugin/plugin.json` → `version` field (Codex plugin)
 
-These MUST always match. When bumping, update both files in the same commit.
+These MUST always match. When bumping, update all three files in the same commit. `make test` enforces the lockstep (`scripts/codex-marketplace.test.js`).
 
 ## When to Bump
 
