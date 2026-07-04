@@ -17,8 +17,7 @@ scripts/                 Utility scripts
 
 ## Versioning
 
-Two files must stay in sync: `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
-Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, minor=new, major=breaking.
+Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `plugins/skills/.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
 
 ## Principles
 

@@ -6,7 +6,7 @@ This plugin is a pure configuration plugin — **rules, skills, and agents only*
 
 ## Related plugins
 
-Dashboard/runtime hooks and the generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`) and the generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install both side-by-side for the full experience.
+Dashboard/runtime hooks and the generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`) and the generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install both side-by-side for the full experience. (Note: this plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
 
 ## Installation
 

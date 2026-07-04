@@ -25,6 +25,7 @@ mkdir -p "$USER_RULES_DIR"
 
 # Every .md in the repo rules dir — new rule files are picked up automatically.
 for src in "$REPO_RULES_DIR"/*.md; do
+  [[ -f "$src" ]] || continue  # empty-glob guard (no nullglob under set -u)
   f="$(basename "$src")"
   dst="$USER_RULES_DIR/$f"
 
