@@ -19,6 +19,7 @@ Run these steps in order. Do not skip.
    - `AGENTS.md`
    - `LEARNINGS.md`
    - `.cursorrules` / `.windsurfrules`
+   - `.claude/rules/*.md` (notably `python.md`, and `fastapi.md` when the repo uses FastAPI)
    - `pyproject.toml` (for `[tool.ruff]`, `[tool.mypy]` configured rules — these are project rules in disguise)
    Treat every rule, banned pattern, or "we got bitten by X" story in those files as a **Layer-2 rule with higher priority than your generic principles**. Quote them verbatim when citing.
 3. **Read the changed files in full.** Not just the diff. You need to see imports, call sites, and the surrounding control flow to apply the rules below correctly.
@@ -78,6 +79,8 @@ Fix:      <concrete code change or refactor direction, ≤4 lines>
 - `INFO` — worth knowing but not action-required. Use sparingly. If you find yourself writing more than 2 INFO findings, you're drifting into nitpicks.
 
 **Forbidden severities:** `nit`, `style`, `consider`, `suggestion`. They don't exist in this reviewer.
+
+**Mapping to core-doctrine severities** (`.claude/rules/core.md` Phase 4): `BLOCK` = critical, `FLAG` = high, `INFO` = medium.
 
 ## Hard rules for what you do NOT report
 

@@ -2,7 +2,7 @@
 name: tdd-guide
 description: Proportional proof guide for new features, bug fixes, and refactors. Selects Surgical, Targeted, or Full verification before editing; uses RED → GREEN → REFACTOR only when the selected profile calls for behavior or regression coverage. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands.
 tools: Read, Write, Edit, Bash, Grep, Glob
-model: sonnet
+model: opus
 ---
 
 # Proportional Proof Guide
@@ -23,9 +23,7 @@ Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecti
 
 ## Verification Profiles
 
-- **Surgical:** docs, rules, config, generated metadata, or mechanical edits where a new test would only mirror the implementation. Run no test unless a relevant validator exists.
-- **Targeted:** isolated behavior with nearby coverage. Use RED → GREEN → REFACTOR and the smallest specific proof command.
-- **Full:** public APIs, shared state, persistence, auth/security, migrations, concurrency, test/build infrastructure, broad refactors, or unbounded risk. Use RED → GREEN → REFACTOR and the full project gate.
+The profile taxonomy (Surgical / Targeted / Full) is owned by the core doctrine — `.claude/rules/core.md` Phase 3 (or `.codex/AGENTS.md` Phase 3) — and is not redefined here. Shorthand for how each maps to this cycle: Surgical → no new test, name the existing validator; Targeted → RED → GREEN → REFACTOR with the smallest specific proof command; Full → RED → GREEN → REFACTOR with the full project gate. When in doubt about a profile boundary, defer to the core rules.
 
 ## The Cycle
 
@@ -57,7 +55,7 @@ Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecti
 
 ## Stack-aware proof commands
 
-This marketplace targets Go-primary repos (notably `agent-dashboard`) and Python projects. Use the right command for the repo you're in:
+Detect the stack from the repo you're in and use the right command:
 
 | Stack signal | Test command |
 |---|---|
@@ -67,11 +65,11 @@ This marketplace targets Go-primary repos (notably `agent-dashboard`) and Python
 | `package.json` with Node tests | `node --test file.test.js`, package test, or `npm test` when no smaller proof exists |
 | Terraform/config docs | native validator such as `terraform validate` in the touched module, or no executable proof if none applies |
 
-Use full `make test` when the profile is Full, before PR/push when repo policy requires it, or when no smaller command can bound the risk. For `agent-dashboard` concurrency/shared-state changes, keep race-aware Go proof in the final gate.
+Use full `make test` when the profile is Full, before PR/push when repo policy requires it, or when no smaller command can bound the risk. For concurrency/shared-state Go changes, keep race-aware proof in the final gate.
 
 ## Go-specific rules (when working in a Go repo)
 
-These rules come from `agent-dashboard`'s `CLAUDE.md` and apply to any Go change in this marketplace's primary repos:
+These rules apply when the repo's `CLAUDE.md`/`AGENTS.md` declares them (Runner-interface repos like `agent-dashboard` are the canonical example):
 
 - **External commands must go through a `Runner` interface.** Never call `exec.Command` or `exec.CommandContext` in business logic. The only files allowed to import `os/exec` are runner implementations (`runner.go`, `tmux.go`, etc.).
 - **Tests must use mockery-generated mocks, never real subprocesses.** No spawning real `git`, `gh`, `tmux`, `open`, etc. Swap the package-level runner in tests:
