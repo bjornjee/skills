@@ -1,6 +1,6 @@
 ---
 name: uiux-design-loop
-description: Two-loop discipline for UI/UX work — a cold-context grader subagent (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates while the implementer (inner loop) iterates from critique briefs. Prevents single-pass "polish" failures by forcing declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and a parallel `impeccable audit` pass that gates PASS on a11y/perf/structural P1s. The `impeccable` skill is a hard precondition — the loop refuses to run without it. Use when the user asks to improve UX, storyline, flow, layout, register, or polish on a page or component — anything where the failure mode is "ship something that looks plausible but is actually wrong."
+description: Two-loop discipline for UI/UX work — a cold-context grader subagent (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates while the implementer (inner loop) iterates from critique briefs. Prevents single-pass "polish" failures by forcing declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and an `impeccable audit` pass that gates PASS on a11y/perf/structural P1s. The `impeccable` skill is a hard precondition — the loop refuses to run without it. Use when the user asks to improve UX, storyline, flow, layout, register, or polish on a page or component — anything where the failure mode is "ship something that looks plausible but is actually wrong."
 ---
 
 # /skills:uiux-design-loop — Outer-grade / inner-implement loop for UI/UX
@@ -42,7 +42,7 @@ If any of items 1–3 is missing, halt and tell the user what's needed. Do not s
 
 ## Workflow — seven gates
 
-Five primary gates (0, 1, 2, 3, 4) plus two audit half-gates (1.5, 3.5) that run in parallel with the grader passes. Each gate halts until satisfied. The gates exist precisely because the implementer's instinct will be to skip them.
+Five primary gates (0, 1, 2, 3, 4) plus two audit half-gates (1.5, 3.5), each of which completes immediately before its grader pass so the audit findings ride in the grader bundle. Each gate halts until satisfied. The gates exist precisely because the implementer's instinct will be to skip them.
 
 ### Gate 0 — Declare scope (NO CODE YET)
 
@@ -68,11 +68,12 @@ If the user has not chosen a register, present 2–3 mockup directions (image re
 
 1. Capture screenshots of every page-state named in `flow-map.md` via Playwright (or equivalent). Use viewport sizes the project cares about (default: desktop 1440×900 + mobile 390×844).
 2. Save screenshots to `.uiux-loop/baseline/step-<n>-<viewport>.png`.
-3. Dispatch the `uiux-grader` subagent. Pass it, in this order:
+3. Run Gate 1.5 (below) to completion — it writes `.uiux-loop/audit-baseline.md`, which the grader bundle requires. Then dispatch the `uiux-grader` subagent. Pass it, in this order:
    - `skills/uiux-design-loop/rubric.md`
    - `.uiux-loop/flow-map.md`
    - `.uiux-loop/register.md`
    - `.uiux-loop/preservation-contract.md`
+   - `.uiux-loop/audit-baseline.md` passed as `audit-findings.md` (required — the grader REJECTs any bundle without it)
    - `.uiux-loop/weights.json` (if present)
    - `.uiux-loop/project-rules.md` (if present — project-specific Layer 2 rules, e.g. innerjoyreiki's "docx-led brand voice" rule)
    - The screenshots from step 2
@@ -83,14 +84,14 @@ If the user has not chosen a register, present 2–3 mockup directions (image re
 
 **HARD-GATE.** Verdict file exists before any source edit. If the baseline already returns `PASS`, the skill can exit early — the design is fine; the user wanted polish for its own sake.
 
-### Gate 1.5 — Impeccable audit (parallel with Gate 1)
+### Gate 1.5 — Impeccable audit (runs before the Gate 1 grader dispatch)
 
-The cold-context grader cannot see the code. Every P0/P1 finding from `impeccable audit` — role misuse, missing `<label for>`, undersized touch targets, missing `prefers-reduced-motion`, animations that ship blank in headless renderers — is invisible to a screenshot-only grader. Gate 1.5 closes that hole by running the audit in parallel with Gate 1 and merging findings into the grader's bundle.
+The cold-context grader cannot see the code. Every P0/P1 finding from `impeccable audit` — role misuse, missing `<label for>`, undersized touch targets, missing `prefers-reduced-motion`, animations that ship blank in headless renderers — is invisible to a screenshot-only grader. Gate 1.5 closes that hole by running the audit before the Gate 1 grader dispatch and merging findings into the grader's bundle.
 
-1. **When to run.** `git status --short` shows at least one changed file in the surfaces being graded. (Impeccable's presence is already guaranteed by the Gate 0 precondition.)
+1. **When to run.** On every Gate 1 pass, after screenshots are captured and before the grader is dispatched. At baseline nothing has changed yet, so the audit target is the files that render the surfaces named in `flow-map.md`; from Gate 3.5 onward the target narrows to changed files. (Impeccable's presence is already guaranteed by the Gate 0 precondition.)
 2. **What runs.** Dispatch `impeccable audit <changed-files>` writing findings to `.uiux-loop/audit-baseline.md` + `.uiux-loop/audit-baseline.json`. See `impeccable-map.md` `## Gate 1.5 / 3.5 — impeccable audit contract` for the dispatch options (subagent vs CLI), output schema, and severity → score mapping.
 3. **Merge into the Gate 1 grader bundle.** Pass `.uiux-loop/audit-baseline.md` to the grader as `audit-findings.md`. The grader scores dimensions 7+8 from it and emits the `## Audit gate` block.
-4. **Parallel-by-default.** Fire the audit and the grader in a single message with two tool calls. They share no state mid-run; merging happens on completion.
+4. **Ordering.** The audit completes before the grader dispatch. The grader hard-REJECTs any bundle missing `audit-findings.md`, so there is no valid parallel schedule for these two steps.
 
 **HARD-GATE.** The loop refuses to ship PASS while `impeccable audit` reports P0 or P1 findings on changed files. The audit gate downgrades Overall to `ITERATE` regardless of dimension scores. The only escape is a tradeoff in `.uiux-loop/tradeoff-audit.md` signed off by the user. The audit gate is symmetric to the preservation gate — both are required, neither is optional.
 
@@ -109,16 +110,16 @@ The cold-context grader cannot see the code. Every P0/P1 finding from `impeccabl
 
 ### Gate 3 — Re-grade
 
-1. Dispatch a **fresh** `uiux-grader` subagent (new context — do not reuse the prior conversation). Pass it the same artifacts as Gate 1, with three additions: (a) the new screenshots from `.uiux-loop/iter-<n>/`, (b) the live URL or Playwright session handle if available, and (c) the prior verdict file `.uiux-loop/verdict-iter-<n-1>.md` (or `.uiux-loop/verdict-baseline.md` on first iteration) as `prior-verdict.md`. The prior verdict enables the grader's `## Brief diff` block scoring whether prior critique items were addressed; per-dimension scoring stays cold.
+1. Run Gate 3.5 (below) to completion first — it writes `.uiux-loop/audit-iter-<n>.md`, which the re-grade bundle requires. Then dispatch a **fresh** `uiux-grader` subagent (new context — do not reuse the prior conversation). Pass it the same artifacts as Gate 1, with four additions: (a) the new screenshots from `.uiux-loop/iter-<n>/`, (b) the live URL or Playwright session handle if available, (c) the fresh audit file `.uiux-loop/audit-iter-<n>.md` as `audit-findings.md` (replacing the baseline audit), and (d) the prior verdict file `.uiux-loop/verdict-iter-<n-1>.md` (or `.uiux-loop/verdict-baseline.md` on first iteration) as `prior-verdict.md`. The prior verdict enables the grader's `## Brief diff` block scoring whether prior critique items were addressed; per-dimension scoring stays cold.
 2. Wait for the grader to return. The orchestrator captures the full response (prose + JSON) to `.uiux-loop/verdict-iter-<n>.md` and extracts the trailing fenced JSON to `.uiux-loop/verdict-iter-<n>.json` (grader is source-read-only and cannot write files).
 3. Compare verdicts: which dimension scores moved? Did any regress? Regressions are common signals that the change addressed brief #1 by visually damaging an un-scored area — log them and proceed. The grader's `## Brief diff` block already names which prior items landed.
 4. Loop back to **Gate 2** until `Overall = PASS` or the user accepts a documented tradeoff (record the tradeoff in `.uiux-loop/tradeoff-<n>.md` — what dimension the user accepts as below threshold and why).
 
 **Loop budget.** Hard cap at 6 iterations. If you have run 6 inner-loop passes without a `PASS`, the design needs broader rework than this loop can deliver — surface that to the user, do not keep iterating.
 
-### Gate 3.5 — Re-audit (parallel with Gate 3)
+### Gate 3.5 — Re-audit (runs before the Gate 3 grader dispatch)
 
-Mirror of Gate 1.5. The Gate 2 iteration may have introduced new P0/P1 findings (motion without reduced-motion fallback, an aria-hidden swap that broke screen-reader access, etc.) that the screenshot-only grader cannot see. Re-run the audit on the currently-changed files in parallel with the Gate 3 re-grader.
+Mirror of Gate 1.5. The Gate 2 iteration may have introduced new P0/P1 findings (motion without reduced-motion fallback, an aria-hidden swap that broke screen-reader access, etc.) that the screenshot-only grader cannot see. Re-run the audit on the currently-changed files immediately before the Gate 3 grader dispatch so the fresh findings ride in the re-grade bundle.
 
 1. Dispatch `impeccable audit <changed-files>` exactly as in Gate 1.5, writing to `.uiux-loop/audit-iter-<n>.md` and `.uiux-loop/audit-iter-<n>.json`.
 2. Pass the new audit file as `audit-findings.md` into the Gate 3 grader dispatch. The grader's `## Brief diff` block names which prior-iter brief items landed; the new audit covers what the screenshots can't show.

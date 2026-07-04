@@ -294,4 +294,42 @@ describe('uiux-design-loop regression gates', () => {
     assert.match(grader, /"audit_gate"/);
     assert.match(grader, /audit_gate.*state|state.*audit_gate/s);
   });
+
+  it('serializes the impeccable audit before each grader dispatch', () => {
+    const skill = read('skills/uiux-design-loop/SKILL.md');
+    const map = read('skills/uiux-design-loop/impeccable-map.md');
+    const readme = read('skills/uiux-design-loop/README.md');
+
+    // The grader hard-REJECTs any bundle missing audit-findings.md
+    // (agents/uiux-grader.md required-artifact rule), so the Gate 1 bundle
+    // list must include the audit file produced by Gate 1.5.
+    const gate1 = skill.split('### Gate 1 — Baseline grade')[1].split('### Gate 1.5')[0];
+    assert.match(gate1, /audit-baseline\.md/);
+    assert.match(gate1, /audit-findings\.md/);
+
+    // Gate 3 re-grade bundle must likewise carry the fresh Gate 3.5 audit file.
+    const gate3 = skill.split('### Gate 3 — Re-grade')[1].split('### Gate 3.5')[0];
+    assert.match(gate3, /audit-iter-<n>\.md/);
+    assert.match(gate3, /audit-findings\.md/);
+
+    // No parallel schedule exists that satisfies the grader's required-artifact
+    // rule — the audit must complete BEFORE the grader dispatch.
+    for (const file of [skill, map, readme]) {
+      assert.doesNotMatch(file, /parallel with (each |the )?(Gate 1|Gate 3|grader)/i);
+      assert.doesNotMatch(file, /parallel `impeccable audit`/i);
+      assert.doesNotMatch(file, /single message with two tool calls/);
+      assert.doesNotMatch(file, /Parallel-by-default/);
+    }
+    const gate15 = skill.split('### Gate 1.5')[1].split('### Gate 2')[0];
+    assert.match(gate15, /before the Gate 1 grader dispatch/);
+    const gate35 = skill.split('### Gate 3.5')[1].split('### Gate 4')[0];
+    assert.match(gate35, /before the Gate 3 grader dispatch/);
+    assert.match(map, /\*\*before\*\* the corresponding grader pass/);
+
+    // Baseline has no changed files yet — Gate 1.5's audit target must be the
+    // flow-map surfaces, not `git status` output (which is empty pre-edit and
+    // would skip the audit, starving the grader of its required artifact).
+    assert.match(gate15, /flow-map\.md/);
+    assert.doesNotMatch(gate15, /git status --short shows at least one changed file/);
+  });
 });
