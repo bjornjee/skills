@@ -5,6 +5,8 @@ paths:
 ---
 # React Native
 
+Applies to React Native projects only — if the repo has no `react-native` dependency in `package.json`, ignore this rule. (The `paths` globs match all TS/TSX because a glob cannot express the dependency condition.)
+
 ## Platform
 - Build system: expo-dev-client, not Expo Go.
 - Connection modes: `usb` (adb reverse + localhost), `wifi` (LAN IP), `emulator` (10.0.2.2).

@@ -20,7 +20,7 @@ description: FastAPI service-layer architecture, dependency injection, domain-er
 ## Data
 - Pydantic `BaseModel` for request/response schemas.
 - SQLAlchemy 2.0 async: `select()` not `query()`. Async sessions everywhere.
-- Soft delete only (`is_deleted` flag). Never hard delete.
+- Soft delete by default (`is_deleted` flag). Hard delete only with explicit justification (e.g. GDPR erasure), documented in the migration.
 - Alembic for migrations. Never modify the database outside migrations.
 
 ## Shared Packages
