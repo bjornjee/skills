@@ -79,7 +79,7 @@ If implementation requires more than two corrective iterations in the same area,
 Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to be asked:
 
 - **Before writing custom code** → `search-first` (check if a library/pattern already solves it).
-- **Before destructive ops** (rm, force-push, drop table, etc.) → `safety-guard`.
+- **Before destructive ops** (rm, force-push, drop table, etc.) → the destructive-command guardrails section in `terminal-ops`.
 - **Go file edited** → `golang-patterns` + `golang-testing`.
 - **Python file touched** → `python-patterns` (PEP 8, type hints, Pydantic, no nested imports).
 - **FastAPI file touched** → `fastapi-patterns` (service-layer architecture, thin routers, async patterns).
