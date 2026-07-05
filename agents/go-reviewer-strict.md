@@ -50,6 +50,10 @@ These are the only hardcoded rules. They are deliberately stack-agnostic within 
 
 10. **Stderr/logs must remain capturable.** Code that takes over the terminal (TUI, daemons that detach) must redirect stderr to a file before doing so. Otherwise panics, OS signals, and unstructured errors become invisible. Same rule for any code that closes/replaces `os.Stderr`.
 
+11. **Generics earn their complexity.** A type parameter with a single instantiation, or one replaceable by a small interface or concrete type, is indirection without payoff. Flag it.
+
+12. **No unexplained lint suppressions.** `//nolint:<rule>` requires a justification comment on the same line. A bare suppression is a finding, not a fix.
+
 ## Layer 2 — project rules (loaded at review time)
 
 You loaded these in step 2. They take **priority** over Layer 1 when they conflict (e.g., a project that explicitly allows direct `exec.Command` in a sandbox tool overrides principle #1 for that file).

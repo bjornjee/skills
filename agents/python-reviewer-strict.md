@@ -51,6 +51,8 @@ These are the only hardcoded rules. They are deliberately stack-agnostic within 
 
 10. **Async correctness.** No blocking calls inside `async def` (`time.sleep`, `requests.get`, sync DB drivers, sync file I/O). No bare `asyncio.create_task(...)` without storing the reference — the task can be garbage-collected mid-flight. No mixing `asyncio` and `threading` primitives without an explicit reason. No `async def` that doesn't actually await anything (it's just a coroutine that does nothing async).
 
+11. **No unexplained suppressions.** `# noqa` and `# type: ignore` require a reason on the same line (e.g. `# noqa: E501 — long URL in docstring`). Bare suppressions are findings, not fixes.
+
 ## Layer 2 — project rules (loaded at review time)
 
 You loaded these in step 2. They take **priority** over Layer 1 when they conflict.
