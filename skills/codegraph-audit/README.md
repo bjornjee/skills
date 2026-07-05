@@ -1,6 +1,6 @@
 # codegraph-audit
 
-Repo-context-aware PR review that runs **locally** in your existing Claude Code session, just before `/agent-dashboard:pr` opens the PR. Pulls the slice of the call graph touched by the diff using a local [codegraph](https://github.com/colbymchenry/codegraph) index, then runs a strict review with that context — catching issues that file-by-file reviewers miss because they never read the callers, callees, or types involved.
+Repo-context-aware PR review that runs **locally** in your existing Claude Code session, on demand before opening a PR. Pulls the slice of the call graph touched by the diff using a local [codegraph](https://github.com/colbymchenry/codegraph) index, then runs a strict review with that context — catching issues that file-by-file reviewers miss because they never read the callers, callees, or types involved.
 
 No CI required. No API keys required (uses your existing Claude Code subscription auth).
 
@@ -8,7 +8,7 @@ No CI required. No API keys required (uses your existing Claude Code subscriptio
 
 | File | Purpose |
 |---|---|
-| `SKILL.md` | The skill prompt invoked by the orchestrator before PR creation. |
+| `SKILL.md` | The skill prompt, invoked on demand before PR creation. |
 | `README.md` | This file. |
 
 ## How adoption works
@@ -18,21 +18,20 @@ No CI required. No API keys required (uses your existing Claude Code subscriptio
    curl -fsSL https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh | sh
    ```
 2. **Add `.codegraph/` to your repo's `.gitignore`** so the local index doesn't get committed.
-3. That's it. The orchestrator auto-invokes `/skills:codegraph-audit` before `/agent-dashboard:pr` per the dispatch row in `.claude/rules/core.md`. If you don't have codegraph installed when the audit runs, it halts with install instructions — install and re-run.
+3. That's it. Invoke `/skills:codegraph-audit` before a PR whenever call-graph context would help the review. If you don't have codegraph installed when the audit runs, it halts with install instructions — install and re-run.
 
 ## Modes
 
 | Invocation | When | Cost |
 |---|---|---|
-| auto (default `minimal`) | Every `/agent-dashboard:pr` run | Cheap — index is incremental, queries only diff symbols + 1-hop neighbors |
-| `/skills:codegraph-audit` | Manual minimal review | Same as above |
+| `/skills:codegraph-audit` | On-demand minimal review, scoped to the diff | Cheap — index is incremental, queries only diff symbols + 1-hop neighbors |
 | `/skills:codegraph-audit full` | When you want a whole-repo audit | Expensive — walks the entire graph |
 
 ## How the verdict gates the PR
 
-- **APPROVE** — orchestrator proceeds to `/agent-dashboard:pr`.
-- **WARNING** — findings surface; orchestrator proceeds.
-- **BLOCK** — orchestrator halts. Acknowledge or fix before retrying.
+- **APPROVE** — proceed to the PR.
+- **WARNING** — findings surface; proceed at your call.
+- **BLOCK** — halt. Acknowledge or fix before opening the PR.
 
 ## Index management
 

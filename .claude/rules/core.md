@@ -235,7 +235,6 @@ Spawn without waiting for the user to ask:
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
-| About to create a PR (via `/agent-dashboard:pr` or manually when agent-dashboard is absent) | `skills:codegraph-audit` | bjornjee-skills |
 | User asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop` | bjornjee-skills |
 | Grading gates inside `/skills:uiux-design-loop` (internal — never invoke standalone) | `uiux-grader` | bjornjee-skills |
 | User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `ponytail` (skill) | bjornjee-skills |

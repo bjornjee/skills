@@ -1,6 +1,6 @@
 ---
 name: codegraph-audit
-description: Use before opening a PR — pulls the call-graph slice touched by the diff via the local codegraph CLI, then dispatches the strict reviewer with that context loaded. Auto-invoked before /agent-dashboard:pr; invoke manually when agent-dashboard is absent.
+description: Use on demand before opening a PR when the local codegraph CLI is installed — pulls the call-graph slice touched by the diff, then dispatches the strict reviewer with that context loaded.
 ---
 
 # /skills:codegraph-audit — Repo-context PR review (local)
@@ -11,8 +11,7 @@ Language-strict reviewers (`go-reviewer-strict`, `python-reviewer-strict`) look 
 
 ## Trigger
 
-- **Auto:** The orchestrator invokes this skill **before** running `/agent-dashboard:pr` per the dispatch row in `.claude/rules/core.md`. No human action required when raising a PR through the normal flow.
-- **Manual:** `/skills:codegraph-audit` (minimal mode) or `/skills:codegraph-audit full` (whole-repo mode). If the agent-dashboard plugin is not installed, the auto trigger never fires — run the manual form before any PR.
+On-demand only — this skill is not auto-invoked by any dispatch rule. Run `/skills:codegraph-audit` (minimal mode, scoped to the diff) or `/skills:codegraph-audit full` (whole-repo mode) when you want a call-graph-aware review before a PR — most useful for diffs that touch shared functions, interfaces, or types with many callers.
 
 ## Prerequisite check
 
