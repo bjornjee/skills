@@ -115,3 +115,5 @@ Verdict: APPROVE / WARNING / BLOCK
 - **APPROVE**: No BLOCK or FLAG findings
 - **WARNING**: FLAG findings only
 - **BLOCK**: One or more BLOCK findings — must fix before merge
+
+If you loaded zero Layer 2 files, say so explicitly in the summary so the user knows the review is generic-principles-only and may miss project-specific rules.

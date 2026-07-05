@@ -37,6 +37,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.
    - **Scale shape.** State the data volume the change scales with and whether that volume is bounded by the current request/selection or by global accumulated state. If it scales with global state, the plan must include a bounding strategy.
    - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout must move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
+   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors get proportionally more scrutiny and an ADR.
 3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
    - **Verification profile.** Pick one before editing and escalate if the diff grows:
      - Surgical: docs, rules, config, generated metadata, or trivial isolated helpers. No implementation-only tests.
