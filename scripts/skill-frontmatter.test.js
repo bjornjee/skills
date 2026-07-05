@@ -35,7 +35,7 @@ describe('skill frontmatter', () => {
     .sort();
 
   it('finds at least the known skill count', () => {
-    assert.ok(dirs.length >= 24, `expected >= 24 skills, found ${dirs.length}`);
+    assert.ok(dirs.length >= 29, `expected >= 29 skills, found ${dirs.length}`);
   });
 
   for (const dir of dirs) {
