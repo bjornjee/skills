@@ -66,7 +66,9 @@ step lives inside the corresponding subagent definition, not here.
    - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
    - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors get proportionally more scrutiny and an ADR.
 
-   **Terminology.** *"Plan tool" / "plan mode" / "the planner"* mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools** (load via `ToolSearch` once per session) — never the `Plan` agent, whose output lands in a `tool_result` the dashboard cannot surface. User shorthand like "plan it" resolves to `EnterPlanMode`. The one-time `permission_mode` reset on approval is the accepted cost of visible planning.
+   **Terminology.** *"Plan tool" / "plan mode" / "the planner"* mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools** (load via `ToolSearch` once per session) — never the `Plan` agent, whose output lands in a `tool_result` the dashboard cannot surface. User shorthand like "plan it" resolves to `EnterPlanMode`.
+
+   Cost: on approval, `permission_mode` drops to default, not back to `bypassPermissions` — subsequent edits re-prompt unless the user re-enables bypass. Accepted trade-off; visible planning is worth the one-time reset. "Skip plan mode because it resets bypass" is never the answer.
 
    <HARD-GATE>
    No Edit / Write / mutating Bash until `ExitPlanMode` has been called and the user has approved the plan in the plan-review UI.
@@ -93,7 +95,10 @@ step lives inside the corresponding subagent definition, not here.
 
    The hook layer (`agent-dashboard`'s `test-gate`) may block commits unless the repo's pre-commit gate passes — but a hook is a *gate*, not a *guide*. Use the profile to guide implementation, then satisfy the gate at commit/PR time.
 
-   Test granularity when TDD applies — one assertion focus per test, golden/edge/error paths separated, shared fixtures, scale tests when scale matters: the `tdd-guide` agent owns the full rules; follow its contract.
+   Test granularity when TDD applies (full contract: `tdd-guide`):
+   - One assertion focus per test — don't bundle create/get/list/patch/delete; failure localization matters.
+   - Golden path + edge cases + error paths as separate atomic tests; shared fixtures for setup.
+   - Scale test first when correctness depends on data volume, call frequency, concurrency, or latency — tiny functional fixtures don't represent that risk.
 
    <HARD-GATE>
    When TDD applies, the failing test run must be PASTED, not paraphrased.
@@ -116,8 +121,12 @@ step lives inside the corresponding subagent definition, not here.
    2. Quote the actual log line, error message, or test failure output **verbatim**.
    3. State the root cause as a falsifiable claim: *"X happens because Y at file:line returns Z."*
    4. Boundary bug gate. For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix. Mocks and unit tests are regression guards after diagnosis, not live-behavior proof.
+   5. New test files must run under the package's normal test command — if tests are listed in a manifest or runner config, update it and run the package command, not just the new file.
+   6. Source of truth per predicate — never state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
+   7. Merge-style writes: fields that must be cleared are written explicitly with their cleared value — omission preserves stale state.
+   8. Root cause, not symptom — grep every caller of the function you touch; one guard in the shared function beats a guard per caller, and the ticket's named path has siblings.
 
-   (Test-manifest inclusion, state-reconciliation source-of-truth, merge-write clearing, and grep-every-caller rules live in the `tdd-guide` agent's bug-fix contract.)
+   (Fuller contract with examples: the `tdd-guide` agent.)
 
    Anti-pattern: *"It's probably because of X."*
    "Probably" is a guess. Guesses get reverted. Read the code. Read the logs.
@@ -142,7 +151,7 @@ step lives inside the corresponding subagent definition, not here.
    - Cross-adapter drift when equivalent Claude/Codex, CLI/API, or platform-specific files changed.
    - The implementation against its stated execution context and scale shape: accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
 
-   Before PR/push, run the same checks in a neutral read-only audit scoped to the changed-file list plus package manifests, CI config, and test runner config. High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
+   Before PR/push, the strict-reviewer spawn IS the audit — scope it explicitly to the changed-file list **plus package manifests, CI config, and test-runner config**; no separate neutral pass. High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include a diff-against-base summary and a test plan.
 
