@@ -1,7 +1,16 @@
-.PHONY: help sync-codex-plugin sync-codex-rules sync-rules test
+.PHONY: help bump sync-codex-plugin sync-codex-rules sync-rules test
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+bump: ## Set the plugin version in all three manifests atomically (usage: make bump V=1.1.0)
+	@test -n "$(V)" || { echo "usage: make bump V=<x.y.z>" >&2; exit 2; }
+	@python3 -c 'import json,sys; v=sys.argv[1]; \
+	paths=[".claude-plugin/plugin.json","plugins/skills/.codex-plugin/plugin.json"]; \
+	[(lambda p: (lambda d: (d.__setitem__("version",v), open(p,"w").write(json.dumps(d,indent=2,ensure_ascii=False)+"\n")))(json.load(open(p))))(p) for p in paths]; \
+	p=".claude-plugin/marketplace.json"; d=json.load(open(p)); d["plugins"][0]["version"]=v; \
+	open(p,"w").write(json.dumps(d,indent=2,ensure_ascii=False)+"\n"); \
+	print(f"✓ all three manifests -> {v}")' "$(V)"
 
 sync-rules: ## Symlink every .claude/rules/*.md into ~/.claude/rules/ (edits then propagate automatically)
 	@./scripts/install-rules-symlinks.sh

@@ -6,7 +6,7 @@
 - `.claude-plugin/marketplace.json` → `plugins[0].version` field
 - `plugins/skills/.codex-plugin/plugin.json` → `version` field (Codex plugin)
 
-These MUST always match. When bumping, update all three files in the same commit. `make test` enforces the lockstep (`scripts/codex-marketplace.test.js`).
+These MUST always match. Bump with `make bump V=<x.y.z>` — it writes all three atomically; commit them together. `make test` enforces the lockstep (`scripts/codex-marketplace.test.js`).
 
 ## When to Bump
 
