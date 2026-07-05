@@ -83,7 +83,8 @@ Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to
 - **Go file edited** → `golang-patterns` + `golang-testing`.
 - **Python file touched** → `python-patterns` (PEP 8, type hints, Pydantic, no nested imports).
 - **FastAPI file touched** → `fastapi-patterns` (service-layer architecture, thin routers, async patterns).
-- **React Native / TypeScript file touched** → `react-native-patterns`.
+- **TypeScript/Node file touched** → `typescript-patterns` (strict compiler, parse-don't-cast, promise hygiene).
+- **React Native file touched** → `react-native-patterns` (in addition to `typescript-patterns`).
 - **AI/ML / evals / prompts work** → `ai-ml-patterns`.
 - **Git workflow** (branches, conflicts, merges) → `git-workflow`.
 - **GitHub ops** (issues, PRs, releases) → `github-ops`.

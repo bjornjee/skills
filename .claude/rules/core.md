@@ -233,6 +233,7 @@ Spawn without waiting for the user to ask:
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
+| TypeScript file edited | `typescript-reviewer-strict` | bjornjee-skills |
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
 | User asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop` | bjornjee-skills |

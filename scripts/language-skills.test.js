@@ -16,6 +16,7 @@ const PAIRS = [
   ['skills/fastapi-patterns/SKILL.md', '.claude/rules/fastapi.md'],
   ['skills/react-native-patterns/SKILL.md', '.claude/rules/react-native.md'],
   ['skills/ai-ml-patterns/SKILL.md', '.claude/rules/ai-ml.md'],
+  ['skills/typescript-patterns/SKILL.md', '.claude/rules/typescript.md'],
 ];
 
 function body(relativePath) {
