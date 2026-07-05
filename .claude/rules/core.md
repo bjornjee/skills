@@ -64,48 +64,23 @@ step lives inside the corresponding subagent definition, not here.
    - **Execution context.** Classify each as interactive, request/response, background, startup, test-only, or batch — what calls it, how often it can run, and what blocks while it runs.
    - **Scale shape.** The data volume the change scales with, and whether that volume is bounded by the current request/selection or by global accumulated state. Global-state scaling requires a bounding strategy in the plan.
    - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
+   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors require Full-profile verification, an explicit rollback plan, and an ADR.
 
-   **Terminology — read this once, then never confuse it again.**
-   In this file, *"plan tool"* / *"plan mode"* / *"the planner"* all mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools**. They do **NOT** mean the `Plan` agent (`subagent_type: Plan`) — that is a separate mechanism whose output lives in a `tool_result` block invisible to the dashboard's plan panel. If the user says *"use the plan tool"* or *"plan it"*, call `EnterPlanMode`.
+   **Terminology.** *"Plan tool" / "plan mode" / "the planner"* mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools** (load via `ToolSearch` once per session) — never the `Plan` agent, whose output lands in a `tool_result` the dashboard cannot surface. User shorthand like "plan it" resolves to `EnterPlanMode`.
 
-   Loading: `EnterPlanMode` and `ExitPlanMode` are deferred tools. Load them via `ToolSearch` once per session before first use.
-
-   **Why plan mode, not the `Plan` agent:**
-   - Plan mode flips the parent's `permission_mode='plan'`, which the dashboard renders as a visible plan badge.
-   - `ExitPlanMode` triggers CC's native plan-review UI — the user gets a real accept/reject surface.
-   - The `Plan` agent's output lands in a `tool_result` the dashboard cannot surface; planning becomes invisible.
-   - One way to do things. The `Plan` agent is **not** prescribed by this doctrine; only invoke it if the user explicitly asks for delegated planning research.
-
-   Cost: on plan approval, CC drops to its default `permission_mode`, not back to `bypassPermissions`. Subsequent edits in Phase 3 will re-prompt unless the user re-enables bypass. That is the accepted trade-off — visible planning is worth a one-time mode reset.
-
-   Anti-pattern: *"This is simple enough to just code."*
-   Every project goes through this rationalization. The plan can be short — but it MUST be presented via `ExitPlanMode` and approved.
-
-   Symptoms you're about to violate:
-   - You're opening Edit before having called `EnterPlanMode`.
-   - You're thinking "I'll plan as I go."
-   - You're about to call `Agent` with `subagent_type=Plan`.
-   - You're about to paste the plan as conversational text instead of calling `ExitPlanMode`.
-   - The user used a fuzzy verb and you're already searching for a fix.
+   Cost: on approval, `permission_mode` drops to default, not back to `bypassPermissions` — subsequent edits re-prompt unless the user re-enables bypass. Accepted trade-off; visible planning is worth the one-time reset. "Skip plan mode because it resets bypass" is never the answer.
 
    <HARD-GATE>
    No Edit / Write / mutating Bash until `ExitPlanMode` has been called and the user has approved the plan in the plan-review UI.
    The only skip: a literal typo or single-character fix.
    </HARD-GATE>
 
-   **Red Flags — STOP and Start Over.** If any of these match your self-talk, you are about to violate Phase 2:
+   **Red flags — STOP and start over.** If any of these match your self-talk, you are about to violate Phase 2:
    - *"I'll delegate to the `Plan` agent — its output is good enough."*
    - *"I'll just paste the plan as text instead of calling `ExitPlanMode`."*
    - *"Plan mode resets `bypassPermissions`, I'll skip it."*
-   - *"This is simple enough to just code."*
-   - *"I'll plan as I go."*
+   - *"This is simple enough to just code."* / *"I'll plan as I go."*
    - *"I already explored, that counts as planning."*
-
-   Anti-pattern: **"Skipping plan mode because it resets `bypassPermissions`."**
-   The reset is a one-time cost per planning session. Visible planning beats the convenience of unbroken bypass.
-
-   Anti-pattern: **"Using the `Plan` agent because the user said 'plan'."**
-   User shorthand resolves to `EnterPlanMode`+`ExitPlanMode`. Always.
 
 3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
 
@@ -120,11 +95,10 @@ step lives inside the corresponding subagent definition, not here.
 
    The hook layer (`agent-dashboard`'s `test-gate`) may block commits unless the repo's pre-commit gate passes — but a hook is a *gate*, not a *guide*. Use the profile to guide implementation, then satisfy the gate at commit/PR time.
 
-   Test granularity when TDD applies:
-   - **One assertion focus per test.** Don't bundle create/get/list/patch/delete into a single test — split them. Failure localization matters.
-   - **Golden path + edge cases + error paths separately.** Three atomic tests beat one fat test that asserts everything.
-   - **Shared fixtures for setup** (e.g. `client` in `conftest.py`). Don't re-instantiate the harness inside every test.
-   - **Scale test when scale matters.** If correctness depends on data volume, call frequency, concurrency, or latency, write the failing benchmark or measurable reproduction first — tiny functional fixtures don't represent that risk.
+   Test granularity when TDD applies (full contract: `tdd-guide`):
+   - One assertion focus per test — don't bundle create/get/list/patch/delete; failure localization matters.
+   - Golden path + edge cases + error paths as separate atomic tests; shared fixtures for setup.
+   - Scale test first when correctness depends on data volume, call frequency, concurrency, or latency — tiny functional fixtures don't represent that risk.
 
    <HARD-GATE>
    When TDD applies, the failing test run must be PASTED, not paraphrased.
@@ -138,18 +112,7 @@ step lives inside the corresponding subagent definition, not here.
 
    ### Visual changes need visual verification
 
-   UI / CSS / colour / layout change?
-
-   <GATE-FUNCTION>
-   BEFORE claiming the visual change works:
-   1. IDENTIFY what should look different after the change.
-   2. LOCATE the observable (selector, screenshot region, computed style).
-   3. RUN Playwright (or the project's browser tool) against the running site.
-   4. VERIFY the rendered output matches the requirement.
-   5. ONLY THEN claim done.
-   </GATE-FUNCTION>
-
-   The diff is not proof. The screenshot is.
+   UI / CSS / colour / layout change: identify what should look different, render the running app (Playwright or the project's browser tool), and verify the observable output — only then claim done. The diff is not proof. The screenshot is.
 
    ### Bug fixes need evidence, not theories
 
@@ -157,11 +120,13 @@ step lives inside the corresponding subagent definition, not here.
    1. Quote the offending code path — `file:line`, read it, don't infer it.
    2. Quote the actual log line, error message, or test failure output **verbatim**.
    3. State the root cause as a falsifiable claim: *"X happens because Y at file:line returns Z."*
-   4. If you add a new test file, verify it runs under the package's normal test command. If tests are explicitly listed in a manifest or runner config, update that file and run the package test command, not just the new file directly.
-   5. For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
-   6. For merge-style state writes, fields that must be cleared must be written explicitly with their cleared value. Do not omit a key when omission preserves stale state.
-   7. Root cause, not symptom. Grep every caller of the function you touch. One guard in the shared function is a smaller diff than a guard per caller, and patching only the path the ticket names leaves siblings broken.
-   8. Boundary bug gate. For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix. Mocks and unit tests are regression guards after diagnosis, not live-behavior proof.
+   4. Boundary bug gate. For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix. Mocks and unit tests are regression guards after diagnosis, not live-behavior proof.
+   5. New test files must run under the package's normal test command — if tests are listed in a manifest or runner config, update it and run the package command, not just the new file.
+   6. Source of truth per predicate — never state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
+   7. Merge-style writes: fields that must be cleared are written explicitly with their cleared value — omission preserves stale state.
+   8. Root cause, not symptom — grep every caller of the function you touch; one guard in the shared function beats a guard per caller, and the ticket's named path has siblings.
+
+   (Fuller contract with examples: the `tdd-guide` agent.)
 
    Anti-pattern: *"It's probably because of X."*
    "Probably" is a guess. Guesses get reverted. Read the code. Read the logs.
@@ -175,7 +140,7 @@ step lives inside the corresponding subagent definition, not here.
 
    The fix is the last step, not the first.
 
-4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
+4. **Review.** Language-specific strict reviewers (dispatch table below) must be spawned on edited files. Address critical and high; fix medium when cheap.
 
    Every review must include an adversarial correctness and security pass against the stated execution context and scale shape. Check:
    - Security boundaries: every changed input, output, auth, storage, file, network, and browser boundary. Look for injection, SQL/command/template injection, XSS, CSRF, auth/authz bypass, secret exposure, unsafe deserialization, SSRF, path traversal, insecure defaults, and missing validation or escaping.
@@ -186,7 +151,7 @@ step lives inside the corresponding subagent definition, not here.
    - Cross-adapter drift when equivalent Claude/Codex, CLI/API, or platform-specific files changed.
    - The implementation against its stated execution context and scale shape: accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
 
-   Before PR/push, run the same checks in a neutral read-only audit scoped to the changed-file list plus package manifests, CI config, and test runner config. High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
+   Before PR/push, the strict-reviewer spawn IS the audit — scope it explicitly to the changed-file list **plus package manifests, CI config, and test-runner config**; no separate neutral pass. High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include a diff-against-base summary and a test plan.
 
@@ -213,6 +178,14 @@ Do not let the easiest implementation surface become the architecture. Choose re
 
 If implementation requires more than two corrective iterations in the same area, stop patching and reframe the missing invariant before continuing.
 
+## Architecture judgment
+
+- **Classify the door before committing.** Two-way doors (routing, internal structure, most code) are cheap to reverse — decide fast, iterate. One-way doors (published APIs, schema drops, data deletion, wire formats, anything with external consumers) are not — scrutiny is proportional to irreversibility.
+- **Three blast radii in every plan:** data volume (covered by scale shape), API consumers outside this repo (who breaks, who must be told), and org/coordination (whose approval or migration effort this demands).
+- **ADR trigger.** One-way door OR cross-repo consumers ⇒ a 10-line ADR in `docs/adr/NNN-<slug>.md` (context, decision, consequences), linked from the PR. Two-way doors skip the ceremony.
+- **Migrations run expand → migrate → contract.** Additive change first, dual-read/write next, destructive step ships alone — one deploy behind verification.
+- **Prod-touching changes name their rollback path before merge.** "Roll forward" is a justified choice, never a default assumption.
+
 ## Anti-patterns (stop yourself before doing these)
 
 - Wrapping internal calls in try/except — validate at boundaries (user input, network, file I/O) only.
@@ -229,15 +202,20 @@ Spawn without waiting for the user to ask:
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
 | Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
-| Plan approved, in a worktree, Codex available | `codex-delegate` (skill) | bjornjee-skills |
+| Plan approved, in a worktree, Codex available | `skills:codex-delegate` | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
+| TypeScript file edited | `typescript-reviewer-strict` | bjornjee-skills |
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
+| Production incident, outage, or postmortem | `skills:incident-response` | bjornjee-skills |
+| Designing a new trust boundary (auth, secrets, service-to-service) | `skills:security-design` | bjornjee-skills |
+| Designing APIs, queue/background work, telemetry, or schemas | matching discipline skill: `skills:api-design` / `skills:distributed-systems` / `skills:observability` / `skills:data-modeling` | bjornjee-skills |
+| Compaction timing or context-window bloat | `skills:context-management` | bjornjee-skills |
 | User asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop` | bjornjee-skills |
 | Grading gates inside `/skills:uiux-design-loop` (internal — never invoke standalone) | `uiux-grader` | bjornjee-skills |
-| User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `ponytail` (skill) | bjornjee-skills |
+| User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `skills:ponytail` | bjornjee-skills |
 
 **Parallel by default.** Independent agents launch in **one message** with multiple tool calls.
 
@@ -251,7 +229,7 @@ If the second doesn't read the first's output, send them together. Now.
 Anti-pattern: *"The agent will figure it out."*
 Agents with thin prompts produce shallow, generic work. Every time.
 
-Required in every spawn:
+Required in every spawn — paths + inline diff + task context, or don't spawn:
 1. Exact file paths (not descriptions).
 2. Relevant diff or snippet inline.
 3. Enough task context to start without exploring.
@@ -261,12 +239,4 @@ Good: "Run `go-reviewer-strict` on `internal/tmux/runner.go` (added new `Output`
 
 ## Model selection when delegating
 
-Claude Code-specific (the `model` param on agent spawns) — the Codex reasoning-effort mapping lives in `.codex/AGENTS.md`; the two mechanisms are not interchangeable.
-
-| Task | Model | Why |
-|---|---|---|
-| Exploration, search, environment setup | `haiku` | Fast, cheap, no deep reasoning needed |
-| Research, analysis, code review | `sonnet` | Strong comprehension and synthesis |
-| Code writing, architecture, complex reasoning | `opus` | Best output quality |
-
-Set `model` explicitly on every ad-hoc spawn. The built-in `Explore` agent picks its own model — don't override unless you have a specific reason. Named agents in `agents/` declare their own model in frontmatter — trust those. Plan mode runs in the parent session, not as a subagent — model selection doesn't apply.
+Claude Code-specific — the Codex effort mapping lives in `.codex/AGENTS.md`. Named agents declare their model in frontmatter — trust it. On ad-hoc spawns set `model` explicitly: `haiku` = exploration/search, `sonnet` = research/review/analysis, `opus` = code/architecture. `Explore` picks its own; plan mode runs in the parent session, so model selection doesn't apply.

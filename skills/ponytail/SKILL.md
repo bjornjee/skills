@@ -28,6 +28,8 @@ Switch: `/ponytail lite|full|ultra`.
 
 ## The ladder
 
+Rung 0 is the requirement itself: pushing back on the ask is cheaper than any implementation — when the requirement is the problem, say so before descending.
+
 Stop at the first rung that holds:
 
 1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)

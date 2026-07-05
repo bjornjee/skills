@@ -14,6 +14,7 @@ the `python-reviewer-strict` agent.
 - PEP 604 union syntax (`X | None`), not `Optional[X]`. No untyped `**kwargs` in public APIs.
 - Pydantic `BaseModel` over `@dataclass` for data classes. `frozen=True` or `NamedTuple` when Pydantic isn't needed.
 - `Protocol` for interfaces (duck typing).
+- Pydantic v2 idioms: `@field_validator` / `@model_validator`, discriminated unions via `Field(discriminator=...)`, `model_config` — not the v1 class `Config`.
 - Top-level imports only. No nested/inline imports inside functions or methods. The only exception is breaking a genuine circular import — and even then, fix the cycle instead.
 
 ## Side effects & boundaries
@@ -34,9 +35,12 @@ the `python-reviewer-strict` agent.
 - No blocking calls inside `async def` (`time.sleep`, `requests.get`, sync DB drivers, sync file I/O).
 - Store references to `asyncio.create_task(...)` — bare task spawns can be GC'd mid-flight.
 
+## Concurrency model
+- asyncio for I/O-bound; `ProcessPoolExecutor` for CPU-bound (the GIL makes threads useless there); thread pools only to wrap sync libraries that can't be made async.
+
 ## Tooling
 - Format + lint: `ruff` (with `ruff format`). Types: `mypy`. Security: `bandit`.
-- Package management: `uv`. Build backend: `hatchling`.
+- Package management: `uv`. Build backend: `hatchling`. Dev/test extras via uv dependency-groups — no `requirements-dev.txt`.
 - Layout: `src/` package, `tests/` at repo root.
 - Settings: a single `Settings(BaseSettings)` class in `src/settings.py` exposed via an `@lru_cache(maxsize=1) get_settings()` function. No scattered `os.getenv` calls.
 - Tests: `pytest`, `pytest-cov`, `pytest-asyncio`, `pytest-mock`. Tests never touch the real network, real DB, real wall clock — use `tmp_path`, `monkeypatch`, `responses`/`httpx.MockTransport`, `freezegun`.

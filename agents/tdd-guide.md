@@ -21,6 +21,21 @@ Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecti
 6. **Never weaken a test to make it pass.** If a test is wrong, fix the test in a separate, named step and re-justify it.
 7. **Do not invent coverage numbers.** If you report coverage, run the coverage tool and paste the output.
 
+## Test granularity (when TDD applies)
+
+- **One assertion focus per test.** Don't bundle create/get/list/patch/delete into a single test — split them. Failure localization matters.
+- **Golden path + edge cases + error paths separately.** Three atomic tests beat one fat test that asserts everything.
+- **Shared fixtures for setup** (e.g. `client` in `conftest.py`). Don't re-instantiate the harness inside every test.
+- **Scale test when scale matters.** If correctness depends on data volume, call frequency, concurrency, or latency, write the failing benchmark or measurable reproduction first — tiny functional fixtures don't represent that risk.
+
+## Bug-fix state rules (compact form owned by core doctrine; fuller contract here)
+
+- **Boundary bug gate.** For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix.
+- **Test-manifest inclusion.** A new test file must run under the package's normal test command. If tests are listed explicitly in a manifest or runner config, update that file and run the package command — not just the new file directly.
+- **State reconciliation.** Identify the source of truth for each predicate. Never use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
+- **Merge-style writes.** Fields that must be cleared are written explicitly with their cleared value. Omitting a key preserves stale state — that's the bug class, not a shortcut.
+- **Root cause, not symptom.** Grep every caller of the function you touch. One guard in the shared function beats a guard per caller, and patching only the ticket's named path leaves siblings broken.
+
 ## Verification Profiles
 
 The profile taxonomy (Surgical / Targeted / Full) is owned by the core doctrine — `.claude/rules/core.md` Phase 3 (or `.codex/AGENTS.md` Phase 3) — and is not redefined here. Shorthand for how each maps to this cycle: Surgical → no new test, name the existing validator; Targeted → RED → GREEN → REFACTOR with the smallest specific proof command; Full → RED → GREEN → REFACTOR with the full project gate. When in doubt about a profile boundary, defer to the core rules.

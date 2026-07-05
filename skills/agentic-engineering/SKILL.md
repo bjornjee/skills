@@ -50,6 +50,12 @@ Prioritize:
 
 Do not waste review cycles on style-only disagreements when automated format/lint already enforce style.
 
+## Trust Boundaries Between Agents
+
+- One agent's output is the next agent's **untrusted input** — validate structure and plausibility at each hop, exactly like external API data.
+- Prompt injection travels through chains: retrieved docs or tool output that reaches agent A's context can steer agent B. Fence and label third-party content at the first hop; it stays fenced downstream.
+- Grant each agent the least tool surface its task needs — a research agent with Write access is blast radius, not convenience.
+
 ## Cost Discipline
 
 Track per task:

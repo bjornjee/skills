@@ -19,6 +19,8 @@ each project's CLAUDE.md. Strict review enforcement lives in the
 - External I/O behind interfaces. Subprocess execution, file I/O, network, time, randomness — all reachable through an interface that tests can swap.
 - `context.Context` as the first parameter for any function that does I/O or can be cancelled.
 - No global mutable state. Package-level vars only for true constants.
+- `log/slog` for new code; no `fmt.Println`/`log.Print` in production paths.
+- An import cycle appearing between packages means the boundary is wrong — fix the boundary, not the import.
 
 ## Errors
 - Errors carry context: `fmt.Errorf("operation X: %w", err)`. Never return raw errors from internal calls.
@@ -29,6 +31,7 @@ each project's CLAUDE.md. Strict review enforcement lives in the
 - Every `go func()` has a clear lifetime owner: a `context.Context`, a `sync.WaitGroup`, or a bounded channel that someone drains.
 - Fan-out without fan-in is a bug. Background goroutines outliving their spawning function need an explicit "this is a daemon" comment.
 - When two async sources can write the same state, exactly one is authoritative. State machines need explicit transition guards, not last-writer-wins.
+- Shutdown is a sequence, not a `wg.Wait()`: signal → cancel root context → drain inflight work → close outbound connections, each stage with its own timeout budget.
 
 ## No fallbacks
 - One implementation per feature. `if v1Format { ... } else { ... }` branches must be tied to a documented migration plan.

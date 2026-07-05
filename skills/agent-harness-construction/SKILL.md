@@ -64,6 +64,11 @@ Track:
 - pass@1 and pass@3
 - cost per successful task
 
+## Delegation Failure Handling
+
+- Every delegated agent call carries a timeout, a retry policy (with a cap), and a defined fallback — hang, crash, and garbage-output are three different failure modes; handle each explicitly.
+- Treat subagent output as partially trusted: validate against the expected schema before consuming; a malformed result routes to repair-or-retry, never silently into downstream state.
+
 ## Anti-Patterns
 
 - Too many tools with overlapping semantics.

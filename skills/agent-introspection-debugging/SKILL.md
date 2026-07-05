@@ -29,6 +29,7 @@ Do not use this skill as the primary source for:
 - feature verification after code changes; run the project's test suite (see the `tdd-guide` agent)
 - framework-specific debugging when a narrower skill already exists in this repo
 - runtime promises the current harness cannot enforce automatically
+- production incidents — that's `incident-response`; this skill is for agent-loop failures
 
 ## Four-Phase Loop
 

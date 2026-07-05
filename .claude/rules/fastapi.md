@@ -27,6 +27,17 @@ paths:
 - Soft delete by default (`is_deleted` flag). Hard delete only with explicit justification (e.g. GDPR erasure), documented in the migration.
 - Alembic for migrations. Never modify the database outside migrations.
 
+## Background Work
+- `BackgroundTasks` only for fire-and-forget under ~30s; anything heavier or retryable goes to a real queue (ARQ).
+- Test background work by asserting the enqueue happened — never by running the task inline in the test.
+
+## Pagination & Responses
+- Cursor-based pagination for list endpoints; one shared response envelope schema across all endpoints.
+
+## AuthN/Z
+- Authentication as a router dependency (`Depends(get_current_user)`); RBAC decisions live in the service layer.
+- Tenancy scoping applied in the session/repository layer only — never per-query `WHERE` discipline.
+
 ## Shared Packages
 - Centralized models in `packages/db/`.
 - Enums and constants in `packages/db/constants.py` — import, don't duplicate.

@@ -201,6 +201,9 @@ From a production quiz parsing pipeline (410 items):
 - **Never mutate** parsed items — return new instances from cleaning/validation steps
 - **TDD works well** for parsers — write tests for known patterns first, then edge cases
 - **Log metrics** (regex success rate, LLM call count) to track pipeline health
+- **Schema-constrained LLM output** when the target schema is fixed — cheaper and more reliable than free-text plus repair; free-text only for genuinely ambiguous correction tasks
+- **Drift alert** when the regex success rate drops below your baseline threshold — that's the vendor changing the format, not noise
+- **Shadow-mode migrations** — run old and new parser side-by-side and diff outputs before cutting over on a format change
 
 ## Anti-Patterns to Avoid
 
@@ -210,10 +213,3 @@ From a production quiz parsing pipeline (410 items):
 - Mutating parsed objects during cleaning/validation steps
 - Not testing edge cases (malformed input, missing fields, encoding issues)
 
-## When to Use
-
-- Quiz/exam question parsing
-- Form data extraction
-- Invoice/receipt processing
-- Document structure parsing (headers, sections, tables)
-- Any structured text with repeating patterns where cost matters

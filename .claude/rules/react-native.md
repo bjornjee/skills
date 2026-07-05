@@ -5,7 +5,7 @@ paths:
 ---
 # React Native
 
-Applies to React Native projects only — if the repo has no `react-native` dependency in `package.json`, ignore this rule. (The `paths` globs match all TS/TSX because a glob cannot express the dependency condition.)
+Applies to React Native projects only — if the repo has no `react-native` dependency in `package.json`, ignore this rule. (The broad TS/TSX matching is deliberate — no file pattern can express the dependency condition.)
 
 ## Platform
 - Build system: expo-dev-client, not Expo Go.
@@ -13,7 +13,13 @@ Applies to React Native projects only — if the repo has no `react-native` depe
 - Prefer cloud-hosted signaling for WebRTC — local servers cause ICE failures on non-home networks.
 - adb reverse only forwards TCP, not UDP — plan around this for media protocols.
 
-## Worktree Environment Isolation
+## Engineering
+- State: server state → React Query; client state → Zustand; component state until it's shared. No Redux by default.
+- Persistence: MMKV over AsyncStorage; encrypt anything sensitive.
+- Navigation: auth-gating swaps navigator trees on auth state — never conditionally hidden screens. Deep links and push-tap navigation run after state hydration, not before.
+- Lists: FlashList over FlatList past ~50 items (provide size estimates). Hermes stays on. `expo-image` for cached images.
+
+## Worktree ops (agent-dashboard flow)
 - Each feature worktree gets a unique Metro port.
 - Main project uses default port `8081`. Worktrees start from `8082`, incrementing.
 - Scan all worktrees for `.metro-port` files to find ports in use. Verify with `lsof`.
@@ -23,7 +29,7 @@ Applies to React Native projects only — if the repo has no `react-native` depe
 - Store the Simulator UUID in `.sim-uuid` in the worktree root.
 - Ask the user which platform(s) to set up: Android, iOS, or Both.
 
-## Cleanup
+### Cleanup
 - Kill Metro process on the assigned port (read from `.metro-port`).
 - Delete Android AVD `feat-<feature_name>` via `avdmanager`.
 - Shut down and delete iOS Simulator (prefer UUID from `.sim-uuid`, fall back to name).

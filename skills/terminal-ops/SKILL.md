@@ -33,6 +33,17 @@ Pull these skills and agents into the workflow when relevant:
 - do not claim fixed until the proving command was rerun
 - do not claim pushed unless the branch actually moved upstream
 
+### Destructive-command guardrails
+
+Pause and confirm intent (or take the safer alternative) before any of:
+
+- `rm -rf` on `/`, `~`, or a project root; `sudo rm`
+- `git push --force` (use `--force-with-lease`), `git reset --hard`, `git checkout .` (discards all changes)
+- `DROP TABLE` / `DROP DATABASE`; destructive `kubectl delete`; `docker system prune`
+- `chmod 777`; accidental `npm publish`; anything with `--no-verify`
+
+State what the command will destroy and the recovery path (or "none") before running it. Default-on for autonomous sessions (`codex -a never`). The agent-dashboard plugin's `warn-destructive` / `block-main-commit` hooks enforce a subset mechanically; this checklist covers the rest.
+
 ## Workflow
 
 ### 1. Resolve the working surface

@@ -42,27 +42,32 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 |-------|-------------|
 | `/agent-harness-construction` | Design and optimize AI agent action spaces, tool definitions, and observation formatting |
 | `/agent-introspection-debugging` | Structured self-debugging workflow for AI agent failures |
-| `/agentic-engineering` | Eval-first execution, decomposition, and cost-aware model routing |
-| `/ai-ml-patterns` | Eval-first AI/ML workflow (lockstep copy of the `ai-ml.md` rule) |
-| `/claude-api` | Anthropic Claude API patterns for Python and TypeScript |
-| `/codegraph-audit` | Call-graph-aware pre-PR review via the local codegraph CLI |
+| `/agentic-engineering` | Eval-first execution, decomposition, model routing, and inter-agent trust boundaries |
+| `/ai-ml-patterns` | Eval-first AI/ML engineering — RAG, finetune-vs-RAG-vs-prompt, injection defense (lockstep copy of the `ai-ml.md` rule) |
+| `/api-design` | Resource modeling, pagination, error envelopes, versioning, idempotency |
+| `/claude-api` | Claude API judgment — model selection, tool-loop failure modes, caching, cost |
+| `/codegraph-audit` | Call-graph-aware pre-PR review via the local codegraph CLI (on demand) |
 | `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
-| `/context-budget` | Audit Claude Code context window consumption across agents, skills, MCP servers, and rules |
+| `/context-management` | When to compact + auditing what consumes the context window |
+| `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
+| `/distributed-systems` | Idempotent consumers, retry discipline, outbox, poison messages, backpressure |
 | `/fastapi-patterns` | FastAPI service-layer conventions (lockstep copy of the `fastapi.md` rule) |
-| `/git-workflow` | Git branching, commits, merge vs rebase, conflict resolution |
-| `/github-ops` | GitHub repository operations and automation via `gh` CLI |
-| `/golang-patterns` | Idiomatic Go patterns and conventions |
-| `/golang-testing` | Go testing patterns (table-driven, subtests, benchmarks, fuzzing) |
+| `/git-workflow` | Branching strategy decisions, bisect protocol, multi-worktree discipline, CODEOWNERS |
+| `/github-ops` | GitHub operations via `gh` — triage, CI debugging, releases, reusable workflows |
+| `/golang-patterns` | Go concurrency, context discipline, module boundaries, reliability |
+| `/golang-testing` | Go integration/race/parallel testing beyond the basics |
 | `/hookify-rules` | Create hookify rules and configure hook syntax (ECC plugin format) |
-| `/mcp-server-patterns` | Build MCP servers with Node/TypeScript SDK |
+| `/incident-response` | Mitigate-first incident handling, severity ladder, blameless postmortems |
+| `/mcp-server-patterns` | MCP servers — tool-description engineering, error contracts, sandboxing |
+| `/observability` | Structured-log contracts, RED metrics, trace propagation, SLO-first alerting |
 | `/ponytail` | Forces the laziest solution that actually works (YAGNI, stdlib-first) |
-| `/python-patterns` | Python style, typing, and tooling conventions (lockstep copy of the `python.md` rule) |
-| `/react-native-patterns` | React Native platform + worktree isolation conventions (lockstep copy of the `react-native.md` rule) |
+| `/python-patterns` | Python style, typing, concurrency, and tooling conventions (lockstep copy of the `python.md` rule) |
+| `/react-native-patterns` | React Native engineering + worktree isolation (lockstep copy of the `react-native.md` rule) |
 | `/regex-vs-llm-structured-text` | Decision framework for choosing between regex and LLM for parsing |
-| `/safety-guard` | Prevent destructive operations when working on production systems |
-| `/search-first` | Research-before-coding workflow |
-| `/strategic-compact` | Suggests manual context compaction at logical intervals |
-| `/terminal-ops` | Evidence-first repo execution workflow |
+| `/search-first` | Research-before-coding workflow with supply-chain checks |
+| `/security-design` | Design-time security — threat modeling, secrets, authn/z placement |
+| `/terminal-ops` | Evidence-first repo execution with destructive-command guardrails |
+| `/typescript-patterns` | TypeScript/Node conventions (lockstep copy of the `typescript.md` rule) |
 | `/uiux-design-loop` | Two-loop UI/UX discipline with a cold-context grader (requires `impeccable`) |
 
 ## Agents
@@ -70,26 +75,29 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 | Agent | Description |
 |-------|-------------|
 | `go-reviewer-strict` | Strict Go code reviewer enforcing evidence-based principles from CLAUDE.md/AGENTS.md |
-| `performance-optimizer` | Performance analysis and optimization specialist (stack-aware: Go/Python/JS) |
+| `performance-optimizer` | Profile-first optimization for Go/Python/Node with CI regression budgets |
 | `python-reviewer-strict` | Strict Python code reviewer enforcing evidence-based principles |
-| `refactor-cleaner` | Dead code cleanup and consolidation specialist (stack-aware: Go/Python/JS) |
+| `refactor-cleaner` | Dead-code cleanup with semantic-equivalence proof (stack-aware: Go/Python/JS) |
 | `tdd-guide` | Proportional-proof guide (Surgical/Targeted/Full profiles, RED → GREEN → REFACTOR) |
+| `typescript-reviewer-strict` | Strict TypeScript/Node reviewer mirroring the Go/Python contract |
 | `uiux-grader` | Cold-context UI/UX grader — internal to `/uiux-design-loop`, never invoked standalone |
 
 ## Rules
 
 | File | Scope | Description |
 |------|-------|-------------|
-| `core.md` | All | KISS, DRY, workflow phases, agent dispatch, model selection |
-| `python.md` | `**/*.py` | PEP 8, Pydantic, pytest, tooling |
-| `golang.md` | `**/*.go` | Idiomatic Go conventions |
-| `fastapi.md` | `**/*.py` | Service layer, DI, async SQLAlchemy, soft delete |
-| `react-native.md` | `**/*.ts{,x}` | Expo, worktree isolation, Metro ports |
-| `ai-ml.md` | `**/evals/**` | Eval pipelines, prompt testing, experiments |
+| `core.md` | All | Doctrine: workflow gates, decision discipline, architecture judgment, dispatch |
+| `python.md` | `**/*.py` | PEP 8, Pydantic v2, concurrency model, tooling |
+| `golang.md` | `**/*.go` | Idiomatic Go, shutdown sequencing, slog |
+| `fastapi.md` | `**/*.py` | Service layer, DI, background work, pagination, authz placement |
+| `typescript.md` | `**/*.ts{,x}` | Strict compiler, parse-don't-cast, promise hygiene, ESM |
+| `react-native.md` | `**/*.ts{,x}` | RN engineering, Expo, worktree isolation |
+| `ai-ml.md` | `**/evals/**`, `**/prompts/**` | Evals, RAG, injection defense, routing |
+| `shell.md` | `**/*.sh` | Bash safety non-negotiables |
 
 Run `make sync-rules` (wraps `scripts/install-rules-symlinks.sh`) to symlink these into `~/.claude/rules/` so Claude Code loads them at user scope. Because they are symlinks, later edits in the repo propagate automatically.
 
-The `python.md`, `fastapi.md`, `react-native.md`, and `ai-ml.md` rule bodies are mirrored 1:1 by the matching `*-patterns` skills (so Codex gets the same content); `scripts/language-skills.test.js` enforces the lockstep.
+The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md` rule bodies are mirrored 1:1 by the matching `*-patterns` skills (so Codex gets the same content); `scripts/language-skills.test.js` enforces the lockstep.
 
 ## Codex Setup
 
