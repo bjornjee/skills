@@ -27,6 +27,7 @@ Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/mar
 4. One way to do things. Follow existing patterns. Do not introduce alternatives.
 5. Battle-tested over hand-rolled. If an OSS project solves 80%+, use it.
 6. The ladder. Stop at the first rung that holds: YAGNI → reuse what's already in this codebase → stdlib → native platform feature → installed dependency → one line → minimum code. Read the problem and trace the real flow before picking a rung. Never simplify away trust-boundary validation, data-loss handling, security, or accessibility. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path.
+7. Architecture judgment. Classify decisions one-way vs two-way door — scrutiny proportional to irreversibility; one-way doors or cross-repo consumers get a 10-line ADR in `docs/adr/` linked from the PR. State three blast radii in plans (data, external API consumers, org). Migrations run expand → migrate → contract with the destructive step shipping alone. Prod-touching changes name their rollback path before merge.
 
 ## Workflow
 

@@ -74,6 +74,14 @@ Do not let the easiest implementation surface become the architecture. Choose re
 
 If implementation requires more than two corrective iterations in the same area, stop patching and reframe the missing invariant before continuing.
 
+## Architecture judgment
+
+- **Classify the door before committing.** Two-way doors (routing, internal structure, most code) are cheap to reverse — decide fast, iterate. One-way doors (published APIs, schema drops, data deletion, wire formats, anything with external consumers) get scrutiny proportional to irreversibility.
+- **Three blast radii in every plan:** data volume (scale shape), API consumers outside this repo, and org/coordination cost.
+- **ADR trigger.** One-way door OR cross-repo consumers ⇒ a 10-line ADR in `docs/adr/NNN-<slug>.md` (context, decision, consequences), linked from the PR.
+- **Migrations run expand → migrate → contract.** Destructive step ships alone, one deploy behind verification.
+- **Prod-touching changes name their rollback path before merge.** "Roll forward" is a justified choice, never a default.
+
 ## Skill dispatch (when to reach for what)
 
 Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to be asked:
@@ -90,6 +98,10 @@ Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to
 - **GitHub ops** (issues, PRs, releases) → `github-ops`.
 - **Terminal-heavy debugging** → `terminal-ops`.
 - **Building MCP servers** → `mcp-server-patterns`.
+- **Designing an API surface** → `api-design`. **Queues/webhooks/background jobs** → `distributed-systems`. **Logging/metrics/tracing/SLOs** → `observability`. **Schemas/indexes/migrations** → `data-modeling`.
+- **New trust boundary (auth, secrets, service-to-service)** → `security-design`.
+- **Production incident or postmortem** → `incident-response`.
+- **Compaction timing or context bloat** → `context-management`.
 - **Building agent systems** → `agentic-engineering`, `agent-harness-construction`.
 - **Parsing structured text** → `regex-vs-llm-structured-text` (start with regex; add LLM only for low-confidence edges).
 - **User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering / bloat / boilerplate** → `ponytail`.
