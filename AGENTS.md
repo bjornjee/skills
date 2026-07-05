@@ -26,9 +26,11 @@ Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/mar
 3. No just-in-case code. No feature flags or backwards-compat shims without a migration plan.
 4. One way to do things. Follow existing patterns. Do not introduce alternatives.
 5. Battle-tested over hand-rolled. If an OSS project solves 80%+, use it.
-6. The ladder. Stop at the first rung that holds: YAGNI → reuse what's already in this codebase → stdlib → native platform feature → installed dependency → one line → minimum code. Read the problem and trace the real flow before picking a rung. Never simplify away trust-boundary validation, data-loss handling, security, or accessibility. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path.
-7. Architecture judgment. Classify decisions one-way vs two-way door — scrutiny proportional to irreversibility; one-way doors or cross-repo consumers get a 10-line ADR in `docs/adr/` linked from the PR. State three blast radii in plans (data, external API consumers, org). Migrations run expand → migrate → contract with the destructive step shipping alone. Prod-touching changes name their rollback path before merge.
-8. Decision discipline. Before CI, automation, agent workflows, security-sensitive code, or user-visible generated output: define execution authority, ownership boundaries, bootstrap vs steady state, output contract, and failure mode. More than two corrective iterations in one area = stop patching, reframe the invariant.
+6. Bounded work. Every implementation states its unit of work, what it scales with, and where it runs. Work that scales with global accumulated state is suspect unless the plan bounds, batches, caches, indexes, or defers it.
+7. Stay in declared scope. If the task says "X only," don't touch Y — surface adjacent improvements as separate proposals, never silently expand the diff.
+8. The ladder. Stop at the first rung that holds: YAGNI → reuse what's already in this codebase → stdlib → native platform feature → installed dependency → one line → minimum code. Read the problem and trace the real flow before picking a rung. Never simplify away trust-boundary validation, data-loss handling, security, or accessibility. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path.
+9. Architecture judgment. Classify decisions one-way vs two-way door — scrutiny proportional to irreversibility; one-way doors or cross-repo consumers get a 10-line ADR in `docs/adr/` linked from the PR. State three blast radii in plans (data, external API consumers, org). Migrations run expand → migrate → contract with the destructive step shipping alone. Prod-touching changes name their rollback path before merge.
+10. Decision discipline. Before CI, automation, agent workflows, security-sensitive code, or user-visible generated output: define execution authority, ownership boundaries, bootstrap vs steady state, output contract, and failure mode. More than two corrective iterations in one area = stop patching, reframe the invariant.
 
 ## Workflow
 
@@ -45,7 +47,7 @@ Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/mar
    - Check predicate/source-of-truth correctness, merge/update semantics, path-shape edge cases, test command inclusion, and cross-adapter drift when equivalent files changed.
 5. Before PR/push, the strict-reviewer spawn IS the audit — scope it explicitly to the changed-file list plus package manifests, CI config, and test-runner config; no separate neutral pass.
    - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
-6. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes.
+6. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes. Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent).
 7. No self-attribution in commits or PRs. No `Co-Authored-By` trailer naming the assistant, no `Generated with` footer in PR bodies.
 
 Coverage goal: 80%+.
@@ -57,12 +59,13 @@ Language-specific conventions ship two ways, same content:
 - **Skills** (`skills/<name>-patterns/`) — invoked on demand, work in both Claude Code and Codex.
 - **Claude Code rules** (`.claude/rules/*.md`) — auto-loaded via glob `paths` frontmatter when a matching file is edited (Claude Code only; installed by `make sync-rules`).
 
-`scripts/language-skills.test.js` keeps the python/fastapi/react-native/ai-ml skill bodies byte-identical to their rules files; the Go skills are standalone references. When working on a language, reach for the matching skill:
+`scripts/language-skills.test.js` keeps the python/fastapi/react-native/ai-ml/typescript skill bodies byte-identical to their rules files; the Go skills are standalone references. When working on a language, reach for the matching skill:
 
 - **Go** → `$skills:golang-patterns`, `$skills:golang-testing`
 - **Python** → `$skills:python-patterns`
 - **FastAPI** → `$skills:fastapi-patterns` (in addition to `$skills:python-patterns`)
-- **React Native** → `$skills:react-native-patterns`
+- **TypeScript/Node** → `$skills:typescript-patterns`
+- **React Native** → `$skills:react-native-patterns` (in addition to `$skills:typescript-patterns`)
 - **AI/ML & Evals** → `$skills:ai-ml-patterns`
 - **Git operations** → `$skills:git-workflow`
 - **Terminal execution** → `$skills:terminal-ops`

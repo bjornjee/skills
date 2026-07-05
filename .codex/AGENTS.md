@@ -16,6 +16,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
 - **DRY.** Shared logic in shared packages. Constants/types defined once and imported. Copy-paste means extract.
 - **No just-in-case code.** No feature flags, backwards-compat shims, or fallbacks unless tied to an explicit migration.
 - **One way to do things.** If a pattern exists, follow it. Don't introduce alternatives.
+- **Stay in declared scope.** If the task says "X only," don't touch Y. Surface adjacent improvements as separate proposals — do not silently expand the diff.
 - **Battle-tested over hand-rolled.** If an OSS project solves 80%+, adopt or port it. Conversely, stdlib over third-party when stdlib suffices.
 - **Bounded work.** Every implementation must make the unit of work explicit: what input size it scales with, what triggers it, and where it runs. Work that scales with all user history, all files, all rows, all agents, or all external state is suspect unless the plan bounds it, batches it, caches it, indexes it, or moves it off the critical path.
 - **The ladder.** Read the task and trace the real flow first. Then stop at the first rung that holds:
@@ -27,7 +28,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
   6. Can it be one line? One line.
   7. Only then: the minimum that works.
 
-  Lazy about the solution, never about reading the problem. Trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path (e.g. `// ponytail: global lock, per-account locks if throughput matters`).
+  Lazy about the solution, never about reading the problem. Trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path (e.g. `// ponytail: global lock, per-account locks if throughput matters` — use your language's comment syntax).
 
 ## Workflow phases (in what order)
 
@@ -37,7 +38,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.
    - **Scale shape.** State the data volume the change scales with and whether that volume is bounded by the current request/selection or by global accumulated state. If it scales with global state, the plan must include a bounding strategy.
    - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout must move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
-   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors get proportionally more scrutiny and an ADR.
+   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors require Full-profile verification, an explicit rollback plan, and an ADR.
 3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
    - **Verification profile.** Pick one before editing and escalate if the diff grows:
      - Surgical: docs, rules, config, generated metadata, or trivial isolated helpers. No implementation-only tests.
@@ -57,6 +58,9 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - **Visual changes need visual verification.** For UI/CSS/layout changes: identify what should look different, render the running app (Playwright or the project's browser tool), and verify the observable output before claiming done. The diff is not proof; the screenshot is.
 4. **Review.** Every change reviewed for correctness, security, convention. Address critical and high; fix medium when cheap.
    - Review the implementation against its stated execution context and scale shape. Look for accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
+   - Security: check every changed input, output, auth, storage, file, and network boundary for injection, XSS, CSRF, auth/authz bypass, SSRF, path traversal, secret exposure, unsafe deserialization, and missing validation or escaping.
+   - Scope the review to the changed-file list plus package manifests, CI config, and test-runner config. Check cross-adapter drift when equivalent Claude/Codex or platform-specific files changed.
+   - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
    - **No self-attribution.** No `Co-Authored-By` trailer naming the assistant in commits; no "Generated with" footer in PR bodies. The author is the user — attribution to the tool is noise.
 

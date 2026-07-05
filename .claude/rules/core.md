@@ -64,7 +64,7 @@ step lives inside the corresponding subagent definition, not here.
    - **Execution context.** Classify each as interactive, request/response, background, startup, test-only, or batch — what calls it, how often it can run, and what blocks while it runs.
    - **Scale shape.** The data volume the change scales with, and whether that volume is bounded by the current request/selection or by global accumulated state. Global-state scaling requires a bounding strategy in the plan.
    - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
-   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors get proportionally more scrutiny and an ADR.
+   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors require Full-profile verification, an explicit rollback plan, and an ADR.
 
    **Terminology.** *"Plan tool" / "plan mode" / "the planner"* mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools** (load via `ToolSearch` once per session) — never the `Plan` agent, whose output lands in a `tool_result` the dashboard cannot surface. User shorthand like "plan it" resolves to `EnterPlanMode`.
 
@@ -140,7 +140,7 @@ step lives inside the corresponding subagent definition, not here.
 
    The fix is the last step, not the first.
 
-4. **Review.** Language-specific strict reviewers (below) fire on edited files. Address critical and high; fix medium when cheap.
+4. **Review.** Language-specific strict reviewers (dispatch table below) must be spawned on edited files. Address critical and high; fix medium when cheap.
 
    Every review must include an adversarial correctness and security pass against the stated execution context and scale shape. Check:
    - Security boundaries: every changed input, output, auth, storage, file, network, and browser boundary. Look for injection, SQL/command/template injection, XSS, CSRF, auth/authz bypass, secret exposure, unsafe deserialization, SSRF, path traversal, insecure defaults, and missing validation or escaping.
@@ -202,7 +202,7 @@ Spawn without waiting for the user to ask:
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
 | Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
-| Plan approved, in a worktree, Codex available | `codex-delegate` (skill) | bjornjee-skills |
+| Plan approved, in a worktree, Codex available | `skills:codex-delegate` | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
@@ -211,11 +211,11 @@ Spawn without waiting for the user to ask:
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
 | Production incident, outage, or postmortem | `skills:incident-response` | bjornjee-skills |
 | Designing a new trust boundary (auth, secrets, service-to-service) | `skills:security-design` | bjornjee-skills |
-| Designing APIs, queue/background work, telemetry, or schemas | matching discipline skill: `api-design` / `distributed-systems` / `observability` / `data-modeling` | bjornjee-skills |
+| Designing APIs, queue/background work, telemetry, or schemas | matching discipline skill: `skills:api-design` / `skills:distributed-systems` / `skills:observability` / `skills:data-modeling` | bjornjee-skills |
 | Compaction timing or context-window bloat | `skills:context-management` | bjornjee-skills |
 | User asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop` | bjornjee-skills |
 | Grading gates inside `/skills:uiux-design-loop` (internal — never invoke standalone) | `uiux-grader` | bjornjee-skills |
-| User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `ponytail` (skill) | bjornjee-skills |
+| User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `skills:ponytail` | bjornjee-skills |
 
 **Parallel by default.** Independent agents launch in **one message** with multiple tool calls.
 
