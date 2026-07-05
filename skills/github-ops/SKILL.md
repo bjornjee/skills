@@ -1,7 +1,6 @@
 ---
 name: github-ops
-description: GitHub repository operations, automation, and management. Issue triage, PR management, CI/CD operations, release management, and security monitoring using the gh CLI. Use when the user wants to manage GitHub issues, PRs, CI status, releases, contributors, stale items, or any GitHub operational task beyond simple git commands.
-origin: ECC
+description: GitHub repo operations via the gh CLI — issue triage, PR management, CI debugging, releases, security monitoring. Use for any GitHub operational task beyond simple git commands.
 ---
 
 # GitHub Operations
@@ -72,8 +71,8 @@ gh issue comment <number> --body "Thanks for reporting. Could you share reproduc
 # Find stale issues (no activity in 14+ days)
 gh issue list --label "stale" --state open
 
-# Find PRs with no recent activity
-gh pr list --json number,title,updatedAt --jq '.[] | select(.updatedAt < "2026-03-01")'
+# Find PRs with no activity in the last 30 days (relative cutoff — no stale dates)
+gh pr list --json number,title,updatedAt --jq '.[] | select(.updatedAt < (now - 86400*30 | strftime("%Y-%m-%dT%H:%M:%SZ")))'
 ```
 
 ## CI/CD Operations
@@ -107,8 +106,8 @@ When preparing a release:
 4. Create release: `gh release create`
 
 ```bash
-# List merged PRs since last release
-gh pr list --state merged --base main --search "merged:>2026-03-01"
+# List merged PRs from the last month (BSD/macOS date; on Linux use --date='-1 month')
+gh pr list --state merged --base main --search "merged:>$(date -v-1m +%Y-%m-%d)"
 
 # Create a release
 gh release create v1.2.0 --title "v1.2.0" --generate-notes

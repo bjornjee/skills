@@ -31,6 +31,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
 
 ## Workflow phases (in what order)
 
+0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch: `git worktree add ../worktrees/<repo>/<name> -b <type>/<name> main`. This applies even when the task starts as "just look at it" — every audit turns into commits eventually. No edits and no `git add` on the source checkout.
 1. **Research.** Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 2. **Plan.** No code until the approach is agreed. Break work into phases, identify risks and affected files.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.
@@ -49,9 +50,13 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - **Use a shared fixture** (e.g. `client` in `conftest.py`) for setup. Don't instantiate `TestClient(app)` or equivalent inside every test.
    - **Scale test when scale matters.** If correctness depends on data volume, call frequency, concurrency, or latency, write a failing test, benchmark, or measurable reproduction that represents that risk before implementation. Do not rely only on tiny functional fixtures.
    - **Root cause, not symptom.** Grep every caller of the function you touch. One guard in the shared function is a smaller diff than a guard per caller, and patching only the path the ticket names leaves siblings broken.
+   - **Bug fixes need evidence, not theories.** No edit on a "fix" until you have the offending file:line range AND the reproducing output (test failure, log line, stack trace). State the root cause as a falsifiable claim: *"X happens because Y at file:line returns Z."* "It's probably X" is a guess; guesses get reverted.
+   - **Boundary bug gate.** For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix. Mocks and unit tests are regression guards after diagnosis, not live-behavior proof.
+   - **Visual changes need visual verification.** For UI/CSS/layout changes: identify what should look different, render the running app (Playwright or the project's browser tool), and verify the observable output before claiming done. The diff is not proof; the screenshot is.
 4. **Review.** Every change reviewed for correctness, security, convention. Address critical and high; fix medium when cheap.
    - Review the implementation against its stated execution context and scale shape. Look for accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
+   - **No self-attribution.** No `Co-Authored-By` trailer naming the assistant in commits; no "Generated with" footer in PR bodies. The author is the user — attribution to the tool is noise.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
 
@@ -108,10 +113,12 @@ Good: "Review `src/auth/session.ts` (added refresh token rotation) and `src/auth
 
 ## Model selection when running explicit subtasks
 
+Codex-specific — the Claude Code model-tier table lives in `.claude/rules/core.md`; the two mechanisms are not interchangeable.
+
 | Task | Reasoning effort | Why |
 |---|---|---|
 | Exploration, search, environment setup | low | Fast, cheap, no deep reasoning needed |
 | Research, analysis, code review | medium | Strong comprehension and synthesis |
 | Code writing, architecture, complex reasoning | high | Best output quality |
 
-Override with `--model_reasoning_effort` per invocation when the default doesn't match the task.
+Override per invocation with the config-override syntax `-c model_reasoning_effort="<low|medium|high>"` (there is no dedicated flag) when the default doesn't match the task.

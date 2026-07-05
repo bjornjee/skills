@@ -1,10 +1,6 @@
 ---
-paths:
-  - "**/main.py"
-  - "**/routers/**/*.py"
-  - "**/services/**/*.py"
-  - "**/models/**/*.py"
-  - "**/schemas/**/*.py"
+name: fastapi-patterns
+description: FastAPI service-layer architecture, dependency injection, domain-error handling, SQLAlchemy 2.0 async, and Alembic conventions. Use when building or modifying FastAPI apps, in addition to python-patterns.
 ---
 # FastAPI
 

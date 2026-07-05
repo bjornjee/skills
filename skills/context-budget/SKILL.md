@@ -1,7 +1,6 @@
 ---
 name: context-budget
 description: Audits Claude Code context window consumption across agents, skills, MCP servers, and rules. Identifies bloat, redundant components, and produces prioritized token-savings recommendations.
-origin: ECC
 ---
 
 # Context Budget
@@ -30,7 +29,7 @@ Scan all component directories and estimate token consumption:
 **Skills** (`skills/*/SKILL.md`)
 - Count tokens per SKILL.md
 - Flag: files >400 lines
-- Check for duplicate copies in `.agents/skills/` — skip identical copies to avoid double-counting
+- Check for duplicate copies behind Codex plugin symlinks (e.g. `plugins/skills/skills/`) — skip identical copies to avoid double-counting
 
 **Rules** (`rules/**/*.md`)
 - Count tokens per file

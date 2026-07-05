@@ -1,7 +1,6 @@
 ---
-paths:
-  - "**/*.ts"
-  - "**/*.tsx"
+name: react-native-patterns
+description: React Native platform, Metro-port and emulator/simulator worktree isolation, and cleanup conventions (expo-dev-client, adb, avdmanager, simctl). Use when working on React Native apps.
 ---
 # React Native
 

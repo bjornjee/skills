@@ -54,9 +54,9 @@ The two skills speak different register dialects. impeccable picks the **family*
 
 The cold-context grader cannot see the code. `impeccable audit` is the right tool for implementation fidelity (a11y, perf, motion, structural integrity); the grader is the right tool for visual fidelity. Gate 1.5 and Gate 3.5 plumb them so each gate knows what the other can see.
 
-**Trigger.** At least one changed file present in `git status` (or staged for the surfaces being graded). Impeccable's presence is guaranteed by the Gate 0 precondition; no install check at this gate.
+**Trigger.** Every grader pass. At Gate 1.5 the audit target is the files rendering the `flow-map.md` surfaces (baseline may have no changed files yet); at Gate 3.5 and Gate 4 the target narrows to the changed files in `git status`. Impeccable's presence is guaranteed by the Gate 0 precondition; no install check at this gate.
 
-**Dispatch.** The loop's orchestrator runs `impeccable audit <changed-files>` in **parallel** with the corresponding grader pass (Gate 1 for baseline, Gate 3 for re-grade). Two valid implementations:
+**Dispatch.** The loop's orchestrator runs `impeccable audit <target-files>` immediately **before** the corresponding grader pass (Gate 1 for baseline, Gate 3 for re-grade) so the findings file rides in the grader bundle. Two valid implementations:
 
 1. **Subagent dispatch.** Spawn a subagent that runs `/impeccable audit <changed-files>` per `reference/audit.md` and emits findings to disk.
 2. **CLI dispatch.** When `npx impeccable audit` is detected, run it directly with `--format=json`.

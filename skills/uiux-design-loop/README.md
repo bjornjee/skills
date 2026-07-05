@@ -1,6 +1,6 @@
 # uiux-design-loop
 
-Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and a parallel `impeccable audit` pass that blocks PASS on P0/P1 a11y / perf / structural findings. The `impeccable` skill is a **required dependency** — the loop refuses to start without it.
+Two-loop discipline for UI/UX work. A **cold-context grader subagent** (outer loop) scores the rendered design against an 8-dimension rubric plus binary preservation and audit gates; the **implementer** (inner loop) iterates from critique briefs. Forces declared user-flow + visual register + preservation contract before code, screenshot plus behavior proof per iteration, and an `impeccable audit` pass that blocks PASS on P0/P1 a11y / perf / structural findings. The `impeccable` skill is a **required dependency** — the loop refuses to start without it.
 
 Purpose: prevent the single-pass "polish" failure mode where the implementer ships something that *sounds* disciplined but visually impoverishes the page, because the implementer is the only reviewer.
 
@@ -52,7 +52,7 @@ Drop override files into the host project's worktree. See `rubric.md` → "How t
 The `impeccable` skill (`~/.claude/skills/impeccable/`) is a required dependency. The loop's Gate 0 precondition HARD-GATE refuses to start without it. Four seams from `impeccable-map.md` fire on every run:
 
 1. **Gate 0 pre-flight** — runs `context.mjs` to auto-populate `register.md` from `PRODUCT.md` (mapped through the register-taxonomy table); recommends `/impeccable init` if `NO_PRODUCT_MD`.
-2. **Gate 1.5 + 3.5** — dispatches `impeccable audit <changed-files>` in parallel with each grader pass. P0/P1 findings = audit gate `FAIL` = block PASS.
+2. **Gate 1.5 + 3.5** — dispatches `impeccable audit <target-files>` before each grader pass so findings ride in the grader bundle. P0/P1 findings = audit gate `FAIL` = block PASS.
 3. **Dimensions 7 + 8** — `accessibility` and `technical-quality` score from the audit findings (severity → score mapping in `rubric.md`).
 4. **Gate 4 mandatory exit-pass** — at PASS, fires `AskUserQuestion` with a single suggested `/impeccable <pass> <target>` command pre-selected as Recommended. There is no Skip option; the user confirms the pass or aborts the loop.
 

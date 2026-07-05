@@ -1,13 +1,13 @@
 ---
 name: codex-delegate
-description: Delegate coding tasks to Codex CLI (GPT-5.4) with a structured plan handoff. Use after planning is complete — pass the plan directly to Codex for implementation.
+description: Delegate coding tasks to Codex CLI (GPT-5.4) with a structured plan handoff. Use after planning is complete and the Codex CLI plugin is installed — pass the plan directly to Codex for implementation.
 ---
 
 # Codex Delegation
 
 Delegate implementation to Codex CLI after planning with Claude. The plan is the context handoff.
 
-GPT-5.4 matches or exceeds Claude Opus 4.6 on agentic coding benchmarks (SWE-bench Pro: 59% vs 52%, Terminal-Bench: 75% vs 65%). Claude plans, Codex implements.
+GPT-5.4 is competitive with frontier Claude models on agentic coding benchmarks. Claude plans, Codex implements.
 
 ## When to Activate
 
@@ -15,7 +15,10 @@ GPT-5.4 matches or exceeds Claude Opus 4.6 on agentic coding benchmarks (SWE-ben
 - Approaching or hit Claude Code usage limits
 - Parallel workstreams — delegate implementation to Codex while continuing other work
 
-**Prerequisite:** The session must be in a git worktree (`git rev-parse --show-toplevel` differs from the main repo root). The feature skill creates worktrees — delegation happens inside them. Do not delegate from the main checkout.
+**Prerequisites:**
+
+- The Codex CLI plugin must be installed — every `/codex:*` command below ships with it. Verify with `/codex:setup` (or `/codex:status`); without the plugin this skill cannot run.
+- The session must be in a git worktree (`git rev-parse --show-toplevel` differs from the main repo root). The feature skill creates worktrees — delegation happens inside them. Do not delegate from the main checkout.
 
 ## Core Workflow: Plan → Delegate → Review → Rectify
 
@@ -241,6 +244,8 @@ go vet ./internal/service/...
 | Complex multi-file feature | `--effort high` | Architectural work |
 | Critical/security-sensitive | `--effort xhigh --profile strict` | Maximum compliance |
 | Fast iteration/scaffolding | `--model gpt-5.3-codex-spark` | Boilerplate |
+
+Model names drift — verify availability with `codex models` before pinning one.
 
 ## Available Commands
 

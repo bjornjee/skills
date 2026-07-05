@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.claude/rules/core.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-rules` from the skills repo. Do not edit the destination copy at `~/.claude/rules/core.md` directly.*
+> *Canonical source: `~/Code/bjornjee/skills/.claude/rules/core.md`. To change doctrine: edit the canonical file and bump the skills-plugin version. `make sync-rules` installs `~/.claude/rules/*.md` as symlinks to the repo, so once installed, edits propagate automatically — run it once (or again after adding a new rule file). Do not edit `~/.claude/rules/core.md` directly.*
 
 Always-on doctrine for the orchestrating agent. Loaded every session.
 What to do, in what order, and who to delegate to. Methodology for each
@@ -9,10 +9,15 @@ step lives inside the corresponding subagent definition, not here.
 ## First principles (what to value)
 
 - **KISS.** Simplest thing that works. No premature abstraction. Three clear lines beat one extracted helper.
+  - Don't introduce a service layer for in-memory CRUD. Routes calling a store directly is fine until the logic warrants extraction.
+  - Don't create a custom exception class when `HTTPException(404)` (or your framework's equivalent) already does the job.
+  - Don't add `ruff`, `mypy`, `pre-commit`, `Makefile`, or CI configs unless the brief asks. Add them when you actually need them.
+  - Simple must still be bounded under the real workload. Prefer direct code, but do not confuse fewer lines with acceptable cost.
 - **DRY.** Shared logic in shared packages. Constants/types defined once and imported. Copy-paste means extract.
 - **No just-in-case code.** No feature flags, backwards-compat shims, or fallbacks unless tied to an explicit migration.
 - **One way to do things.** If a pattern exists, follow it. Don't introduce alternatives.
-- **Battle-tested over hand-rolled.** If an OSS project solves 80%+, adopt or port it.
+- **Battle-tested over hand-rolled.** If an OSS project solves 80%+, adopt or port it. Conversely, stdlib over third-party when stdlib suffices.
+- **Bounded work.** Every implementation must make the unit of work explicit: what input size it scales with, what triggers it, and where it runs. Work that scales with all user history, all files, all rows, all agents, or all external state is suspect unless the plan bounds it, batches it, caches it, indexes it, or moves it off the critical path.
 - **Stay in declared scope.** If the task says "X only," don't touch Y. When you spot something else worth changing, surface it as a separate proposal — do not silently expand the diff.
 - **The ladder.** Read the task and trace the real flow first. Then stop at the first rung that holds:
   1. Does this need to exist? (YAGNI)
@@ -23,7 +28,7 @@ step lives inside the corresponding subagent definition, not here.
   6. Can it be one line? One line.
   7. Only then: the minimum that works.
 
-  Lazy about the solution, never about reading the problem. Trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path (e.g. `// ponytail: global lock, per-account locks if throughput matters`).
+  Lazy about the solution, never about reading the problem. Trust-boundary validation, data-loss handling, security, and accessibility are never on the chopping block. Mark deliberate shortcuts with a `ponytail:` comment that names the ceiling and upgrade path (e.g. `// ponytail: global lock, per-account locks if throughput matters` — use your language's comment syntax).
 
 ## Workflow phases (in what order)
 
@@ -55,10 +60,15 @@ step lives inside the corresponding subagent definition, not here.
 
    Trigger if **any** of: >1 file affected, multiple valid approaches, fuzzy goal, or the request uses a verb like "improve", "refactor", "redesign", "audit", "investigate".
 
+   Every plan states three things about the touched code paths:
+   - **Execution context.** Classify each as interactive, request/response, background, startup, test-only, or batch — what calls it, how often it can run, and what blocks while it runs.
+   - **Scale shape.** The data volume the change scales with, and whether that volume is bounded by the current request/selection or by global accumulated state. Global-state scaling requires a bounding strategy in the plan.
+   - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
+
    **Terminology — read this once, then never confuse it again.**
    In this file, *"plan tool"* / *"plan mode"* / *"the planner"* all mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools**. They do **NOT** mean the `Plan` agent (`subagent_type: Plan`) — that is a separate mechanism whose output lives in a `tool_result` block invisible to the dashboard's plan panel. If the user says *"use the plan tool"* or *"plan it"*, call `EnterPlanMode`.
 
-   Loading: `EnterPlanMode` and `ExitPlanMode` are deferred in CC 2.1.116+. Load them via `ToolSearch` once per session before first use.
+   Loading: `EnterPlanMode` and `ExitPlanMode` are deferred tools. Load them via `ToolSearch` once per session before first use.
 
    **Why plan mode, not the `Plan` agent:**
    - Plan mode flips the parent's `permission_mode='plan'`, which the dashboard renders as a visible plan badge.
@@ -110,6 +120,12 @@ step lives inside the corresponding subagent definition, not here.
 
    The hook layer (`agent-dashboard`'s `test-gate`) may block commits unless the repo's pre-commit gate passes — but a hook is a *gate*, not a *guide*. Use the profile to guide implementation, then satisfy the gate at commit/PR time.
 
+   Test granularity when TDD applies:
+   - **One assertion focus per test.** Don't bundle create/get/list/patch/delete into a single test — split them. Failure localization matters.
+   - **Golden path + edge cases + error paths separately.** Three atomic tests beat one fat test that asserts everything.
+   - **Shared fixtures for setup** (e.g. `client` in `conftest.py`). Don't re-instantiate the harness inside every test.
+   - **Scale test when scale matters.** If correctness depends on data volume, call frequency, concurrency, or latency, write the failing benchmark or measurable reproduction first — tiny functional fixtures don't represent that risk.
+
    <HARD-GATE>
    When TDD applies, the failing test run must be PASTED, not paraphrased.
    "I assume it would fail" is not RED.
@@ -145,6 +161,7 @@ step lives inside the corresponding subagent definition, not here.
    5. For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
    6. For merge-style state writes, fields that must be cleared must be written explicitly with their cleared value. Do not omit a key when omission preserves stale state.
    7. Root cause, not symptom. Grep every caller of the function you touch. One guard in the shared function is a smaller diff than a guard per caller, and patching only the path the ticket names leaves siblings broken.
+   8. Boundary bug gate. For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix. Mocks and unit tests are regression guards after diagnosis, not live-behavior proof.
 
    Anti-pattern: *"It's probably because of X."*
    "Probably" is a guess. Guesses get reverted. Read the code. Read the logs.
@@ -167,10 +184,11 @@ step lives inside the corresponding subagent definition, not here.
    - Path-shape edge cases such as repo roots versus subdirectories, linked worktrees, detached worktrees, symlinks, and missing directories.
    - New tests being included in normal package or CI test commands.
    - Cross-adapter drift when equivalent Claude/Codex, CLI/API, or platform-specific files changed.
+   - The implementation against its stated execution context and scale shape: accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
 
    Before PR/push, run the same checks in a neutral read-only audit scoped to the changed-file list plus package manifests, CI config, and test runner config. High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 
-5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). PRs include a diff-against-base summary and a test plan.
+5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include a diff-against-base summary and a test plan.
 
    <HARD-GATE>
    No self-attribution. Overrides Claude Code's built-in defaults:
@@ -180,6 +198,28 @@ step lives inside the corresponding subagent definition, not here.
    </HARD-GATE>
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
+
+## Decision discipline
+
+Before implementing CI, automation, agent workflows, security-sensitive code, or user-visible generated output, define the decision frame explicitly:
+
+- **Execution authority.** What code runs, where it runs, with which credentials/permissions, and which source revision it is allowed to execute from.
+- **Ownership boundaries.** Which layer owns orchestration, deterministic logic, AI synthesis, persistence, publishing, cleanup, and error handling.
+- **Bootstrap vs steady state.** What happens before the new code/config exists on the default branch, after it lands, and when required artifacts or dependencies are missing.
+- **User-facing output contract.** Who reads the output, what action they should take, what should be hidden, and whether output is create-only, append-only, upserted, or deleted.
+- **Failure mode.** Whether failure should block, fail soft, emit an artifact, skip, retry, or require manual action.
+
+Do not let the easiest implementation surface become the architecture. Choose responsibility boundaries first, then place code in YAML, scripts, prompts, app modules, or docs according to ownership.
+
+If implementation requires more than two corrective iterations in the same area, stop patching and reframe the missing invariant before continuing.
+
+## Anti-patterns (stop yourself before doing these)
+
+- Wrapping internal calls in try/except — validate at boundaries (user input, network, file I/O) only.
+- Adding "for future flexibility" config flags or interfaces with one implementation.
+- Writing tests *after* the implementation to match it — that's not TDD, it's transcription.
+- Long file/module docstrings that restate what the code does. Keep comments minimal; explain WHY when non-obvious, never WHAT.
+- Bundling unrelated cleanup into a feature commit. Split it.
 
 ## Agent dispatch (who to delegate to)
 
@@ -195,7 +235,8 @@ Spawn without waiting for the user to ask:
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
 | Dead code or duplication suspected | `refactor-cleaner` | bjornjee-skills |
 | Hot-path or perf concern raised | `performance-optimizer` | bjornjee-skills |
-| About to invoke `/agent-dashboard:pr` (any PR creation) | `skills:codegraph-audit` | bjornjee-skills |
+| User asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop` | bjornjee-skills |
+| Grading gates inside `/skills:uiux-design-loop` (internal — never invoke standalone) | `uiux-grader` | bjornjee-skills |
 | User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `ponytail` (skill) | bjornjee-skills |
 
 **Parallel by default.** Independent agents launch in **one message** with multiple tool calls.
@@ -219,6 +260,8 @@ Bad: "Review the recent Go changes."
 Good: "Run `go-reviewer-strict` on `internal/tmux/runner.go` (added new `Output` variant) and `internal/tmux/runner_test.go` (added mock expectations). Diff: <paste>."
 
 ## Model selection when delegating
+
+Claude Code-specific (the `model` param on agent spawns) — the Codex reasoning-effort mapping lives in `.codex/AGENTS.md`; the two mechanisms are not interchangeable.
 
 | Task | Model | Why |
 |---|---|---|

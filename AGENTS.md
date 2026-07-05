@@ -17,8 +17,7 @@ scripts/                 Utility scripts
 
 ## Versioning
 
-Two files must stay in sync: `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
-Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, minor=new, major=breaking.
+Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `plugins/skills/.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
 
 ## Principles
 
@@ -31,6 +30,7 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
 
 ## Workflow
 
+0. Worktree first. Any code-modifying task beyond a single-line fix runs in a git worktree — no edits, writes, or `git add` on the source branch, even when the task starts as "just look at it".
 1. Research before writing. Check the repo, docs, and package registries first.
 2. Plan before coding. Break into phases, identify risks.
 3. Proportional proof. Use TDD for behavior changes, bug fixes, and regressions; do not add padding tests for docs/config/mechanical edits. Choose Surgical, Targeted, or Full verification before editing, run the smallest command that bounds the risk during the loop, and reserve full suites for broad/shared changes or PR/push gates. The core rules own the profile taxonomy; agent-dashboard owns orchestration/state and should carry profile names plus proof commands without redefining them.
@@ -43,7 +43,7 @@ Bump on every commit that changes skills, agents, or rules. Semver: patch=fix, m
    - Check predicate/source-of-truth correctness, merge/update semantics, path-shape edge cases, test command inclusion, and cross-adapter drift when equivalent files changed.
 5. Before PR/push, run the same checks in a neutral correctness and security audit scoped to the changed-file list plus package manifests, CI config, and test runner config.
    - The reviewer is read-only.
-   - High/Critical findings block push. Medium findings are fixed when cheap or called out.
+   - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 6. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes.
 7. No self-attribution in commits or PRs. No `Co-Authored-By` trailer naming the assistant, no `Generated with` footer in PR bodies.
 
@@ -51,7 +51,12 @@ Coverage goal: 80%+.
 
 ## Language Conventions
 
-All language-specific rules are enforced via skills with implicit invocation. When working on a language, the corresponding skill activates automatically:
+Language-specific conventions ship two ways, same content:
+
+- **Skills** (`skills/<name>-patterns/`) — invoked on demand, work in both Claude Code and Codex.
+- **Claude Code rules** (`.claude/rules/*.md`) — auto-loaded via glob `paths` frontmatter when a matching file is edited (Claude Code only; installed by `make sync-rules`).
+
+`scripts/language-skills.test.js` keeps the python/fastapi/react-native/ai-ml skill bodies byte-identical to their rules files; the Go skills are standalone references. When working on a language, reach for the matching skill:
 
 - **Go** → `$skills:golang-patterns`, `$skills:golang-testing`
 - **Python** → `$skills:python-patterns`

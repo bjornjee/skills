@@ -1,8 +1,8 @@
 ---
 name: refactor-cleaner
 description: Dead code cleanup and consolidation specialist. Use PROACTIVELY for removing unused code, duplicates, and refactoring. Runs analysis tools (knip, depcheck, ts-prune) to identify dead code and safely removes it.
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
-model: sonnet
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: opus
 ---
 
 # Refactor & Dead Code Cleaner
@@ -18,12 +18,33 @@ You are an expert refactoring specialist focused on code cleanup and consolidati
 
 ## Detection Commands
 
+Detect the stack first — the `npx` tools only work where `package.json` exists.
+
+JS/TS (`package.json`):
+
 ```bash
 npx knip                                    # Unused files, exports, dependencies
 npx depcheck                                # Unused npm dependencies
 npx ts-prune                                # Unused TypeScript exports
 npx eslint . --report-unused-disable-directives  # Unused eslint directives
 ```
+
+Go (`go.mod`):
+
+```bash
+staticcheck ./...                           # Includes unused-code checks (U1000)
+go vet ./...
+golangci-lint run --enable unused           # When the repo already uses golangci-lint
+```
+
+Python (`pyproject.toml`):
+
+```bash
+vulture .                                   # Dead code candidates (verify each — it guesses)
+ruff check --select F401,F841 .             # Unused imports and locals
+```
+
+Other stacks/config: grep for references before deleting anything — there is no reliable detector.
 
 ## Workflow
 

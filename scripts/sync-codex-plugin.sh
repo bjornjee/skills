@@ -26,7 +26,7 @@ case "${1:-}" in
       exit 0
     fi
     if [[ -e "$LINK_PATH" || -L "$LINK_PATH" ]]; then
-      rm -rf "$LINK_PATH"
+      rm -f "$LINK_PATH"
     fi
     ln -s "$EXPECTED_TARGET" "$LINK_PATH"
     echo "linked: plugins/skills/skills -> $EXPECTED_TARGET"

@@ -1,6 +1,6 @@
 {
   "name": "skills",
-  "version": "0.33.5",
+  "version": "0.40.0",
   "description": "Personal skills, commands, and workflows for Codex",
   "author": {
     "name": "bjornjee"
@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "skills",
     "shortDescription": "Personal workflow and coding skills",
-    "longDescription": "Install bjornjee's workflow and coding skills for Codex, including search-first, terminal-ops, git-workflow, language patterns, and agent engineering guidance.",
+    "longDescription": "Install bjornjee's workflow and coding skills for Codex: search-first research, terminal-ops and git workflows, GitHub ops, Go/Python/FastAPI/React Native/AI-ML language patterns, ponytail minimalism, codex-delegate plan handoff, codegraph-audit pre-PR review, and agent engineering guidance.",
     "developerName": "bjornjee",
     "category": "Engineering",
     "capabilities": [
@@ -22,8 +22,8 @@
     "privacyPolicyURL": "https://github.com/bjornjee/skills",
     "termsOfServiceURL": "https://github.com/bjornjee/skills",
     "defaultPrompt": [
-      "Use the repo's terminal and git workflow skills",
-      "Apply the Python or Go skill for this change",
+      "Use the terminal-ops and git-workflow skills",
+      "Apply golang-patterns or python-patterns for this change",
       "Research before coding and keep the fix small"
     ],
     "brandColor": "#2563EB",

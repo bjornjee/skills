@@ -101,4 +101,20 @@ describe('codex marketplace', () => {
       { stdio: 'pipe' },
     );
   });
+
+  it('keeps the Codex plugin version in lockstep with the Claude plugin', () => {
+    // Three version files, one version. The Codex manifest silently drifted
+    // 6 minor versions behind (0.33.5 vs 0.39.3) across 7 behavior-changing
+    // commits before this assertion existed.
+    const claudePlugin = readJson(path.join(REPO, '.claude-plugin/plugin.json'));
+    const marketplace = readJson(path.join(REPO, '.claude-plugin/marketplace.json'));
+    const codexPlugin = readJson(path.join(REPO, 'plugins/skills/.codex-plugin/plugin.json'));
+
+    assert.equal(marketplace.plugins[0].version, claudePlugin.version);
+    assert.equal(
+      codexPlugin.version,
+      claudePlugin.version,
+      'plugins/skills/.codex-plugin/plugin.json version must match .claude-plugin/plugin.json — bump all three together (see CLAUDE.md)',
+    );
+  });
 });
