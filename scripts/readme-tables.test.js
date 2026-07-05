@@ -34,8 +34,15 @@ function assertSetEqual(actual, expected, label) {
 }
 
 describe('README tables match the filesystem', () => {
+  it('has the section anchors the extraction depends on', () => {
+    for (const anchor of ['## Skills', '## Agents', '## Rules', '## Codex Setup']) {
+      assert.ok(README.includes(anchor), `README must contain a "${anchor}" section (table extraction anchors on it)`);
+    }
+  });
+
   it('skills table lists exactly the skills/ directories', () => {
-    const inReadme = tableNames(/^\| `\/([a-z0-9-]+)` \|/gm);
+    const section = README.split('## Skills')[1].split('## Agents')[0];
+    const inReadme = new Set([...section.matchAll(/^\| `\/([a-z0-9-]+)` \|/gm)].map(m => m[1]));
     const onDisk = diskNames(
       fs.readdirSync(path.join(REPO, 'skills'), { withFileTypes: true })
         .filter(e => e.isDirectory())

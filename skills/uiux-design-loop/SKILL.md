@@ -131,10 +131,11 @@ Mirror of Gate 1.5. The Gate 2 iteration may have introduced new P0/P1 findings 
 
 1. Final verdict copied to `.uiux-loop/verdict-final.md` and `.uiux-loop/verdict-final.json` (prose + JSON, same as iteration verdicts).
 2. Summary written to `.uiux-loop/summary.md`: number of iterations, per-dimension trajectory (baseline → final), preservation + audit gate trajectories, tradeoffs accepted, total screenshots captured.
-3. Fill `.uiux-loop/behavior-check.md` from `templates/behavior-check.md`. For each surface in `preservation-contract.md`, run the live app and record pass/fail with evidence. The file's top-of-document state line (`Preservation gate state: PASS | WARN | FAIL | N/A`) is what feeds the grader's preservation gate.
-4. **Preservation gate check.** Read the final verdict's `## Preservation gate` block. The state must be `PASS` or `N/A` to exit. If `WARN` or `FAIL`, either fix the regression and re-grade, or record an explicit tradeoff in `.uiux-loop/tradeoff-preservation.md` that the user signs off on.
-5. Downstream `verify` skill (if active) can still run broader project verification. This skill owns preservation behavior checks because an in-scope visual PASS must not hide out-of-scope regressions.
-6. **Exit confirmation — mandatory exit-pass.** Read `verdict-final.md` for the weakest pre-final dimension and look it up in `impeccable-map.md`'s Gate 4 exit-pass table. Fire `AskUserQuestion` with a **single** option — `"Run /impeccable <pass> <target> (Recommended)"` — pre-selected as the default. The user confirms (orchestrator dispatches the command and re-enters Gate 1 + Gate 1.5 once more — visible change after PASS requires a fresh grade + audit) or, in the only escape, declines and aborts the loop entirely. There is no opt-out path inside the gate: shipping past the loop without running the suggested exit-pass is the failure mode the mandatory exit-pass exists to prevent. If the verdict-final table row is `No pass needed; ship.` (every dimension already strong), the orchestrator fires `AskUserQuestion` confirming the no-op ship — the AskUserQuestion roundtrip itself is unconditional.
+3. Run `impeccable audit <changed-files>` one final time, writing `.uiux-loop/audit-final.md` + `.uiux-loop/audit-final.json` — this is the audit the final verdict's audit gate reads (same dispatch contract as Gate 1.5).
+4. Fill `.uiux-loop/behavior-check.md` from `templates/behavior-check.md`. For each surface in `preservation-contract.md`, run the live app and record pass/fail with evidence. The file's top-of-document state line (`Preservation gate state: PASS | WARN | FAIL | N/A`) is what feeds the grader's preservation gate.
+5. **Preservation gate check.** Read the final verdict's `## Preservation gate` block. The state must be `PASS` or `N/A` to exit. If `WARN` or `FAIL`, either fix the regression and re-grade, or record an explicit tradeoff in `.uiux-loop/tradeoff-preservation.md` that the user signs off on.
+6. Downstream `verify` skill (if active) can still run broader project verification. This skill owns preservation behavior checks because an in-scope visual PASS must not hide out-of-scope regressions.
+7. **Exit confirmation — mandatory exit-pass.** Read `verdict-final.md` for the weakest pre-final dimension and look it up in `impeccable-map.md`'s Gate 4 exit-pass table. Fire `AskUserQuestion` with a **single** option — `"Run /impeccable <pass> <target> (Recommended)"` — pre-selected as the default. The user confirms (orchestrator dispatches the command and re-enters Gate 1 + Gate 1.5 once more — visible change after PASS requires a fresh grade + audit; the re-entry audit writes `.uiux-loop/audit-exit-pass.md`, never overwriting the baseline record) or, in the only escape, declines and aborts the loop entirely. There is no opt-out path inside the gate: shipping past the loop without running the suggested exit-pass is the failure mode the mandatory exit-pass exists to prevent. If the verdict-final table row is `No pass needed; ship.` (every dimension already strong), the orchestrator fires `AskUserQuestion` confirming the no-op ship — the AskUserQuestion roundtrip itself is unconditional.
 
 **HARD-GATE.** The skill refuses to exit until the final verdict's preservation gate is `PASS` or `N/A` AND the final verdict's audit gate is `PASS` or `N/A`. `WARN` and `FAIL` on either gate block exit — they are not sliding scores you can iterate around.
 
@@ -174,7 +175,8 @@ By the end of a normal session:
 ├── tradeoff-audit.md           # Gate 4 (only if audit gate WARN/FAIL was accepted — rare; requires explicit user sign-off on a specific P1)
 ├── verdict-final.md            # Gate 4
 ├── verdict-final.json          # Gate 4
-├── audit-final.md              # Gate 4 (final audit pass)
+├── audit-exit-pass.md          # Gate 4 (only if the exit-pass re-entry ran)
+├── audit-final.md              # Gate 4 step 3 (final audit pass)
 ├── audit-final.json            # Gate 4
 ├── behavior-check.md           # Gate 4 (feeds the preservation gate)
 └── summary.md                  # Gate 4

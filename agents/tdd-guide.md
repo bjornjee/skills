@@ -28,8 +28,9 @@ Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecti
 - **Shared fixtures for setup** (e.g. `client` in `conftest.py`). Don't re-instantiate the harness inside every test.
 - **Scale test when scale matters.** If correctness depends on data volume, call frequency, concurrency, or latency, write the failing benchmark or measurable reproduction first — tiny functional fixtures don't represent that risk.
 
-## Bug-fix state rules (owned here, referenced by core doctrine)
+## Bug-fix state rules (compact form owned by core doctrine; fuller contract here)
 
+- **Boundary bug gate.** For bugs crossing UI, HTTP, tmux, terminal, browser, subprocess, external runtime, MCP tool, or stateful session boundaries, mocked/unit evidence is not enough — reproduce the original user action through the real boundary and verify the reported symptom is gone at the failing surface before claiming the fix.
 - **Test-manifest inclusion.** A new test file must run under the package's normal test command. If tests are listed explicitly in a manifest or runner config, update that file and run the package command — not just the new file directly.
 - **State reconciliation.** Identify the source of truth for each predicate. Never use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
 - **Merge-style writes.** Fields that must be cleared are written explicitly with their cleared value. Omitting a key preserves stale state — that's the bug class, not a shortcut.

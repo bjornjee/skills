@@ -72,7 +72,7 @@ The cold-context grader cannot see the code. `impeccable audit` is the right too
 **Storage.** Orchestrator writes:
 - `.uiux-loop/audit-baseline.md` / `.json` at Gate 1.5
 - `.uiux-loop/audit-iter-<n>.md` / `.json` at Gate 3.5
-- `.uiux-loop/audit-final.md` / `.json` at Gate 4
+- `.uiux-loop/audit-final.md` / `.json` at Gate 4 step 3; `.uiux-loop/audit-exit-pass.md` / `.json` on the Gate 4 exit-pass re-entry
 
 **Merging into the grader bundle.** The orchestrator passes the matching audit file as `audit-findings.md` into the grader's bundle. The grader uses it to score dimensions 7 (`accessibility`) and 8 (`technical-quality`) per the severity → score mapping in `rubric.md`, and emits the `## Audit gate` state.
 

@@ -33,3 +33,28 @@ describe('language pattern skills stay in lockstep with .claude/rules', () => {
     });
   }
 });
+
+// The body check strips frontmatter, so the rules' `paths:` globs — which
+// control Claude Code auto-loading — were previously free to drift silently.
+// Pin them explicitly; changing a glob must be a deliberate test update.
+const EXPECTED_PATHS = {
+  '.claude/rules/python.md': ['**/*.py', '**/*.pyi'],
+  '.claude/rules/fastapi.md': ['**/main.py', '**/routers/**/*.py', '**/services/**/*.py', '**/models/**/*.py', '**/schemas/**/*.py'],
+  '.claude/rules/react-native.md': ['**/*.ts', '**/*.tsx'],
+  '.claude/rules/typescript.md': ['**/*.ts', '**/*.tsx'],
+  '.claude/rules/ai-ml.md': ['**/evals/**', '**/prompts/**'],
+  '.claude/rules/golang.md': ['**/*.go'],
+  '.claude/rules/shell.md': ['**/*.sh'],
+};
+
+describe('rule paths globs are pinned', () => {
+  for (const [rule, expected] of Object.entries(EXPECTED_PATHS)) {
+    it(`${rule} keeps its auto-load globs`, () => {
+      const raw = fs.readFileSync(path.join(REPO, rule), 'utf8');
+      const fm = raw.match(/^---\n([\s\S]*?)\n---\n/);
+      assert.ok(fm, `${rule} must have frontmatter`);
+      const globs = [...fm[1].matchAll(/^\s*-\s*"([^"]+)"\s*$/gm)].map(m => m[1]);
+      assert.deepEqual(globs, expected, `${rule} paths: globs changed — update EXPECTED_PATHS deliberately if intended`);
+    });
+  }
+});

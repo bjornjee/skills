@@ -5,10 +5,12 @@ help: ## Show this help
 
 bump: ## Set the plugin version in all three manifests atomically (usage: make bump V=1.1.0)
 	@test -n "$(V)" || { echo "usage: make bump V=<x.y.z>" >&2; exit 2; }
+	@echo "$(V)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "error: V must be semver x.y.z, got '$(V)'" >&2; exit 2; }
 	@python3 -c 'import json,sys; v=sys.argv[1]; \
 	paths=[".claude-plugin/plugin.json","plugins/skills/.codex-plugin/plugin.json"]; \
 	[(lambda p: (lambda d: (d.__setitem__("version",v), open(p,"w").write(json.dumps(d,indent=2,ensure_ascii=False)+"\n")))(json.load(open(p))))(p) for p in paths]; \
-	p=".claude-plugin/marketplace.json"; d=json.load(open(p)); d["plugins"][0]["version"]=v; \
+	p=".claude-plugin/marketplace.json"; d=json.load(open(p)); \
+	e=next(x for x in d["plugins"] if x["name"]=="skills"); e["version"]=v; \
 	open(p,"w").write(json.dumps(d,indent=2,ensure_ascii=False)+"\n"); \
 	print(f"✓ all three manifests -> {v}")' "$(V)"
 

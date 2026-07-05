@@ -43,8 +43,7 @@ Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/mar
 4. Review all changes before commit.
    - Run a security boundary review for every changed input, output, auth, storage, file, network, and browser boundary. Look for injection, SQL/command/template injection, XSS, CSRF, auth/authz bypass, secret exposure, unsafe deserialization, SSRF, path traversal, insecure defaults, and missing validation or escaping.
    - Check predicate/source-of-truth correctness, merge/update semantics, path-shape edge cases, test command inclusion, and cross-adapter drift when equivalent files changed.
-5. Before PR/push, run the same checks in a neutral correctness and security audit scoped to the changed-file list plus package manifests, CI config, and test runner config.
-   - The reviewer is read-only.
+5. Before PR/push, the strict-reviewer spawn IS the audit — scope it explicitly to the changed-file list plus package manifests, CI config, and test-runner config; no separate neutral pass.
    - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 6. Conventional commits: `<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes.
 7. No self-attribution in commits or PRs. No `Co-Authored-By` trailer naming the assistant, no `Generated with` footer in PR bodies.

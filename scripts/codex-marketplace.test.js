@@ -110,7 +110,9 @@ describe('codex marketplace', () => {
     const marketplace = readJson(path.join(REPO, '.claude-plugin/marketplace.json'));
     const codexPlugin = readJson(path.join(REPO, 'plugins/skills/.codex-plugin/plugin.json'));
 
-    assert.equal(marketplace.plugins[0].version, claudePlugin.version);
+    const marketplaceEntry = marketplace.plugins.find(entry => entry.name === 'skills');
+    assert.ok(marketplaceEntry, 'marketplace must contain the skills plugin');
+    assert.equal(marketplaceEntry.version, claudePlugin.version);
     assert.equal(
       codexPlugin.version,
       claudePlugin.version,

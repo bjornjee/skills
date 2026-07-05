@@ -35,8 +35,9 @@ for src in "$REPO_RULES_DIR"/*.md; do
   fi
 
   if [[ -e "$dst" || -L "$dst" ]]; then
-    echo "warn: $dst already exists; backing up to $dst.bak" >&2
-    mv "$dst" "$dst.bak"
+    bak="$dst.$(date +%s).bak"
+    echo "warn: $dst already exists; backing up to $bak" >&2
+    mv "$dst" "$bak"
   fi
 
   ln -s "$src" "$dst"
