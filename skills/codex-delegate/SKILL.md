@@ -69,10 +69,11 @@ that aren't obvious from the codebase.]
 ### 3. Delegate
 
 ```
-/codex:rescue --write --background -C "$(pwd)" "<structured prompt>"
+/codex:rescue --write --background --model gpt-5.5 -C "$(pwd)" "<structured prompt>"
 ```
 
 - `--write` is **required** — it sets Codex's sandbox to `workspace-write`. Without it, Codex runs read-only and cannot modify files.
+- `--model gpt-5.5` is **required** — the codex plugin has no default-model setting of its own; an omitted `--model` silently falls back to whatever `~/.codex/config.toml` says. Pin it so delegations are deterministic.
 - `-C "$(pwd)"` is **required when running in a worktree** — it sets Codex's working directory (and therefore its writable root) to the worktree path. Without it, Codex resolves its writable root from the Claude Code session's original `process.cwd()`, which is the main repo — blocking writes to the worktree.
 
 Use `--wait` instead of `--background` if the task is quick (<2 min).
@@ -245,13 +246,13 @@ go vet ./internal/service/...
 | Critical/security-sensitive | `--effort xhigh --profile strict` | Maximum compliance |
 | Fast iteration/scaffolding | `--model gpt-5.3-codex-spark` | Boilerplate |
 
-Model names drift — verify availability with `codex models` before pinning one.
+The pinned default model is `gpt-5.5` — pass it explicitly on every delegation; only substitute (e.g. spark) for the cases above. Model names drift — verify availability with `codex models` before pinning one.
 
 ## Available Commands
 
 | Command | Purpose |
 |---|---|
-| `/codex:rescue --write -C "$(pwd)" <task>` | Delegate implementation to Codex |
+| `/codex:rescue --write --model gpt-5.5 -C "$(pwd)" <task>` | Delegate implementation to Codex |
 | `/codex:review` | Code review from Codex |
 | `/codex:adversarial-review <focus>` | Challenge review (race conditions, edge cases) |
 | `/codex:status` | Check running jobs |
