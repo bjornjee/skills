@@ -2,11 +2,11 @@
 
 Personal skills, agents, and rules for Claude Code.
 
-The packaged skills plugin is pure configuration — **rules, skills, and agents only**. The optional native Codex setup also installs three small global command guardrails; `scripts/` contains their sync tooling and repository-maintenance tests.
+The packaged skills plugin is pure configuration — **rules, skills, and agents only**. The optional global Codex setup registers three command guardrails from the canonical agent-dashboard checkout; `scripts/` contains the sync tooling and repository-maintenance tests.
 
 ## Related plugins
 
-Dashboard lifecycle hooks, generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`), and generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install it only when the dashboard workflow is wanted; the native Codex setup in this repo independently provides `block-main-commit`, `commit-lint`, and `warn-destructive`. (This plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
+Dashboard lifecycle hooks, generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`), and generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install it only when the dashboard workflow is wanted; the global Codex setup in this repo registers the canonical agent-dashboard implementations of `block-main-commit`, `commit-lint`, and `warn-destructive` without enabling its lifecycle hooks. (This plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
 
 ## Installation
 
@@ -103,7 +103,7 @@ The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md
 
 This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
 
-### Install natively without private plugins
+### Install globally without private plugins
 
 Install the coding skills, global rules, compatible subagents, and these global
 command guardrails directly into Codex without depending on a private plugin:
@@ -113,12 +113,15 @@ command guardrails directly into Codex without depending on a private plugin:
 - `warn-destructive` blocks known destructive shell commands.
 
 ```bash
-make sync-codex-native
-make sync-codex-native ARGS=--check
+make sync-codex
+make sync-codex ARGS=--check
 ```
 
 The sync uses Codex's native global locations under `~/.agents/skills` and
-`~/.codex`. It preserves unrelated global skills and hooks.
+`~/.codex`. It preserves unrelated global skills and hooks. Guardrail commands
+point to the existing implementations under
+`~/Code/bjornjee/agent-dashboard/adapters/codex/hooks/`; no hook source is
+copied into this repo or into `~/.codex/hooks`.
 
 The global worktree rule uses
 `~/Code/tomoro/worktrees/<repo>/<branch-leaf>`, matching agent-dashboard (for
@@ -164,7 +167,7 @@ cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
 cp -r "$SKILLS_REPO/.codex" ./.codex
 ```
 
-To install the always-on Codex doctrine globally instead, run `make sync-codex-rules` from the skills repo (copies `.codex/AGENTS.md` to `~/.codex/AGENTS.md`).
+To install the always-on Codex doctrine globally, run `make sync-codex` from the skills repo. The same command installs the global skills, guardrail registrations, and compatible agents.
 
 Then verify:
 

@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex-rules` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
+> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
 
 Always-on doctrine for Codex CLI. Loaded every session.
 What to do, in what order, and which skill to reach for. Methodology for

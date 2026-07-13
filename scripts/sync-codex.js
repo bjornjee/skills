@@ -10,6 +10,15 @@ const HOME = os.homedir();
 const CHECK = process.argv.includes('--check');
 const unknownArgs = process.argv.slice(2).filter(arg => arg !== '--check');
 const drift = [];
+const agentDashboardHooks = path.join(
+  HOME,
+  'Code',
+  'bjornjee',
+  'agent-dashboard',
+  'adapters',
+  'codex',
+  'hooks',
+);
 const HOOKS = [
   ['block-main-commit', 'Blocking commits on main'],
   ['commit-lint', 'Validating commit message'],
@@ -17,7 +26,7 @@ const HOOKS = [
 ];
 
 if (unknownArgs.length > 0) {
-  process.stderr.write('usage: sync-codex-native.js [--check]\n');
+  process.stderr.write('usage: sync-codex.js [--check]\n');
   process.exit(2);
 }
 
@@ -25,7 +34,7 @@ function assertNoSymlinks(root) {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     const entryPath = path.join(root, entry.name);
     if (entry.isSymbolicLink()) {
-      throw new Error(`native payload cannot contain symlink: ${entryPath}`);
+      throw new Error(`Codex payload cannot contain symlink: ${entryPath}`);
     }
     if (entry.isDirectory()) assertNoSymlinks(entryPath);
   }
@@ -126,7 +135,7 @@ function syncHooks(codexHome) {
     matcher: '^Bash$',
     hooks: HOOKS.map(([name, statusMessage]) => ({
       type: 'command',
-      command: `node "$HOME/.codex/hooks/${name}.js"`,
+      command: `node "$HOME/Code/bjornjee/agent-dashboard/adapters/codex/hooks/${name}.js"`,
       timeout: 5,
       statusMessage,
     })),
@@ -147,11 +156,15 @@ for (const name of skillNames) {
 const codexHome = path.join(HOME, '.codex');
 copyFile(path.join(REPO, '.codex', 'AGENTS.md'), path.join(codexHome, 'AGENTS.md'));
 for (const [name] of HOOKS) {
-  copyFile(
-    path.join(REPO, 'native-codex', 'hooks', `${name}.js`),
-    path.join(codexHome, 'hooks', `${name}.js`),
-    0o755,
-  );
+  const source = path.join(agentDashboardHooks, `${name}.js`);
+  if (!fs.existsSync(source)) throw new Error(`missing agent-dashboard hook: ${source}`);
+
+  const legacyCopy = path.join(codexHome, 'hooks', `${name}.js`);
+  if (CHECK) {
+    if (fs.existsSync(legacyCopy)) drift.push(legacyCopy);
+  } else if (fs.existsSync(legacyCopy)) {
+    fs.unlinkSync(legacyCopy);
+  }
 }
 syncHooks(codexHome);
 
@@ -164,7 +177,7 @@ for (const filename of fs.readdirSync(agentsSource).filter(name => name.endsWith
 }
 
 if (CHECK && drift.length > 0) {
-  process.stderr.write(`native Codex drift:\n${drift.map(file => `- ${file}`).join('\n')}\n`);
+  process.stderr.write(`Codex drift:\n${drift.map(file => `- ${file}`).join('\n')}\n`);
   process.exit(1);
 }
 
