@@ -32,7 +32,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
 
 ## Workflow phases (in what order)
 
-0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch: `git worktree add ../worktrees/<repo>/<name> -b <type>/<name> main`. This applies even when the task starts as "just look at it" — every audit turns into commits eventually. No edits and no `git add` on the source checkout.
+0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch. If the current checkout is already a linked worktree, including one managed by the Codex app, reuse it and never create a nested worktree. Otherwise, create the parent and worktree in separate commands: `mkdir -p "$HOME/Code/tomoro/worktrees/<repo>"`, then `git worktree add -b <type>/<name> "$HOME/Code/tomoro/worktrees/<repo>/<name>" main`. The folder uses the branch leaf (`chore/example` → `<repo>/example`) to match the agent-dashboard layout. This applies even when the task starts as "just look at it" — every audit turns into commits eventually. No edits and no `git add` on the source checkout.
 1. **Research.** Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 2. **Plan.** No code until the approach is agreed. Break work into phases, identify risks and affected files.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.

@@ -2,11 +2,11 @@
 
 Personal skills, agents, and rules for Claude Code.
 
-This plugin is a pure configuration plugin — **rules, skills, and agents only**. It ships no hooks and no runtime code; `scripts/` holds only repo-maintenance helpers (rules symlink installer, Codex link verifier, tests).
+The packaged skills plugin is pure configuration — **rules, skills, and agents only**. The optional native Codex setup also installs three small global command guardrails; `scripts/` contains their sync tooling and repository-maintenance tests.
 
 ## Related plugins
 
-Dashboard/runtime hooks and the generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`) and the generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install both side-by-side for the full experience. (Note: this plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
+Dashboard lifecycle hooks, generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`), and generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install it only when the dashboard workflow is wanted; the native Codex setup in this repo independently provides `block-main-commit`, `commit-lint`, and `warn-destructive`. (This plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
 
 ## Installation
 
@@ -102,6 +102,31 @@ The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md
 ## Codex Setup
 
 This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
+
+### Install natively without private plugins
+
+Install the coding skills, global rules, compatible subagents, and these global
+command guardrails directly into Codex without depending on a private plugin:
+
+- `block-main-commit` blocks commits on `main` and `master`.
+- `commit-lint` blocks non-conventional inline commit messages before Git runs.
+- `warn-destructive` blocks known destructive shell commands.
+
+```bash
+make sync-codex-native
+make sync-codex-native ARGS=--check
+```
+
+The sync uses Codex's native global locations under `~/.agents/skills` and
+`~/.codex`. It preserves unrelated global skills and hooks.
+
+The global worktree rule uses
+`~/Code/tomoro/worktrees/<repo>/<branch-leaf>`, matching agent-dashboard (for
+example, branch `chore/codex-hooks` uses `.../<repo>/codex-hooks`). If Codex is
+already running in a linked worktree, it reuses that worktree instead of
+nesting another one. The Codex app owns the location of worktrees created by
+its built-in Worktree mode; use a manually created worktree when the Tomoro
+folder layout is required.
 
 ### Install the Codex skill plugin
 
