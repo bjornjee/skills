@@ -123,13 +123,18 @@ point to the existing implementations under
 `~/Code/bjornjee/agent-dashboard/adapters/codex/hooks/`; no hook source is
 copied into this repo or into `~/.codex/hooks`.
 
-The global worktree rule uses
-`~/Code/tomoro/worktrees/<repo>/<branch-leaf>`, matching agent-dashboard (for
-example, branch `chore/codex-hooks` uses `.../<repo>/codex-hooks`). If Codex is
-already running in a linked worktree, it reuses that worktree instead of
-nesting another one. The Codex app owns the location of worktrees created by
-its built-in Worktree mode; use a manually created worktree when the Tomoro
-folder layout is required.
+The global worktree rule derives the destination from the source checkout's
+parent, matching agent-dashboard: `<workspace>/<repo>` maps to
+`<workspace>/worktrees/<repo>/<branch-leaf>`. For example,
+`~/Code/bjornjee/skills` uses `~/Code/bjornjee/worktrees/skills/...`, while a
+repo under `~/Code/tomoro` keeps its worktrees under
+`~/Code/tomoro/worktrees/...`. If Codex is already running in a linked
+worktree, it reuses that worktree instead of nesting another one.
+
+Codex app-managed worktrees use the Worktree root configured under
+**Settings > Worktrees**. Use a manually created worktree as a local project
+when the exact source-relative layout is required; both forms remain ordinary
+Git worktrees and support normal commits, pushes, and PRs.
 
 ### Install the Codex skill plugin
 
