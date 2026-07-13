@@ -2,11 +2,11 @@
 
 Personal skills, agents, and rules for Claude Code.
 
-This plugin is a pure configuration plugin — **rules, skills, and agents only**. It ships no hooks and no runtime code; `scripts/` holds only repo-maintenance helpers (rules symlink installer, Codex link verifier, tests).
+The packaged skills plugin is pure configuration — **rules, skills, and agents only**. The optional global Codex setup registers three command guardrails from the canonical agent-dashboard checkout; `scripts/` contains the sync tooling and repository-maintenance tests.
 
 ## Related plugins
 
-Dashboard/runtime hooks and the generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`) and the generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install both side-by-side for the full experience. (Note: this plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
+Dashboard lifecycle hooks, generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`), and generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install it only when the dashboard workflow is wanted; the global Codex setup in this repo registers the canonical agent-dashboard implementations of `block-main-commit`, `commit-lint`, and `warn-destructive` without enabling its lifecycle hooks. (This plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
 
 ## Installation
 
@@ -103,6 +103,39 @@ The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md
 
 This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
 
+### Install globally without private plugins
+
+Install the coding skills, global rules, compatible subagents, and these global
+command guardrails directly into Codex without depending on a private plugin:
+
+- `block-main-commit` blocks commits on `main` and `master`.
+- `commit-lint` blocks non-conventional inline commit messages before Git runs.
+- `warn-destructive` blocks known destructive shell commands.
+
+```bash
+make sync-codex
+make sync-codex ARGS=--check
+```
+
+The sync uses Codex's native global locations under `~/.agents/skills` and
+`~/.codex`. It preserves unrelated global skills and hooks. Guardrail commands
+point to the existing implementations under
+`~/Code/bjornjee/agent-dashboard/adapters/codex/hooks/`; no hook source is
+copied into this repo or into `~/.codex/hooks`.
+
+The global worktree rule derives the destination from the source checkout's
+parent, matching agent-dashboard: `<workspace>/<repo>` maps to
+`<workspace>/worktrees/<repo>/<branch-leaf>`. For example,
+`~/Code/bjornjee/skills` uses `~/Code/bjornjee/worktrees/skills/...`, while a
+repo under `~/Code/tomoro` keeps its worktrees under
+`~/Code/tomoro/worktrees/...`. If Codex is already running in a linked
+worktree, it reuses that worktree instead of nesting another one.
+
+Codex app-managed worktrees use the Worktree root configured under
+**Settings > Worktrees**. Use a manually created worktree as a local project
+when the exact source-relative layout is required; both forms remain ordinary
+Git worktrees and support normal commits, pushes, and PRs.
+
 ### Install the Codex skill plugin
 
 Add this repo as a Codex marketplace and install the `skills` plugin. The marketplace pointer at `.agents/plugins/marketplace.json` directs Codex at the packaged plugin in `plugins/skills/`.
@@ -139,7 +172,7 @@ cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
 cp -r "$SKILLS_REPO/.codex" ./.codex
 ```
 
-To install the always-on Codex doctrine globally instead, run `make sync-codex-rules` from the skills repo (copies `.codex/AGENTS.md` to `~/.codex/AGENTS.md`).
+To install the always-on Codex doctrine globally, run `make sync-codex` from the skills repo. The same command installs the global skills, guardrail registrations, and compatible agents.
 
 Then verify:
 

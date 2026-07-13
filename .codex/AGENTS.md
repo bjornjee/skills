@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex-rules` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
+> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
 
 Always-on doctrine for Codex CLI. Loaded every session.
 What to do, in what order, and which skill to reach for. Methodology for
@@ -32,7 +32,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
 
 ## Workflow phases (in what order)
 
-0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch: `git worktree add ../worktrees/<repo>/<name> -b <type>/<name> main`. This applies even when the task starts as "just look at it" — every audit turns into commits eventually. No edits and no `git add` on the source checkout.
+0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch. If the current checkout is already a linked worktree, including one managed by the Codex app, reuse it and never create a nested worktree. Otherwise, derive the path from the source checkout: `<workspace>/<repo>` maps to `<workspace>/worktrees/<repo>/<name>`. From the source checkout, create it with separate commands: `mkdir -p "../worktrees/<repo>"`, then `git worktree add -b <type>/<name> "../worktrees/<repo>/<name>" main`. The folder uses the branch leaf (`chore/example` → `<repo>/example`) to match the agent-dashboard layout. This applies even when the task starts as "just look at it" — every audit turns into commits eventually. No edits and no `git add` on the source checkout.
 1. **Research.** Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 2. **Plan.** No code until the approach is agreed. Break work into phases, identify risks and affected files.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.

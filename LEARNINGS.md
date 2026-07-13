@@ -4,14 +4,14 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 
 ## 1. Hooks live in agent-dashboard, never in this plugin
 **Churn ended:** #45 moved hook registration out; CURATION.md records the policy; skills (safety-guard, strategic-compact) later needed corrective PRs because they *described* hook behavior this plugin cannot ship.
-**Rule:** this plugin is pure configuration — zero hooks. Enforcement wiring belongs to agent-dashboard (`test-gate`, `warn-destructive`, `block-main-commit`). Skills may document optional manual wiring, clearly labeled as such.
+**Rule:** this plugin is pure configuration — zero hook implementations. Enforcement belongs to agent-dashboard (`test-gate`, `warn-destructive`, `block-main-commit`). Personal global Codex wiring may reference those canonical sources, but must never copy their implementation into this repo.
 
 ## 2. codegraph-audit is on-demand, not a hard pre-PR dispatch
 **Churn ended:** three states across #60/#75 — CI-driven → local hard-dispatch → on-demand. The hard dispatch silently couldn't fire without the third-party `codegraph` CLI installed.
 **Rule:** a mandatory gate whose tooling may be absent is false confidence. codegraph-audit stays on-demand; do not restore the dispatch row.
 
 ## 3. This repo is canonical for doctrine; home-dir copies are synced, never edited
-**Churn ended:** #53 (and repeat confusion before it). `~/.claude/rules/*` are symlinks via `make sync-rules`; `~/.codex/AGENTS.md` is copied via `make sync-codex-rules`.
+**Churn ended:** #53 (and repeat confusion before it). `~/.claude/rules/*` are symlinks via `make sync-rules`; Codex globals are installed via `make sync-codex`.
 **Rule:** edit here, bump, sync. Editing a destination copy is a bug.
 
 ## 4. Plan mode = `EnterPlanMode`/`ExitPlanMode`, never the `Plan` agent

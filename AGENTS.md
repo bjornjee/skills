@@ -1,6 +1,6 @@
 # Project Conventions
 
-Claude Code plugin repo: skills, agents, and rules. Pure configuration — no runtime code.
+Claude Code plugin repo: skills, agents, and rules. The plugins remain pure configuration; repository scripts install personal Codex globals.
 
 ## Layout
 
@@ -11,7 +11,7 @@ agents/                  Named subagent definitions (.md files)
 .claude-plugin/          Claude plugin metadata (plugin.json, marketplace.json)
 plugins/skills/          Codex plugin package (.codex-plugin/plugin.json + skills/ symlink to ../../skills)
 .agents/plugins/         Codex marketplace pointer (marketplace.json)
-.codex/                  Canonical Codex doctrine (AGENTS.md) — synced via make sync-codex-rules
+.codex/                  Canonical Codex doctrine (AGENTS.md) — synced via make sync-codex
 scripts/                 Utility scripts
 ```
 
