@@ -54,6 +54,12 @@ describe('sync-codex', () => {
     runSync(home);
 
     assert.ok(fs.existsSync(path.join(home, '.agents', 'skills', 'terminal-ops', 'SKILL.md')));
+    assert.ok(fs.existsSync(
+      path.join(home, '.agents', 'skills', 'create-linear-issue', 'SKILL.md'),
+    ));
+    assert.ok(fs.existsSync(
+      path.join(home, '.agents', 'skills', 'create-linear-issue', 'agents', 'openai.yaml'),
+    ));
     assert.equal(
       fs.readFileSync(path.join(home, '.codex', 'AGENTS.md'), 'utf8'),
       fs.readFileSync(path.join(REPO, '.codex', 'AGENTS.md'), 'utf8'),

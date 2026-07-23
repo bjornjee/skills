@@ -49,6 +49,7 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 | `/codegraph-audit` | Call-graph-aware pre-PR review via the local codegraph CLI (on demand) |
 | `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
 | `/context-management` | When to compact + auditing what consumes the context window |
+| `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
 | `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
 | `/distributed-systems` | Idempotent consumers, retry discipline, outbox, poison messages, backpressure |
 | `/fastapi-patterns` | FastAPI service-layer conventions (lockstep copy of the `fastapi.md` rule) |
