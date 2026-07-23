@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Linear Issue"
+  short_description: "Create and verify Linear task issues"
+  default_prompt: "Use $create-linear-issue to create and verify one Linear implementation issue from this task contract."
