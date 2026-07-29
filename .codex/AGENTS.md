@@ -62,6 +62,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - Scope the review to the changed-file list plus package manifests, CI config, and test-runner config. Check cross-adapter drift when equivalent Claude/Codex or platform-specific files changed.
    - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
+   - **GitHub access paths are independent.** For publish and PR work, check both the connected GitHub app and the repository's git remote transport before treating `gh auth status` as a blocker. A stale or invalid `gh` CLI token blocks only the `gh` fallback; it must not block a healthy GitHub app for PR operations or a working SSH/HTTPS remote for push. Prefer the GitHub app for supported PR operations and use `gh` only when connector coverage is insufficient.
    - **No self-attribution.** No `Co-Authored-By` trailer naming the assistant in commits; no "Generated with" footer in PR bodies. The author is the user — attribution to the tool is noise.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
