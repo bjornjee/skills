@@ -51,6 +51,7 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 | `/context-management` | When to compact + auditing what consumes the context window |
 | `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
 | `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
+| `/design-presentations` | Design editable decks with user-directed modes, styles, templates, and visual QA |
 | `/distributed-systems` | Idempotent consumers, retry discipline, outbox, poison messages, backpressure |
 | `/fastapi-patterns` | FastAPI service-layer conventions (lockstep copy of the `fastapi.md` rule) |
 | `/git-workflow` | Branching strategy decisions, bisect protocol, multi-worktree discipline, CODEOWNERS |
