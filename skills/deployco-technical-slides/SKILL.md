@@ -65,10 +65,11 @@ team-value multiplication visible.
 7. **Round-trip deliberately.** Import/export with the intended DeployCo master,
    then reapply or reset layouts only where the correct template mapping is known.
    Verify that every narrative element remains editable.
-8. **Render and inspect.** Use
-   `scripts/render_pptx.sh <deck.pptx> <empty-output-dir>` when LibreOffice,
-   `pdfinfo`, and `pdftoppm` are available. Inspect representative, dense, and every
-   diagram-heavy slide at presentation scale. The source or diff is not visual proof.
+8. **Render and inspect.** Resolve this loaded skill's directory and run
+   `<skill-dir>/scripts/render_pptx.sh <deck.pptx> <empty-output-dir>` when
+   LibreOffice, `pdfinfo`, and `pdftoppm` are available. Inspect representative,
+   dense, and every diagram-heavy slide at presentation scale. The source or diff is
+   not visual proof.
 9. **Review in Google Slides.** Confirm theme/master, layout mapping, bounds,
    aspect ratios, readability, and slideshow behavior in the final shared surface.
 10. **Report.** Return the editable deck, rendered QA artifacts or inspection

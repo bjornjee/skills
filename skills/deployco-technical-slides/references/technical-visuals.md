@@ -19,6 +19,13 @@ Before drawing, state the diagram’s question and the one relationship it must 
 obvious. A diagram without a decision, state change, ownership boundary, failure path,
 or feedback loop is decoration.
 
+Choose the label strategy before generating a raster asset:
+
+- **Editable overlay (preferred):** reserve deliberate whitespace in the raster and
+  add every label as native theme text in the deck.
+- **Self-contained raster:** embed only stable, exact short labels when the asset must
+  travel independently; validate every label and regenerate on any text defect.
+
 ## Visual system
 
 - Canvas: light or white, sized to the intended slide region.
@@ -62,8 +69,9 @@ asset region’s intended aspect ratio, not a convenient square.
 
 ```text
 Professional technical architecture diagram for a DeployCo presentation, aspect
-ratio {width}:{height}, white canvas, {ordered nodes and branches}, exact labels:
-{label list}. Show {ownership/state/failure relationship} as the primary visual.
+ratio {width}:{height}, white canvas, {ordered nodes and branches}, {label strategy
+and labels or reserved label zones}. Show {ownership/state/failure relationship} as
+the primary visual.
 Use thin precise charcoal connectors and restrained cyan, mint, and lavender accents
 sampled from the supplied DeployCo template. Modern sans-serif, consistent node
 geometry, generous whitespace, 6% safe margin. No paragraphs, gradients, shadows,
@@ -73,12 +81,13 @@ geometry, generous whitespace, 6% safe margin. No paragraphs, gradients, shadows
 ### State transition / promotion
 
 ```text
-Editable-looking technical state-transition visual, aspect ratio {width}:{height},
-white background. Show BEFORE {state}, gate precondition {evidence}, traffic-weight
-switch {operation}, AFTER {state}, audit record, and immediate rollback path. Exact
-short labels only. DeployCo charcoal with template-sampled cyan, mint, and lavender;
-thin directional connectors; 6% safe margin. No deployment cloud, gradients, shadows,
-3D, or decorative icons.
+Professional technical state-transition visual, aspect ratio {width}:{height},
+white background. Show a transition from {before state}, through {gate evidence} and
+{traffic-weight operation}, to {after state}; include {audit record and immediate
+rollback relationship}. Use {label strategy and labels or reserved label zones}.
+DeployCo charcoal with template-sampled cyan, mint, and lavender; thin directional
+connectors; 6% safe margin. No deployment cloud, gradients, shadows, 3D, or
+decorative icons.
 ```
 
 ### Assurance loop
@@ -86,10 +95,10 @@ thin directional connectors; 6% safe margin. No deployment cloud, gradients, sha
 ```text
 Technical assurance loop for a professional DeployCo slide, aspect ratio
 {width}:{height}. Inputs: {scheduled proof sources}; normalize into {evidence}; triage
-by {policy}; route to {owner}; return a visible feedback arrow to {next decision}.
-White canvas, exact short labels, modern sans-serif, thin connectors, consistent
-hierarchy, template-sampled charcoal/cyan/mint/lavender, 6% safe margin. No paragraphs,
-gradients, shadows, 3D, or cartoon styling.
+by {policy}; route to {owner}; return a visible feedback arrow to {next decision}. Use
+{label strategy and labels or reserved label zones}. White canvas, modern sans-serif,
+thin connectors, consistent hierarchy, template-sampled charcoal/cyan/mint/lavender,
+6% safe margin. No paragraphs, gradients, shadows, 3D, or cartoon styling.
 ```
 
 ## Asset handling
@@ -106,7 +115,8 @@ gradients, shadows, 3D, or cartoon styling.
    repository/deck-relative paths; do not scatter absolute workstation paths.
 7. Validate that every mapped file exists and has the intended dimensions before deck
    generation. Update the mapping and asset version in the same change.
-8. Keep narrative text outside the raster asset whenever it may change in review.
+8. Keep labels and narrative text native whenever the composition allows. If the
+   raster must contain text, limit it to stable short labels and validate every glyph.
 9. Check generated images for invented labels, distorted icons, clipped connectors,
    inconsistent color, and accidental confidential content.
 

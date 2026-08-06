@@ -59,9 +59,12 @@ the known-good deck. Keep temporary renders separate from deliverable files.
 When `soffice`, `pdfinfo`, and `pdftoppm` are available, run:
 
 ```bash
-skills/deployco-technical-slides/scripts/render_pptx.sh \
+<skill-dir>/scripts/render_pptx.sh \
   path/to/deck.pptx path/to/empty-qa-directory
 ```
+
+Resolve `<skill-dir>` from the loaded skill location, not from the current project or
+the canonical skills-repository checkout.
 
 The script creates an isolated LibreOffice profile, converts the selected deck to PDF,
 verifies a nonzero page count, and renders numbered PNGs. It refuses a nonempty output
