@@ -1,0 +1,4 @@
+interface:
+  display_name: "DeployCo Technical Slides"
+  short_description: "Create polished, editable DeployCo technical decks"
+  default_prompt: "Use $deployco-technical-slides to create or polish an editable technical presentation using the real DeployCo slide master and visual QA."
