@@ -1,0 +1,4 @@
+interface:
+  display_name: "Presentation Design"
+  short_description: "Design editable decks with user-directed styles"
+  default_prompt: "Use $design-presentations to create or revise an editable presentation using my chosen mode, style, and template, then visually QA it."

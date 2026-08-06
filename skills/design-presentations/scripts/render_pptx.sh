@@ -44,7 +44,7 @@ input_path="$input_dir/$input_name"
 stem=${input_name%.*}
 pdf_path="$output_dir/$stem.pdf"
 
-profile_dir=$(mktemp -d "${TMPDIR:-/tmp}/deployco-slides-lo.XXXXXX")
+profile_dir=$(mktemp -d "${TMPDIR:-/tmp}/presentation-slides-lo.XXXXXX")
 cleanup() {
   rm -rf "$profile_dir"
 }
