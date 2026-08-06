@@ -12,6 +12,9 @@ team-value multiplication visible.
 
 ## Load the guidance
 
+- Always read [evidence-sources.md](references/evidence-sources.md) first. Use its
+  authority table and search-stop rules instead of rediscovering the completed
+  reference workflow or searching broadly for brand guidance.
 - Always read [brand-and-layout.md](references/brand-and-layout.md) before touching
   a deck. Treat it as the preservation contract.
 - Read [story-and-evidence.md](references/story-and-evidence.md) before creating or
@@ -38,8 +41,10 @@ team-value multiplication visible.
 ## Workflow
 
 1. **Resolve inputs.** Identify the source story/evidence, real DeployCo template,
-   output format, target talk length, audience, and existing assets. Record which
-   file or shared deck is the master source of truth.
+   output format, target talk length, audience, and existing assets. Route each
+   question to the narrowest authoritative source in `evidence-sources.md`; stop
+   searching once that source answers it. Record which file or shared deck is the
+   master source of truth.
 2. **Inspect before changing.** Inventory slide masters, layouts, theme fonts and
    colors, aspect ratio, title sizes, editable versus raster elements, and any
    clipping or distortion. Do not infer branding from screenshots.
