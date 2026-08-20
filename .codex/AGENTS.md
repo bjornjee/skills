@@ -62,7 +62,6 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - Scope the review to the changed-file list plus package manifests, CI config, and test-runner config. Check cross-adapter drift when equivalent Claude/Codex or platform-specific files changed.
    - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
-   - **Codex Cloud PR publication.** The worker prepares the verified diff and PR title/body, but must not use `gh`, direct GitHub credentials, repository secrets, `git push`, or `/opt/codex` publication helpers. Use the configured Codex–GitHub capability outside the worker and record the resulting PR URL. Merging remains separately authorized.
    - **No self-attribution.** No `Co-Authored-By` trailer naming the assistant in commits; no "Generated with" footer in PR bodies. The author is the user — attribution to the tool is noise.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.

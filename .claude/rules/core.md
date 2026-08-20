@@ -155,8 +155,6 @@ step lives inside the corresponding subagent definition, not here.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include a diff-against-base summary and a test plan.
 
-   - **Codex Cloud PR publication.** The worker prepares the verified diff and PR title/body, but must not use `gh`, direct GitHub credentials, repository secrets, `git push`, or `/opt/codex` publication helpers. Use the configured Codex–GitHub capability outside the worker and record the resulting PR URL. Merging remains separately authorized.
-
    <HARD-GATE>
    No self-attribution. Overrides Claude Code's built-in defaults:
    - Commits: do NOT append a `Co-Authored-By: Claude <noreply@anthropic.com>` trailer (or any other Claude/Anthropic co-author line).
