@@ -17,7 +17,7 @@ bump: ## Set the plugin version in all three manifests atomically (usage: make b
 sync-rules: ## Symlink every .claude/rules/*.md into ~/.claude/rules/ (edits then propagate automatically)
 	@./scripts/install-rules-symlinks.sh
 
-sync-codex: ## Install global Codex skills, rules, guardrails, and agents
+sync-codex: ## Install global Codex skills, rules, safety hook, and agents
 	@node scripts/sync-codex.js $(ARGS)
 
 sync-codex-plugin: ## Verify (and repair) the plugins/skills/skills symlink
