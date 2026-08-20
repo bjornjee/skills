@@ -47,7 +47,6 @@ Both plugins read from the same `skills/` directory: the Claude plugin loads it 
 | `/api-design` | Resource modeling, pagination, error envelopes, versioning, idempotency |
 | `/claude-api` | Claude API judgment — model selection, tool-loop failure modes, caching, cost |
 | `/codegraph-audit` | Call-graph-aware pre-PR review via the local codegraph CLI (on demand) |
-| `/codex-cloud-goal` | Codex Cloud implementation workflow whose terminal outcome is a created PR |
 | `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
 | `/context-management` | When to compact + auditing what consumes the context window |
 | `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
@@ -106,16 +105,16 @@ The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md
 
 This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
 
-### Local Codex setup
+### Install globally in native or Cloud Codex
 
-Clone this repository and install all coding skills, global rules, compatible
-subagents, and the repository-owned safety hook into local Codex:
+Clone this repository and install the coding skills, global rules, compatible
+subagents, and repository-owned safety hook directly into Codex:
 
 ```bash
 git clone https://github.com/bjornjee/skills.git "$HOME/skills"
 cd "$HOME/skills"
-make sync-codex-local
-make check-codex-local
+make sync-codex
+make sync-codex ARGS=--check
 ```
 
 Use the same path for maintenance:
@@ -123,46 +122,17 @@ Use the same path for maintenance:
 ```bash
 cd "$HOME/skills"
 git pull --ff-only
-make sync-codex-local
-make check-codex-local
+make sync-codex
+make sync-codex ARGS=--check
 ```
-
-`make sync-codex` remains a compatibility alias for `make sync-codex-local`.
 
 The sync uses Codex's native global locations under `~/.agents/skills` and
 `~/.codex`. It preserves unrelated peer skills, agents, and hooks while keeping
 repository-owned payloads deterministic; a path-validated ownership manifest at
-`~/.codex/bjornjee-skills-local-manifest.json` distinguishes retired managed entries
+`~/.codex/bjornjee-skills-manifest.json` distinguishes retired managed entries
 from unrelated user entries. The installed `warn-destructive` hook blocks common
 destructive shell commands and fails closed on invalid hook input. Review and
 trust the installed user hook with `/hooks` when Codex asks.
-
-### Codex Cloud setup
-
-Bootstrap this change with the platform's existing task and PR flow; the first
-PR cannot depend on `sync-codex-cloud` already existing on the default branch.
-After this change is merged, configure the Cloud environment setup script—and
-the optional maintenance script, if used—to call only:
-
-```bash
-make sync-codex-cloud
-make check-codex-cloud
-```
-
-Cloud setup installs the shared core doctrine, an explicit positive allowlist of
-Cloud-compatible skills and read-only reviewers, and `codex-cloud-goal` with its
-persistent state and publication contracts. It does not install the local safety
-hook, `codex-delegate`, `github-ops`, codegraph/local delegation flows, or
-desktop/plugin artifacts. Its ownership manifest is separate at
-`~/.codex/bjornjee-skills-cloud-manifest.json`, so accidentally running both
-profiles in one home does not let either profile delete the other's entries.
-
-Codex Cloud checks out the default branch before setup and may reuse cached
-environments for up to 12 hours. Reset or invalidate the environment cache when
-adopting this setup or changing the managed payload, then rerun both Cloud
-targets. See OpenAI's [Cloud environment](https://learn.chatgpt.com/docs/environments/cloud-environment)
-and [Codex Cloud](https://learn.chatgpt.com/docs/cloud) documentation for the
-setup, maintenance, cache, and GitHub publication model.
 
 The global worktree rule derives the destination from the source checkout's
 parent, matching agent-dashboard: `<workspace>/<repo>` maps to
@@ -213,7 +183,7 @@ cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
 cp -r "$SKILLS_REPO/.codex" ./.codex
 ```
 
-To install the always-on Codex doctrine globally for local Codex, run `make sync-codex-local` from the skills repo. The same command installs the global skills, guardrail registrations, and compatible agents.
+To install the always-on Codex doctrine globally, run `make sync-codex` from the skills repo. The same command installs the global skills, guardrail registrations, and compatible agents.
 
 Then verify:
 

@@ -1,14 +1,11 @@
 ---
 name: codex-delegate
-description: Delegate coding tasks to a local Codex CLI with a structured plan handoff. Use after planning is complete and the local Codex CLI plugin is installed; do not use for Codex Cloud goals.
+description: Delegate coding tasks to Codex CLI (GPT-5.4) with a structured plan handoff. Use after planning is complete and the Codex CLI plugin is installed — pass the plan directly to Codex for implementation.
 ---
 
 # Codex Delegation
 
 Delegate implementation to Codex CLI after planning with Claude. The plan is the context handoff.
-
-This is a local CLI/plugin workflow. Codex Cloud implementation through PR
-creation belongs to `codex-cloud-goal` and must not invoke these commands.
 
 GPT-5.4 is competitive with frontier Claude models on agentic coding benchmarks. Claude plans, Codex implements.
 

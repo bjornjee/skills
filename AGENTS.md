@@ -11,7 +11,7 @@ agents/                  Named subagent definitions (.md files)
 .claude-plugin/          Claude plugin metadata (plugin.json, marketplace.json)
 plugins/skills/          Codex plugin package (.codex-plugin/plugin.json + skills/ symlink to ../../skills)
 .agents/plugins/         Codex marketplace pointer (marketplace.json)
-.codex/                  Canonical Codex doctrine (AGENTS.md) — synced via make sync-codex-local or sync-codex-cloud
+.codex/                  Canonical Codex doctrine (AGENTS.md) — synced via make sync-codex
 scripts/                 Utility scripts
 ```
 

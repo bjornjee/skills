@@ -1,4 +1,4 @@
-.PHONY: help bump sync-codex sync-codex-local check-codex-local sync-codex-cloud check-codex-cloud sync-codex-plugin sync-rules test
+.PHONY: help bump sync-codex sync-codex-plugin sync-rules test
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -17,20 +17,8 @@ bump: ## Set the plugin version in all three manifests atomically (usage: make b
 sync-rules: ## Symlink every .claude/rules/*.md into ~/.claude/rules/ (edits then propagate automatically)
 	@./scripts/install-rules-symlinks.sh
 
-sync-codex-local: ## Install local Codex skills, rules, safety hook, and agents
-	@node scripts/sync-codex.js --profile local
-
-sync-codex: ## Compatibility alias for local Codex sync (supports ARGS=--check)
-	@node scripts/sync-codex.js --profile local $(ARGS)
-
-check-codex-local: ## Check local Codex installation for drift
-	@node scripts/sync-codex.js --profile local --check
-
-sync-codex-cloud: ## Install the explicit Codex Cloud-safe payload
-	@node scripts/sync-codex.js --profile cloud
-
-check-codex-cloud: ## Check the Codex Cloud installation for drift
-	@node scripts/sync-codex.js --profile cloud --check
+sync-codex: ## Install global Codex skills, rules, safety hook, and agents
+	@node scripts/sync-codex.js $(ARGS)
 
 sync-codex-plugin: ## Verify (and repair) the plugins/skills/skills symlink
 	./scripts/sync-codex-plugin.sh

@@ -7,44 +7,10 @@ const path = require('node:path');
 
 const REPO = path.resolve(__dirname, '..');
 const HOME = os.homedir();
-const args = process.argv.slice(2);
-const PROFILE = args[0] === '--profile' ? args[1] : null;
-const CHECK = args.length === 3 && args[2] === '--check';
+const CHECK = process.argv.includes('--check');
+const unknownArgs = process.argv.slice(2).filter(arg => arg !== '--check');
 const drift = [];
 const MANIFEST_VERSION = 1;
-const CLOUD_SKILLS = [
-  'agent-harness-construction',
-  'agent-introspection-debugging',
-  'agentic-engineering',
-  'ai-ml-patterns',
-  'api-design',
-  'claude-api',
-  'codex-cloud-goal',
-  'context-management',
-  'create-linear-issue',
-  'data-modeling',
-  'design-presentations',
-  'distributed-systems',
-  'fastapi-patterns',
-  'git-workflow',
-  'golang-patterns',
-  'golang-testing',
-  'incident-response',
-  'mcp-server-patterns',
-  'observability',
-  'ponytail',
-  'python-patterns',
-  'react-native-patterns',
-  'regex-vs-llm-structured-text',
-  'security-design',
-  'terminal-ops',
-  'typescript-patterns',
-];
-const CLOUD_AGENTS = [
-  'go-reviewer-strict',
-  'python-reviewer-strict',
-  'typescript-reviewer-strict',
-];
 const HOOK_COMMAND = 'node "$HOME/.codex/hooks/warn-destructive.js"';
 // Migration-only commands written by earlier releases; none are installed.
 const LEGACY_HOOK_COMMANDS = new Set([
@@ -53,10 +19,8 @@ const LEGACY_HOOK_COMMANDS = new Set([
   'warn-destructive',
 ].map(name => `node "$HOME/Code/bjornjee/agent-dashboard/adapters/codex/hooks/${name}.js"`));
 
-if (!['local', 'cloud'].includes(PROFILE)
-  || !([2, 3].includes(args.length))
-  || (args.length === 3 && !CHECK)) {
-  process.stderr.write('usage: sync-codex.js --profile <local|cloud> [--check]\n');
+if (unknownArgs.length > 0) {
+  process.stderr.write('usage: sync-codex.js [--check]\n');
   process.exit(2);
 }
 
@@ -299,75 +263,42 @@ const hookSource = path.join(REPO, 'native-codex', 'hooks', 'warn-destructive.js
 
 // Preflight the complete managed source payload before writing anything.
 assertDirectory(skillsSource);
-let skillPayloads;
-if (PROFILE === 'local') {
-  const allSkillEntries = fs.readdirSync(skillsSource, { withFileTypes: true })
-    .sort((left, right) => left.name.localeCompare(right.name));
-  for (const entry of allSkillEntries) {
-    if (entry.isSymbolicLink()) {
-      throw new Error(`Codex payload cannot contain symlink: ${path.join(skillsSource, entry.name)}`);
-    }
+const allSkillEntries = fs.readdirSync(skillsSource, { withFileTypes: true })
+  .sort((left, right) => left.name.localeCompare(right.name));
+for (const entry of allSkillEntries) {
+  if (entry.isSymbolicLink()) {
+    throw new Error(`Codex payload cannot contain symlink: ${path.join(skillsSource, entry.name)}`);
   }
-  skillPayloads = allSkillEntries
-    .filter(entry => entry.isDirectory())
-    .map(entry => {
-      const source = path.join(skillsSource, entry.name);
-      return { name: entry.name, source, files: listFiles(source) };
-    })
-    .filter(payload => payload.files.includes('SKILL.md'));
-} else {
-  skillPayloads = CLOUD_SKILLS.map(name => {
-    const source = path.join(skillsSource, name);
-    if (!lstatOrNull(source)) throw new Error(`required Cloud skill missing: ${name}`);
-    assertDirectory(source);
-    const files = listFiles(source);
-    if (!files.includes('SKILL.md')) throw new Error(`required Cloud skill missing: ${name}`);
-    return { name, source, files };
-  });
 }
+const skillPayloads = allSkillEntries
+  .filter(entry => entry.isDirectory())
+  .map(entry => {
+    const source = path.join(skillsSource, entry.name);
+    return { name: entry.name, source, files: listFiles(source) };
+  })
+  .filter(payload => payload.files.includes('SKILL.md'));
 const skillNames = skillPayloads.map(payload => payload.name);
 
 assertDirectory(path.join(REPO, '.codex'));
 assertRegularFile(globalRulesSource);
-if (PROFILE === 'local') {
-  assertDirectory(path.join(REPO, 'native-codex'));
-  assertDirectory(path.join(REPO, 'native-codex', 'hooks'));
-  assertRegularFile(hookSource);
-}
-assertDirectory(agentsSource);
-const agents = PROFILE === 'local'
-  ? listFiles(agentsSource)
-    .filter(filename => path.extname(filename) === '.md')
-    .map(filename => {
-      const source = path.join(agentsSource, filename);
-      return {
-        name: path.basename(filename, '.md'),
-        content: parseAgent(source),
-      };
-    })
-  : CLOUD_AGENTS.map(name => {
-    const source = path.join(agentsSource, `${name}.md`);
-    if (!lstatOrNull(source)) throw new Error(`required Cloud reviewer missing: ${name}`);
-    assertRegularFile(source);
-    return { name, content: parseAgent(source) };
-  });
+assertDirectory(path.join(REPO, 'native-codex'));
+assertDirectory(path.join(REPO, 'native-codex', 'hooks'));
+assertRegularFile(hookSource);
+const agentFiles = listFiles(agentsSource)
+  .filter(filename => path.extname(filename) === '.md');
+const agents = agentFiles.map(filename => {
+  const source = path.join(agentsSource, filename);
+  return {
+    name: path.basename(filename, '.md'),
+    content: parseAgent(source),
+  };
+});
 
 const codexHome = path.join(HOME, '.codex');
 const hooksPath = path.join(codexHome, 'hooks.json');
-const legacyManifestPath = path.join(codexHome, 'bjornjee-skills-manifest.json');
-const manifestPath = path.join(codexHome, `bjornjee-skills-${PROFILE}-manifest.json`);
-const peerManifestPath = path.join(
-  codexHome,
-  `bjornjee-skills-${PROFILE === 'local' ? 'cloud' : 'local'}-manifest.json`,
-);
-const previousManifestPath = PROFILE === 'local'
-  && !lstatOrNull(manifestPath)
-  && lstatOrNull(legacyManifestPath)
-  ? legacyManifestPath
-  : manifestPath;
-const hooksContent = PROFILE === 'local' ? desiredHooks(hooksPath) : null;
-const previousManifest = readManifest(previousManifestPath);
-const peerManifest = readManifest(peerManifestPath);
+const manifestPath = path.join(codexHome, 'bjornjee-skills-manifest.json');
+const hooksContent = desiredHooks(hooksPath);
+const previousManifest = readManifest(manifestPath);
 const agentNames = agents.map(agent => agent.name);
 const manifestContent = `${JSON.stringify({
   version: MANIFEST_VERSION,
@@ -379,7 +310,6 @@ const skillsDestination = path.join(HOME, '.agents', 'skills');
 const staleSkills = previousManifest.skills.filter(name => !skillNames.includes(name));
 const staleAgents = previousManifest.agents.filter(name => !agentNames.includes(name));
 for (const name of staleSkills) {
-  if (peerManifest.skills.includes(name)) continue;
   const destination = path.join(skillsDestination, name);
   if (CHECK) {
     if (lstatOrNull(destination)) drift.push(destination);
@@ -388,7 +318,6 @@ for (const name of staleSkills) {
   }
 }
 for (const name of staleAgents) {
-  if (peerManifest.agents.includes(name)) continue;
   const destination = path.join(codexHome, 'agents', `${name}.toml`);
   if (CHECK) {
     if (lstatOrNull(destination)) drift.push(destination);
@@ -401,18 +330,12 @@ for (const payload of skillPayloads) {
 }
 
 copyFile(globalRulesSource, path.join(codexHome, 'AGENTS.md'));
-if (PROFILE === 'local') {
-  copyFile(hookSource, path.join(codexHome, 'hooks', 'warn-destructive.js'), 0o755);
-  writeGenerated(hooksContent, hooksPath);
-}
+copyFile(hookSource, path.join(codexHome, 'hooks', 'warn-destructive.js'), 0o755);
+writeGenerated(hooksContent, hooksPath);
 for (const agent of agents) {
   writeGenerated(agent.content, path.join(codexHome, 'agents', `${agent.name}.toml`));
 }
 writeGenerated(manifestContent, manifestPath);
-if (PROFILE === 'local' && lstatOrNull(legacyManifestPath)) {
-  if (CHECK) drift.push(legacyManifestPath);
-  else fs.rmSync(legacyManifestPath);
-}
 
 if (CHECK && drift.length > 0) {
   drift.sort();
@@ -422,6 +345,6 @@ if (CHECK && drift.length > 0) {
 
 process.stdout.write(
   CHECK
-    ? `ok: ${PROFILE} Codex payload is synced (${skillNames.length} skills, ${agentNames.length} agents)\n`
-    : `synced: ${PROFILE} Codex payload (${skillNames.length} skills, ${agentNames.length} agents)\n`,
+    ? `ok: ${skillNames.length} skills, rules, safety hook, and agents are synced\n`
+    : `synced: ${skillNames.length} skills, rules, safety hook, and agents\n`,
 );
