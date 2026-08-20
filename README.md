@@ -1,12 +1,12 @@
 # bjornjee-skills
 
-Personal skills, agents, and rules for Claude Code.
+Personal skills, agents, and rules for Claude Code and Codex.
 
-The packaged skills plugin is pure configuration — **rules, skills, and agents only**. The optional global Codex setup registers three command guardrails from the canonical agent-dashboard checkout; `scripts/` contains the sync tooling and repository-maintenance tests.
+The packaged skills plugin is pure configuration — **rules, skills, and agents only**. The global Codex setup is self-contained in this repository; `scripts/` contains the sync tooling and repository-maintenance tests.
 
 ## Related plugins
 
-Dashboard lifecycle hooks, generic workflow skills (`/feature`, `/fix`, `/pr`, `/chore`, `/investigate`, `/refactor`), and generic review agents (`code-reviewer`, `planner`, `security-reviewer`, `tdd-guide`, `build-error-resolver`) are provided by the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin. Install it only when the dashboard workflow is wanted; the global Codex setup in this repo registers the canonical agent-dashboard implementations of `block-main-commit`, `commit-lint`, and `warn-destructive` without enabling its lifecycle hooks. (This plugin ships its own `tdd-guide` — the proportional-proof variant in the Agents table below; the dashboard's is the generic strict-TDD one.)
+Dashboard lifecycle hooks and generic dashboard workflows remain available from the separate [bjornjee/agent-dashboard](https://github.com/bjornjee/agent-dashboard) plugin, but they are not required or installed by this repository. This repository ships its own proportional-proof `tdd-guide` and destructive-command safety hook.
 
 ## Installation
 
@@ -105,25 +105,34 @@ The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md
 
 This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
 
-### Install globally without private plugins
+### Install globally in native or Cloud Codex
 
-Install the coding skills, global rules, compatible subagents, and these global
-command guardrails directly into Codex without depending on a private plugin:
-
-- `block-main-commit` blocks commits on `main` and `master`.
-- `commit-lint` blocks non-conventional inline commit messages before Git runs.
-- `warn-destructive` blocks known destructive shell commands.
+Clone this repository and install the coding skills, global rules, compatible
+subagents, and repository-owned safety hook directly into Codex:
 
 ```bash
+git clone https://github.com/bjornjee/skills.git "$HOME/skills"
+cd "$HOME/skills"
+make sync-codex
+make sync-codex ARGS=--check
+```
+
+Use the same path for maintenance:
+
+```bash
+cd "$HOME/skills"
+git pull --ff-only
 make sync-codex
 make sync-codex ARGS=--check
 ```
 
 The sync uses Codex's native global locations under `~/.agents/skills` and
-`~/.codex`. It preserves unrelated global skills and hooks. Guardrail commands
-point to the existing implementations under
-`~/Code/bjornjee/agent-dashboard/adapters/codex/hooks/`; no hook source is
-copied into this repo or into `~/.codex/hooks`.
+`~/.codex`. It preserves unrelated peer skills, agents, and hooks while keeping
+repository-owned payloads deterministic; a path-validated ownership manifest at
+`~/.codex/bjornjee-skills-manifest.json` distinguishes retired managed entries
+from unrelated user entries. The installed `warn-destructive` hook blocks common
+destructive shell commands and fails closed on invalid hook input. Review and
+trust the installed user hook with `/hooks` when Codex asks.
 
 The global worktree rule derives the destination from the source checkout's
 parent, matching agent-dashboard: `<workspace>/<repo>` maps to
