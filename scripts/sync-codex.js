@@ -7,10 +7,47 @@ const path = require('node:path');
 
 const REPO = path.resolve(__dirname, '..');
 const HOME = os.homedir();
-const CHECK = process.argv.includes('--check');
-const unknownArgs = process.argv.slice(2).filter(arg => arg !== '--check');
+const args = process.argv.slice(2);
+const PROFILE = args[0] === '--profile' ? args[1] : null;
+const CHECK = args.length === 3 && args[2] === '--check';
 const drift = [];
 const MANIFEST_VERSION = 1;
+const CLOUD_SKILLS = [
+  'agent-harness-construction',
+  'agent-introspection-debugging',
+  'agentic-engineering',
+  'ai-ml-patterns',
+  'api-design',
+  'claude-api',
+  'codex-cloud-goal',
+  'context-management',
+  'create-linear-issue',
+  'data-modeling',
+  'design-presentations',
+  'distributed-systems',
+  'fastapi-patterns',
+  'git-workflow',
+  'golang-patterns',
+  'golang-testing',
+  'incident-response',
+  'mcp-server-patterns',
+  'observability',
+  'ponytail',
+  'python-patterns',
+  'react-native-patterns',
+  'regex-vs-llm-structured-text',
+  'search-first',
+  'security-design',
+  'terminal-ops',
+  'typescript-patterns',
+  'uiux-design-loop',
+];
+const CLOUD_AGENTS = [
+  'go-reviewer-strict',
+  'python-reviewer-strict',
+  'typescript-reviewer-strict',
+  'uiux-grader',
+];
 const HOOK_COMMAND = 'node "$HOME/.codex/hooks/warn-destructive.js"';
 // Migration-only commands written by earlier releases; none are installed.
 const LEGACY_HOOK_COMMANDS = new Set([
@@ -19,8 +56,10 @@ const LEGACY_HOOK_COMMANDS = new Set([
   'warn-destructive',
 ].map(name => `node "$HOME/Code/bjornjee/agent-dashboard/adapters/codex/hooks/${name}.js"`));
 
-if (unknownArgs.length > 0) {
-  process.stderr.write('usage: sync-codex.js [--check]\n');
+if (!['local', 'cloud'].includes(PROFILE)
+  || !([2, 3].includes(args.length))
+  || (args.length === 3 && !CHECK)) {
+  process.stderr.write('usage: sync-codex.js --profile <local|cloud> [--check]\n');
   process.exit(2);
 }
 
@@ -270,35 +309,64 @@ for (const entry of allSkillEntries) {
     throw new Error(`Codex payload cannot contain symlink: ${path.join(skillsSource, entry.name)}`);
   }
 }
-const skillPayloads = allSkillEntries
+const allSkillPayloads = allSkillEntries
   .filter(entry => entry.isDirectory())
   .map(entry => {
     const source = path.join(skillsSource, entry.name);
     return { name: entry.name, source, files: listFiles(source) };
   })
   .filter(payload => payload.files.includes('SKILL.md'));
+const allSkillPayloadsByName = new Map(allSkillPayloads.map(payload => [payload.name, payload]));
+const skillPayloads = PROFILE === 'local'
+  ? allSkillPayloads
+  : CLOUD_SKILLS.map(name => {
+    const payload = allSkillPayloadsByName.get(name);
+    if (!payload) throw new Error(`required Cloud skill missing: ${name}`);
+    return payload;
+  });
 const skillNames = skillPayloads.map(payload => payload.name);
 
 assertDirectory(path.join(REPO, '.codex'));
 assertRegularFile(globalRulesSource);
-assertDirectory(path.join(REPO, 'native-codex'));
-assertDirectory(path.join(REPO, 'native-codex', 'hooks'));
-assertRegularFile(hookSource);
+if (PROFILE === 'local') {
+  assertDirectory(path.join(REPO, 'native-codex'));
+  assertDirectory(path.join(REPO, 'native-codex', 'hooks'));
+  assertRegularFile(hookSource);
+}
 const agentFiles = listFiles(agentsSource)
   .filter(filename => path.extname(filename) === '.md');
-const agents = agentFiles.map(filename => {
+const allAgents = agentFiles.map(filename => {
   const source = path.join(agentsSource, filename);
   return {
     name: path.basename(filename, '.md'),
     content: parseAgent(source),
   };
 });
+const allAgentsByName = new Map(allAgents.map(agent => [agent.name, agent]));
+const agents = PROFILE === 'local'
+  ? allAgents
+  : CLOUD_AGENTS.map(name => {
+    const agent = allAgentsByName.get(name);
+    if (!agent) throw new Error(`required Cloud reviewer missing: ${name}`);
+    return agent;
+  });
 
 const codexHome = path.join(HOME, '.codex');
 const hooksPath = path.join(codexHome, 'hooks.json');
-const manifestPath = path.join(codexHome, 'bjornjee-skills-manifest.json');
-const hooksContent = desiredHooks(hooksPath);
-const previousManifest = readManifest(manifestPath);
+const legacyManifestPath = path.join(codexHome, 'bjornjee-skills-manifest.json');
+const manifestPath = path.join(codexHome, `bjornjee-skills-${PROFILE}-manifest.json`);
+const peerManifestPath = path.join(
+  codexHome,
+  `bjornjee-skills-${PROFILE === 'local' ? 'cloud' : 'local'}-manifest.json`,
+);
+const previousManifestPath = PROFILE === 'local'
+  && !lstatOrNull(manifestPath)
+  && lstatOrNull(legacyManifestPath)
+  ? legacyManifestPath
+  : manifestPath;
+const hooksContent = PROFILE === 'local' ? desiredHooks(hooksPath) : null;
+const previousManifest = readManifest(previousManifestPath);
+const peerManifest = readManifest(peerManifestPath);
 const agentNames = agents.map(agent => agent.name);
 const manifestContent = `${JSON.stringify({
   version: MANIFEST_VERSION,
@@ -310,6 +378,7 @@ const skillsDestination = path.join(HOME, '.agents', 'skills');
 const staleSkills = previousManifest.skills.filter(name => !skillNames.includes(name));
 const staleAgents = previousManifest.agents.filter(name => !agentNames.includes(name));
 for (const name of staleSkills) {
+  if (peerManifest.skills.includes(name)) continue;
   const destination = path.join(skillsDestination, name);
   if (CHECK) {
     if (lstatOrNull(destination)) drift.push(destination);
@@ -318,6 +387,7 @@ for (const name of staleSkills) {
   }
 }
 for (const name of staleAgents) {
+  if (peerManifest.agents.includes(name)) continue;
   const destination = path.join(codexHome, 'agents', `${name}.toml`);
   if (CHECK) {
     if (lstatOrNull(destination)) drift.push(destination);
@@ -330,12 +400,18 @@ for (const payload of skillPayloads) {
 }
 
 copyFile(globalRulesSource, path.join(codexHome, 'AGENTS.md'));
-copyFile(hookSource, path.join(codexHome, 'hooks', 'warn-destructive.js'), 0o755);
-writeGenerated(hooksContent, hooksPath);
+if (PROFILE === 'local') {
+  copyFile(hookSource, path.join(codexHome, 'hooks', 'warn-destructive.js'), 0o755);
+  writeGenerated(hooksContent, hooksPath);
+}
 for (const agent of agents) {
   writeGenerated(agent.content, path.join(codexHome, 'agents', `${agent.name}.toml`));
 }
 writeGenerated(manifestContent, manifestPath);
+if (PROFILE === 'local' && lstatOrNull(legacyManifestPath)) {
+  if (CHECK) drift.push(legacyManifestPath);
+  else fs.rmSync(legacyManifestPath);
+}
 
 if (CHECK && drift.length > 0) {
   drift.sort();
@@ -345,6 +421,6 @@ if (CHECK && drift.length > 0) {
 
 process.stdout.write(
   CHECK
-    ? `ok: ${skillNames.length} skills, rules, safety hook, and agents are synced\n`
-    : `synced: ${skillNames.length} skills, rules, safety hook, and agents\n`,
+    ? `ok: ${PROFILE} Codex payload is synced (${skillNames.length} skills, ${agentNames.length} agents)\n`
+    : `synced: ${PROFILE} Codex payload (${skillNames.length} skills, ${agentNames.length} agents)\n`,
 );

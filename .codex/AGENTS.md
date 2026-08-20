@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
+> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex-local` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
 
 Always-on doctrine for Codex CLI. Loaded every session.
 What to do, in what order, and which skill to reach for. Methodology for
@@ -62,6 +62,8 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - Scope the review to the changed-file list plus package manifests, CI config, and test-runner config. Check cross-adapter drift when equivalent Claude/Codex or platform-specific files changed.
    - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
+   - **GitHub access paths are independent.** For local publish and PR work, check both the connected GitHub app and repository remote transport before treating `gh auth status` as a blocker. Prefer the GitHub app for supported operations; `gh` is only a local fallback.
+   - **Codex Cloud publication is external.** For a `codex-cloud-goal`, the worker prepares the verified diff and PR metadata but never uses `gh`, direct credentials, repository secrets, or `git push`. The orchestrator invokes the configured Codex Cloud/GitHub publication capability and does not complete until it records the PR URL. Merge remains separately authorized.
    - **No self-attribution.** No `Co-Authored-By` trailer naming the assistant in commits; no "Generated with" footer in PR bodies. The author is the user — attribution to the tool is noise.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
@@ -101,7 +103,8 @@ Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to
 - **React Native file touched** → `react-native-patterns` (in addition to `typescript-patterns`).
 - **AI/ML / evals / prompts work** → `ai-ml-patterns`.
 - **Git workflow** (branches, conflicts, merges) → `git-workflow`.
-- **GitHub ops** (issues, PRs, releases) → `github-ops`.
+- **Local GitHub ops** (issues, PRs, releases through `gh`) → `github-ops`.
+- **Codex Cloud implementation through a created PR** → `codex-cloud-goal`; never combine it with a clause prohibiting PR creation.
 - **Terminal-heavy debugging** → `terminal-ops`.
 - **Building MCP servers** → `mcp-server-patterns`.
 - **Designing an API surface** → `api-design`. **Queues/webhooks/background jobs** → `distributed-systems`. **Logging/metrics/tracing/SLOs** → `observability`. **Schemas/indexes/migrations** → `data-modeling`.

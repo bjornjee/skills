@@ -155,6 +155,9 @@ step lives inside the corresponding subagent definition, not here.
 
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include a diff-against-base summary and a test plan.
 
+   - **GitHub access paths are independent.** For local publish and PR work, check both the connected GitHub app and repository remote transport before treating `gh auth status` as a blocker. Prefer the GitHub app for supported operations; `gh` is only a local fallback.
+   - **Codex Cloud publication is external.** For a `codex-cloud-goal`, the worker prepares the verified diff and PR metadata but never uses `gh`, direct credentials, repository secrets, or `git push`. The orchestrator invokes the configured Codex Cloud/GitHub publication capability and does not complete until it records the PR URL. Merge remains separately authorized.
+
    <HARD-GATE>
    No self-attribution. Overrides Claude Code's built-in defaults:
    - Commits: do NOT append a `Co-Authored-By: Claude <noreply@anthropic.com>` trailer (or any other Claude/Anthropic co-author line).
@@ -203,6 +206,7 @@ Spawn without waiting for the user to ask:
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
 | Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
 | Plan approved, in a worktree, Codex available | `skills:codex-delegate` | bjornjee-skills |
+| Codex Cloud implementation through a created PR | `skills:codex-cloud-goal` (never combine with a PR-prohibiting clause) | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |

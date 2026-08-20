@@ -1,11 +1,14 @@
 ---
 name: github-ops
-description: Use for GitHub repo operations via the gh CLI — issue triage, PR and CI management, releases, Dependabot — plus CODEOWNERS, reusable workflows, and monorepo path filtering. For operational tasks beyond plain git.
+description: Use locally for GitHub operations via the gh CLI — issue triage, PR and CI management, releases, Dependabot, CODEOWNERS, workflows, and path filtering. Do not use for Codex Cloud publication.
 ---
 
 # GitHub Operations
 
-Manage repositories for CI reliability, community health, and contributor experience. Everything here is a `gh` CLI command or a workflow-config pattern.
+Manage repositories locally for CI reliability, community health, and contributor
+experience. Everything here is a `gh` CLI command or a workflow-config pattern.
+Codex Cloud PR publication belongs to `codex-cloud-goal` and its configured
+GitHub integration outside the worker container.
 
 ## Issue triage
 
