@@ -7,6 +7,15 @@ description: Use for GitHub repo operations via the gh CLI — issue triage, PR 
 
 Manage repositories for CI reliability, community health, and contributor experience. Everything here is a `gh` CLI command or a workflow-config pattern.
 
+## Codex Cloud PR publication
+
+In Codex Cloud only, the worker edits, verifies, reviews its diff, and prepares
+the PR title/body. It must not use `gh`, direct GitHub credentials, repository
+secrets, `git push`, or `/opt/codex` publication helpers. Use the configured
+Codex–GitHub capability outside the worker, record its PR URL, and leave merging
+to a separate explicit authorization. The `gh` instructions below retain their
+existing behavior outside Codex Cloud.
+
 ## Issue triage
 
 **Types:** bug, feature-request, question, documentation, enhancement, duplicate, invalid, good-first-issue
