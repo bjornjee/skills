@@ -217,7 +217,7 @@ Spawn without waiting for the user to ask:
 | Designing a new trust boundary (auth, secrets, service-to-service) | `skills:security-design` | bjornjee-skills |
 | Designing APIs, queue/background work, telemetry, or schemas | matching discipline skill: `skills:api-design` / `skills:distributed-systems` / `skills:observability` / `skills:data-modeling` | bjornjee-skills |
 | Compaction timing or context-window bloat | `skills:context-management` | bjornjee-skills |
-| User asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop` | bjornjee-skills |
+| Local user asks to improve or polish UX, UI flow, layout, or register on a page/component | `skills:uiux-design-loop`; Codex Cloud uses only configured Cloud UI/browser capabilities | bjornjee-skills |
 | Grading gates inside `/skills:uiux-design-loop` (internal — never invoke standalone) | `uiux-grader` | bjornjee-skills |
 | User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering, bloat, or boilerplate | `skills:ponytail` | bjornjee-skills |
 

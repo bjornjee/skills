@@ -37,17 +37,14 @@ const CLOUD_SKILLS = [
   'python-patterns',
   'react-native-patterns',
   'regex-vs-llm-structured-text',
-  'search-first',
   'security-design',
   'terminal-ops',
   'typescript-patterns',
-  'uiux-design-loop',
 ];
 const CLOUD_AGENTS = [
   'go-reviewer-strict',
   'python-reviewer-strict',
   'typescript-reviewer-strict',
-  'uiux-grader',
 ];
 
 function tempHome() {
@@ -152,7 +149,14 @@ describe('sync-codex', () => {
       fs.readFileSync(path.join(home, '.codex', 'AGENTS.md'), 'utf8'),
       fs.readFileSync(path.join(REPO, '.codex', 'AGENTS.md'), 'utf8'),
     );
-    for (const excluded of ['codex-delegate', 'github-ops', 'hookify-rules', 'codegraph-audit']) {
+    for (const excluded of [
+      'codex-delegate',
+      'github-ops',
+      'hookify-rules',
+      'codegraph-audit',
+      'search-first',
+      'uiux-design-loop',
+    ]) {
       assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', excluded)), false);
     }
     assert.equal(fs.existsSync(path.join(home, '.codex', 'hooks.json')), false);
@@ -164,6 +168,14 @@ describe('sync-codex', () => {
     assert.deepEqual(installedSkills, CLOUD_SKILLS);
     assert.deepEqual(installedAgents, CLOUD_AGENTS);
     assert.doesNotThrow(() => runProfile(home, 'cloud', '--check'));
+  });
+
+  it('keeps local CLI and desktop prerequisites out of Cloud skill entrypoints', () => {
+    const forbidden = /\bcodex exec\b|AskUserQuestion|~\/\.claude\/skills\/impeccable/;
+    for (const name of CLOUD_SKILLS) {
+      const content = fs.readFileSync(path.join(REPO, 'skills', name, 'SKILL.md'), 'utf8');
+      assert.doesNotMatch(content, forbidden, name);
+    }
   });
 
   it('keeps local and Cloud ownership manifests separate in a shared home', () => {
@@ -256,6 +268,53 @@ describe('sync-codex', () => {
     assert.match(result.stderr, /required Cloud skill missing/);
     assert.equal(fs.existsSync(path.join(home, '.codex')), false);
     assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  });
+
+  it('does not inspect excluded local-only payloads during Cloud sync', () => {
+    const home = tempHome();
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-codex-cloud-allowlist-'));
+    homes.push(fixture);
+    fs.mkdirSync(path.join(fixture, 'scripts'), { recursive: true });
+    fs.copyFileSync(SYNC, path.join(fixture, 'scripts', 'sync-codex.js'));
+    fs.mkdirSync(path.join(fixture, '.codex'), { recursive: true });
+    fs.copyFileSync(
+      path.join(REPO, '.codex', 'AGENTS.md'),
+      path.join(fixture, '.codex', 'AGENTS.md'),
+    );
+    fs.mkdirSync(path.join(fixture, 'skills'), { recursive: true });
+    for (const name of CLOUD_SKILLS) {
+      fs.cpSync(
+        path.join(REPO, 'skills', name),
+        path.join(fixture, 'skills', name),
+        { recursive: true },
+      );
+    }
+    fs.symlinkSync('/excluded/local-cli-skill', path.join(fixture, 'skills', 'codex-delegate'));
+    fs.mkdirSync(path.join(fixture, 'agents'), { recursive: true });
+    for (const name of CLOUD_AGENTS) {
+      fs.copyFileSync(
+        path.join(REPO, 'agents', `${name}.md`),
+        path.join(fixture, 'agents', `${name}.md`),
+      );
+    }
+    fs.symlinkSync(
+      '/excluded/local-agent.md',
+      path.join(fixture, 'agents', 'performance-optimizer.md'),
+    );
+
+    assert.doesNotThrow(() => execFileSync(process.execPath, [
+      path.join(fixture, 'scripts', 'sync-codex.js'),
+      '--profile',
+      'cloud',
+    ], {
+      cwd: fixture,
+      env: { ...process.env, HOME: home },
+      encoding: 'utf8',
+    }));
+    assert.equal(fs.existsSync(path.join(home, '.agents', 'skills', 'codex-delegate')), false);
+    assert.equal(fs.existsSync(
+      path.join(home, '.codex', 'agents', 'performance-optimizer.toml'),
+    ), false);
   });
 
   it('preserves unrelated peer skills, agents, and hooks', () => {

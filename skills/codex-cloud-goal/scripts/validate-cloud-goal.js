@@ -19,9 +19,9 @@ function reject(message) {
 function validateTask(task) {
   const normalized = task.toLowerCase().replace(/\s+/g, ' ').trim();
   const prohibited = [
-    /\b(?:do not|don't|must not|never) (?:open|create|publish|submit|push) (?:(?:a|the|any) )?(?:pr|pull request)\b/,
-    /\b(?:without|avoid) (?:opening|creating|publishing|submitting|pushing) (?:(?:a|the|any) )?(?:pr|pull request)\b/,
-    /\bno (?:pr|pull request)\b/,
+    /\b(?:do not|don't|must not|never)\b[^.!?\n]{0,80}\b(?:open|create|publish|submit|push)\b[^.!?\n]{0,40}\b(?:prs?|pull requests?)\b/,
+    /\b(?:without|avoid)\b[^.!?\n]{0,80}\b(?:opening|creating|publishing|submitting|pushing)\b[^.!?\n]{0,40}\b(?:prs?|pull requests?)\b/,
+    /\bno (?:prs?|pull requests?)\b/,
     /\b(?:return )?(?:a |the )?diff only\b/,
     /\bno push\s*(?:\/|or|and)\s*(?:pr|pull request)\b/,
     /\b(?:pr|pull request) (?:is|are) (?:out of scope|forbidden|not required)\b/,
@@ -173,7 +173,7 @@ function validateTransition(raw) {
     reviewing: ['reviewing', 'iterating', 'publishing'],
     iterating: ['iterating', 'verifying'],
     publishing: ['publishing', 'pr_created'],
-    pr_created: ['pr_created'],
+    pr_created: [],
   };
   if (!allowed[previous.state].includes(next.state)) {
     reject(`invalid goal transition: ${previous.state} -> ${next.state}`);

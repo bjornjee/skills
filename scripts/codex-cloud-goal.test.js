@@ -64,6 +64,10 @@ describe('codex-cloud-goal contract', () => {
       'Avoid creating a pull request.',
       'PR creation disabled.',
       'Leave PR creation to me.',
+      'Do not open or create a PR.',
+      'Do not push changes or open a pull request.',
+      'Please avoid creating or publishing a PR.',
+      'Do not create any pull requests.',
       'Return a diff only.',
       'Implement this with no push/PR.',
     ]) {
@@ -154,7 +158,7 @@ describe('codex-cloud-goal contract', () => {
   });
 
   it('accepts pr_created only with implementation, verification, review, and a concrete PR URL', () => {
-    const result = validate('state', goalState({
+    const completed = goalState({
       state: 'pr_created',
       implementation_complete: true,
       verification_passed: true,
@@ -162,9 +166,17 @@ describe('codex-cloud-goal contract', () => {
       pr_metadata: PR_METADATA,
       pr_url: 'https://github.com/acme/repo/pull/42',
       evidence: ['make test: pass', 'review: pass'],
-    }));
+    });
+    const result = validate('state', completed);
 
     assert.equal(result.status, 0, result.stderr);
+
+    const mutation = validate('transition', {
+      previous: completed,
+      next: { ...completed, pr_url: 'https://github.com/acme/repo/pull/43' },
+    });
+    assert.equal(mutation.status, 1);
+    assert.match(mutation.stderr, /invalid goal transition/i);
   });
 
   it('rejects skipped phases and permits repeatable review iteration', () => {

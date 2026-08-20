@@ -36,17 +36,14 @@ const CLOUD_SKILLS = [
   'python-patterns',
   'react-native-patterns',
   'regex-vs-llm-structured-text',
-  'search-first',
   'security-design',
   'terminal-ops',
   'typescript-patterns',
-  'uiux-design-loop',
 ];
 const CLOUD_AGENTS = [
   'go-reviewer-strict',
   'python-reviewer-strict',
   'typescript-reviewer-strict',
-  'uiux-grader',
 ];
 const HOOK_COMMAND = 'node "$HOME/.codex/hooks/warn-destructive.js"';
 // Migration-only commands written by earlier releases; none are installed.
@@ -302,28 +299,32 @@ const hookSource = path.join(REPO, 'native-codex', 'hooks', 'warn-destructive.js
 
 // Preflight the complete managed source payload before writing anything.
 assertDirectory(skillsSource);
-const allSkillEntries = fs.readdirSync(skillsSource, { withFileTypes: true })
-  .sort((left, right) => left.name.localeCompare(right.name));
-for (const entry of allSkillEntries) {
-  if (entry.isSymbolicLink()) {
-    throw new Error(`Codex payload cannot contain symlink: ${path.join(skillsSource, entry.name)}`);
+let skillPayloads;
+if (PROFILE === 'local') {
+  const allSkillEntries = fs.readdirSync(skillsSource, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name));
+  for (const entry of allSkillEntries) {
+    if (entry.isSymbolicLink()) {
+      throw new Error(`Codex payload cannot contain symlink: ${path.join(skillsSource, entry.name)}`);
+    }
   }
-}
-const allSkillPayloads = allSkillEntries
-  .filter(entry => entry.isDirectory())
-  .map(entry => {
-    const source = path.join(skillsSource, entry.name);
-    return { name: entry.name, source, files: listFiles(source) };
-  })
-  .filter(payload => payload.files.includes('SKILL.md'));
-const allSkillPayloadsByName = new Map(allSkillPayloads.map(payload => [payload.name, payload]));
-const skillPayloads = PROFILE === 'local'
-  ? allSkillPayloads
-  : CLOUD_SKILLS.map(name => {
-    const payload = allSkillPayloadsByName.get(name);
-    if (!payload) throw new Error(`required Cloud skill missing: ${name}`);
-    return payload;
+  skillPayloads = allSkillEntries
+    .filter(entry => entry.isDirectory())
+    .map(entry => {
+      const source = path.join(skillsSource, entry.name);
+      return { name: entry.name, source, files: listFiles(source) };
+    })
+    .filter(payload => payload.files.includes('SKILL.md'));
+} else {
+  skillPayloads = CLOUD_SKILLS.map(name => {
+    const source = path.join(skillsSource, name);
+    if (!lstatOrNull(source)) throw new Error(`required Cloud skill missing: ${name}`);
+    assertDirectory(source);
+    const files = listFiles(source);
+    if (!files.includes('SKILL.md')) throw new Error(`required Cloud skill missing: ${name}`);
+    return { name, source, files };
   });
+}
 const skillNames = skillPayloads.map(payload => payload.name);
 
 assertDirectory(path.join(REPO, '.codex'));
@@ -333,22 +334,22 @@ if (PROFILE === 'local') {
   assertDirectory(path.join(REPO, 'native-codex', 'hooks'));
   assertRegularFile(hookSource);
 }
-const agentFiles = listFiles(agentsSource)
-  .filter(filename => path.extname(filename) === '.md');
-const allAgents = agentFiles.map(filename => {
-  const source = path.join(agentsSource, filename);
-  return {
-    name: path.basename(filename, '.md'),
-    content: parseAgent(source),
-  };
-});
-const allAgentsByName = new Map(allAgents.map(agent => [agent.name, agent]));
+assertDirectory(agentsSource);
 const agents = PROFILE === 'local'
-  ? allAgents
+  ? listFiles(agentsSource)
+    .filter(filename => path.extname(filename) === '.md')
+    .map(filename => {
+      const source = path.join(agentsSource, filename);
+      return {
+        name: path.basename(filename, '.md'),
+        content: parseAgent(source),
+      };
+    })
   : CLOUD_AGENTS.map(name => {
-    const agent = allAgentsByName.get(name);
-    if (!agent) throw new Error(`required Cloud reviewer missing: ${name}`);
-    return agent;
+    const source = path.join(agentsSource, `${name}.md`);
+    if (!lstatOrNull(source)) throw new Error(`required Cloud reviewer missing: ${name}`);
+    assertRegularFile(source);
+    return { name, content: parseAgent(source) };
   });
 
 const codexHome = path.join(HOME, '.codex');

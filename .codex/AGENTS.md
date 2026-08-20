@@ -94,7 +94,7 @@ If implementation requires more than two corrective iterations in the same area,
 
 Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to be asked:
 
-- **Before writing custom code** → `search-first` (check if a library/pattern already solves it).
+- **Before writing custom code locally** → `search-first`. In Codex Cloud, inspect the repository and available Cloud documentation/tools directly; do not start local `codex exec` sessions or depend on `~/.claude`.
 - **Before destructive ops** (rm, force-push, drop table, etc.) → the destructive-command guardrails section in `terminal-ops`.
 - **Go file edited** → `golang-patterns` + `golang-testing`.
 - **Python file touched** → `python-patterns` (PEP 8, type hints, Pydantic, no nested imports).
@@ -111,7 +111,7 @@ Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to
 - **New trust boundary (auth, secrets, service-to-service)** → `security-design`.
 - **Production incident or postmortem** → `incident-response`.
 - **Compaction timing or context bloat** → `context-management`.
-- **User asks to improve or polish UX, flow, layout, or register on a page/component** → `uiux-design-loop` (requires the `impeccable` skill).
+- **Local user asks to improve or polish UX, flow, layout, or register on a page/component** → `uiux-design-loop` (requires the `impeccable` skill). Codex Cloud must use only its configured Cloud UI/browser capabilities and must not assume desktop plugins.
 - **Building agent systems** → `agentic-engineering`, `agent-harness-construction`.
 - **Parsing structured text** → `regex-vs-llm-structured-text` (start with regex; add LLM only for low-confidence edges).
 - **User says "ponytail", "be lazy", "lazy mode", "yagni", "simplest", "simplest solution", "minimal", "minimal solution", "do less", "shortest path", or complains about over-engineering / bloat / boilerplate** → `ponytail`.
