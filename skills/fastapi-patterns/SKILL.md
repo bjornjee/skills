@@ -19,7 +19,7 @@ description: FastAPI service-layer architecture, dependency injection, domain-er
 - Pydantic `BaseModel` for request/response schemas.
 - When SQLAlchemy 2.0 is in use, prefer `select()` to legacy `query()`. Do not run synchronous database I/O on the async event loop.
 - Choose soft versus hard deletion from retention, uniqueness, and erasure requirements; do not add soft deletion by default.
-- Alembic for migrations. Never modify the database outside migrations.
+- Use Alembic migrations for database schema changes.
 
 ## Background Work
 - `BackgroundTasks` only for fire-and-forget under ~30s; anything requiring durable delivery or retries goes to the project’s queue.

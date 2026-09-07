@@ -30,6 +30,8 @@ Apply the 15-minute unit rule:
 
 ## Model Routing
 
+The tiers below are a starting point for an agent workflow being designed, subject to its eval results and supported models. For agents spawned in the current session, follow the active runtime's doctrine and named-agent configuration; this table does not override those assignments.
+
 - Haiku: classification, boilerplate transforms, narrow edits
 - Sonnet: implementation and refactors
 - Opus: architecture, root-cause analysis, multi-file invariants

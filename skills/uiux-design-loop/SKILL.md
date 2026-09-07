@@ -61,7 +61,7 @@ Run Impeccable audit on the full declared change since the baseline (including n
 
 Dispatch a fresh isolated grader with the same contract and the new screenshots, behavior report, audit, and `.uiux-loop/verdict-iter-<n-1>.md` (or baseline on the first iteration). Save its response without altering scores.
 
-Follow Impeccable's bounded verification cycle: one initial inspection and at most one confirmation round by default. A user-requested larger budget must be explicit. When the budget is exhausted with unresolved defects, report them and the incomplete result; do not manufacture PASS or enter another polishing loop. A non-passing dimension can be an explicitly accepted tradeoff only under the rubric's separate `ACCEPTED_TRADEOFF` outcome.
+Follow Impeccable's bounded verification cycle: one initial inspection and at most one confirmation round by default. A user-requested larger budget must be explicit. The parent tracks rounds and decides whether another dispatch is allowed; ITERATE or REWORK is a quality assessment, not authorization to continue. When the budget is exhausted without acceptance, preserve the grader's verdict and separately report budget exhaustion and the incomplete result; do not manufacture PASS or enter another polishing loop. A non-passing dimension can be an explicitly accepted tradeoff only under the rubric's separate `ACCEPTED_TRADEOFF` outcome.
 
 ## Gate 4 — Finish
 

@@ -1,10 +1,12 @@
 # Core
 
-> *Canonical source: this repository’s `.codex/AGENTS.md`. Edit doctrine in a linked worktree, review and merge it, then explicitly sync from the chosen permanent checkout. Installed copies are outputs; use the sync manifest’s source path and payload hash to identify their origin. Never edit installed copies directly.*
+> *Canonical Claude doctrine: this repository’s `.claude/rules/core.md`. Keep shared policy aligned with `.codex/AGENTS.md`; retain runtime-specific instructions in their respective adapters. Edit in a linked worktree, review and merge, then explicitly install rule links from the chosen permanent checkout. Installed Claude rules link to their source files; inspect the link target to identify their origin. Never edit through installed links.*
 
 Always-on doctrine for the orchestrating agent. Loaded every session.
 What to do, in what order, and who to delegate to. Methodology for each
-step lives inside the corresponding subagent definition, not here.
+step lives inside the corresponding skill or subagent definition, not here.
+
+Follow the runtime's instruction precedence. Core doctrine owns always-on guarantees and the common verification profiles. Project instructions supply local conventions, proof commands, and scoped exceptions. Skills own task-specific methods and domain acceptance criteria; agents execute assigned roles. Templates illustrate their owner's contract rather than redefine it. Keep mandatory gates here even when a skill or agent explains them in more detail; installation and enforcement belong to repository scripts and the runtime.
 
 ## First principles (what to value)
 
@@ -72,7 +74,7 @@ step lives inside the corresponding subagent definition, not here.
 
    ### Delegation choice (orthogonal to TDD)
 
-   In a worktree with `codex --version` available, delegate implementation via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive the implementation loop directly. The choice of who implements does not relax the selected Verification profile.
+   In a worktree with `codex --version` available and the prerequisites declared by `/codex-delegate` satisfied, delegate implementation through that skill (Claude plans, Codex implements, Claude reviews). Verify its required plugin commands in the runtime's available command catalog; CLI availability alone is insufficient. Otherwise drive the implementation loop directly. The choice of who implements does not relax the selected verification profile.
 
    ### Visual changes need visual verification
 
@@ -165,8 +167,8 @@ Spawn without waiting for the user to ask:
 | Trigger | Agent / tool | Source |
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
-| Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
-| Plan approved, in a worktree, Codex available | `skills:codex-delegate` | bjornjee-skills |
+| Complex feature, refactor, or architectural decision | written plan per Phase 2; use available plan-mode tools when the user requests plan mode | Claude Code built-in |
+| Plan approved, in a worktree, delegation prerequisites satisfied per Phase 3 | `skills:codex-delegate` | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |

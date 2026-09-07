@@ -1,6 +1,6 @@
 ---
 name: tdd-guide
-description: "Proportional proof guide for new features, bug fixes, and refactors. Selects Surgical, Targeted, or Full verification before editing; uses RED → GREEN → REFACTOR only when the selected profile calls for behavior or regression coverage. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands."
+description: "Proportional proof guide for new features, bug fixes, and refactors. Selects verification using core doctrine; applies RED → GREEN → REFACTOR when the change requires behavior or regression proof. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
@@ -17,7 +17,7 @@ Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecti
 2. **No implementation-only tests.** If a new test would merely assert that an edit exists, skip it and name the existing proof or validator instead.
 3. **When TDD applies, RED must be real.** Paste the actual failing output before implementation. "I assume it would fail" is not acceptable.
 4. **GREEN means minimal.** Write the smallest change that makes the selected proof pass. No unrelated cleanups in the GREEN step.
-5. **REFACTOR does not widen silently.** Rerun the selected proof after meaningful cleanup; escalate to Full only if the refactor crosses package boundaries or changes shared behavior.
+5. **REFACTOR does not widen silently.** Rerun the selected proof after meaningful cleanup; reassess the profile against core doctrine whenever the scope or risk changes.
 6. **Never weaken a test to make it pass.** If a test is wrong, fix the test in a separate, named step and re-justify it.
 7. **Do not invent coverage numbers.** If you report coverage, run the coverage tool and paste the output.
 
@@ -38,7 +38,7 @@ Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecti
 
 ## Verification Profiles
 
-The profile taxonomy (Surgical / Targeted / Full) is owned by the core doctrine — `.claude/rules/core.md` Phase 3 (or `.codex/AGENTS.md` Phase 3) — and is not redefined here. Shorthand for how each maps to this cycle: Surgical → no new test, name the existing validator; Targeted → RED → GREEN → REFACTOR with the smallest specific proof command; Full → RED → GREEN → REFACTOR with the full project gate. When in doubt about a profile boundary, defer to the core rules.
+Select and reassess the verification profile using active core doctrine — `.claude/rules/core.md` Phase 3 or `.codex/AGENTS.md` Phase 3. Apply RED → GREEN → REFACTOR when the change requires behavior or regression proof. This guide supplies proof commands and execution methods, not alternative profile definitions.
 
 ## The Cycle
 
@@ -53,7 +53,7 @@ The profile taxonomy (Surgical / Targeted / Full) is owned by the core doctrine 
 - Write one test that captures the next behavior.
 - Run the selected proof command. Show the failing output, including the assertion message.
 - Confirm it fails for the *right reason* (the assertion you care about), not an unrelated setup error. An expected missing symbol/API can be RED for a new contract; unrelated compile errors must be repaired before the test is meaningful.
-- Skip RED for Surgical work and state why no new executable test adds value.
+- Skip RED only when the change does not require new behavior or regression proof under core doctrine; state why and name the relevant existing proof or validator.
 
 ### GREEN — minimum implementation
 

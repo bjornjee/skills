@@ -1,10 +1,16 @@
-# UI/UX rubric — eight raw scores and two acceptance gates
+# UI/UX rubric — eight dimensions and two acceptance gates
 
 The rubric owns scoring and gate semantics. The parent owns evidence collection and the loop budget. Scores measure the declared surface and requested outcome, not a generic preferred design style.
 
 ## Scoring scale
 
-Each dimension uses an integer 1–5: 1 fails the declared purpose, 3 is usable with a concrete quality gap, and 5 is a demonstrated strength. Use 2 and 4 for intermediate quality. Score all eight dimensions; explain applicability against the selected surface rather than inventing evidence.
+For each applicable dimension with sufficient evidence, use an integer 1–5: 1 fails the declared purpose, 3 is usable with a concrete quality gap, and 5 is a demonstrated strength. Use 2 and 4 for intermediate quality. Include all eight dimension keys in every verdict.
+
+Use `null` instead of a number only with a matching `score_exceptions` entry containing a state and evidence-based reason:
+- `N/A`: the declared scope makes the dimension inapplicable under its rules below. Only brand-voice-adherence and cross-locale-consistency permit this state.
+- `UNVERIFIED`: required evidence is missing, stale, or insufficient to assign a score. Also record the missing evidence in `verification_gaps`; this prevents PASS and ACCEPTED_TRADEOFF.
+
+Missing evidence never establishes inapplicability. Numeric scores have no `score_exceptions` entry. Do not substitute zero, a fabricated passing score, or the string `N/A` for a null score.
 
 ## Priority weights
 
@@ -14,14 +20,16 @@ Optional `.uiux-loop/weights.json` contains positive finite multipliers, default
 { "content-density": 1.5, "cross-locale-consistency": 0.5 }
 ```
 
-Priority = `(5 - raw_score) * weight`. Higher weight moves a defect earlier in the repair queue. **Acceptance always uses raw scores**, never multiplied scores: a raw 5 with weight 0.5 still passes; a raw 3 with weight 1.5 still fails the four-point floor. Unknown dimension keys, zero/negative/nonfinite weights, and out-of-range scores are invalid input.
+For numeric scores, priority = `(5 - raw_score) * weight`. Higher weight moves a defect earlier in the repair queue. Do not calculate priority for null scores; required evidence collection and blocking gate repairs take precedence over visual refinements. **Acceptance always uses raw scores**, never multiplied scores: a raw 5 with weight 0.5 still passes; a raw 3 with weight 1.5 still fails the four-point floor. Unknown dimension keys, zero/negative/nonfinite weights, and out-of-range numeric scores are invalid input. Report invalid input as a verification gap and request its correction; do not silently normalize it.
 
 ## Overall verdict
 
-- `PASS`: all eight raw scores >=4, the requested outcome is fulfilled, fresh audit PASS, preservation PASS/N/A, established reviewer independence, and no verification gaps.
-- `ITERATE`: a score is 2–3 or a mandatory gate/evidence check has not passed; repair within the remaining budget.
-- `REWORK`: a raw score is 1, the declared flow needs broader redesign, or the verification budget is exhausted without acceptance. Explain the incomplete work.
+- `PASS`: every applicable dimension has a numeric score >=4, the requested outcome is fulfilled, fresh audit PASS, preservation PASS/N/A, established reviewer independence, and no verification gaps. Valid N/A dimensions are excluded from the score threshold.
+- `REWORK`: a raw score is 1 or the declared flow needs broader redesign. Explain the needed work; this does not authorize expanding scope.
 - `ACCEPTED_TRADEOFF`: the user explicitly accepted a named nonblocking visual shortfall; audit PASS, preservation PASS/N/A, and complete evidence are still mandatory. Record the acceptance and affected score. This is not PASS.
+- `ITERATE`: acceptance has not been reached and REWORK does not apply, including a score of 2–3, an unfulfilled requested outcome, or a mandatory gate/evidence check that has not passed.
+
+Evaluate PASS first, then ACCEPTED_TRADEOFF for explicitly accepted nonblocking visual shortfalls only, then REWORK, otherwise ITERATE. ACCEPTED_TRADEOFF requires established independence, no verification gaps, and all other applicable dimensions at least four; it cannot waive a required flow or behavior. These verdicts describe the evidence, not permission to run another iteration. The parent alone enforces the loop budget and reports exhaustion separately without rewriting the grader's verdict.
 
 No score, user tradeoff, or exhausted budget waives unresolved P0/P1 findings or missing evidence. An intentional change to a preservation contract must be explicitly authorized and then verified against the revised contract.
 
@@ -57,7 +65,7 @@ No score, user tradeoff, or exhausted budget waives unresolved P0/P1 findings or
 - **5.** Render commits visibly to the declared register in type, colour, spacing, motion, and composition. A reasonable observer asked "what's the aesthetic here?" would name the declared register.
 
 ### Common failures
-- **No register declared.** Grader treats this as a missing-artifact REJECT; do not score this dimension when the declaration is absent.
+- **No register declared.** Use a null score with an UNVERIFIED exception and a verification gap; request the missing declaration rather than inventing a register. Apply the overall verdict rules above.
 - "Polish" without a register — render is tighter, but tighter toward what?
 - Inconsistent commitment: hero is editorial, footer is generic SaaS.
 
@@ -121,7 +129,7 @@ No score, user tradeoff, or exhausted budget waives unresolved P0/P1 findings or
 
 ### Score from
 - Screenshots — what visible text the render exposes.
-- `project-rules.md` — if absent, score only against `flow-map.md` declared tone; if no tone is declared and no rules exist, score `N/A`.
+- `project-rules.md` — if absent, score only against `flow-map.md` declared tone. Use N/A only when the declared scope establishes that no brand/voice constraints apply. If brand rules or tone are required but not supplied, use UNVERIFIED.
 
 ### Hard rule on this dimension
 You may cite a violation. You may **not** suggest the replacement copy. The implementer rewrites with the source doc; you grade.
@@ -132,10 +140,9 @@ You may cite a violation. You may **not** suggest the replacement copy. The impl
 
 **Definition.** Where the project ships multiple locales (EN + CN, etc.), do the locales agree on what they should agree on, and diverge intentionally where they should diverge?
 
-### Score `N/A` when
-- Only one locale's screenshots were supplied, or
-- `project-rules.md` does not declare multi-locale behaviour, or
-- `flow-map.md` covers only one locale.
+### Applicability
+- Use N/A when the declared flow and applicable project constraints establish that cross-locale comparison is outside this task's scope, such as an explicitly single-locale flow.
+- If multiple locales are required but screenshots or comparison criteria are missing, use UNVERIFIED. The number of supplied screenshots does not determine applicability.
 
 ### Anchors (when scoring)
 - **1.** Locales disagree on something that should be invariant (primary visual register, brand presence, key affordance layout) — and disagree on it accidentally, not as a documented divergence.
@@ -199,4 +206,4 @@ These conditions are disjoint. Audit the baseline surface files, then the entire
 
 Every finding cites a screenshot, behavior row, or audit finding ID, states impact, and gives a concrete repair. Include applicable project constraints as evidence; do not require a prewritten rule for an observable defect. Record gate findings in their gate blocks and include actionable repairs in the critique brief when work remains.
 
-The grader returns the JSON contract defined in the repository's `agents/uiux-grader.md`. It includes all eight raw scores, evidence revision, independence, gate states, verification gaps, prior-verdict finding changes, and explicit accepted tradeoffs. Optional `project-rules.md` constrains the surface; it does not waive security, accessibility, or the evidence gate.
+The grader returns the JSON contract defined in the repository's `agents/uiux-grader.md`. It includes all eight score keys, exceptions for null scores, evidence revision, independence, gate states, verification gaps, prior-verdict finding changes, and explicit accepted tradeoffs. Optional `project-rules.md` constrains the surface; it does not waive security, accessibility, or the evidence gate.

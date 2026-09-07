@@ -6,6 +6,8 @@ Always-on doctrine for Codex CLI. Loaded every session.
 What to do, in what order, and which skill to reach for. Methodology for
 each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
 
+Follow the runtime's instruction precedence. Core doctrine owns always-on guarantees and the common verification profiles. Project instructions supply local conventions, proof commands, and scoped exceptions. Skills own task-specific methods and domain acceptance criteria; agents execute assigned roles. Templates illustrate their owner's contract rather than redefine it. Keep mandatory gates here even when a skill or agent explains them in more detail; installation and enforcement belong to repository scripts and the runtime.
+
 ## First principles (what to value)
 
 - **KISS.** Simplest thing that works. No premature abstraction. Three clear lines beat one extracted helper.

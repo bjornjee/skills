@@ -117,8 +117,8 @@ Emit a single markdown document. End with:
 Verdict: APPROVE | WARNING | BLOCK
 ```
 
-- **APPROVE** — no critical/high findings. The orchestrator uses the available authorized PR workflow; agent-dashboard is optional.
-- **WARNING** — only medium/low findings. Orchestrator surfaces them and proceeds.
+- **APPROVE** — no defects remain. The orchestrator uses the available authorized PR workflow; agent-dashboard is optional.
+- **WARNING** — only disclosed medium/low findings remain. Apply core doctrine's requirements for resolving or disclosing these findings before proceeding through the authorized PR workflow.
 - **BLOCK** — at least one critical/high finding. Orchestrator halts; do **not** proceed to PR creation until it is fixed.
 
 ## Reuse, don't duplicate

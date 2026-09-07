@@ -49,12 +49,32 @@ External consumers are marketplace installation paths, the ownership manifest, a
 
 ## Verification and limits
 
-Final local verification: `make test` passes 104 tests; the version-against-base gate passes for 1.3.1 → 2.0.0; `git diff --check`, Bash syntax validation, and ShellCheck 0.11.0 pass. All 38 skill/agent frontmatter documents parse as YAML. The frontmatter check also exposed an existing unquoted colon in the TDD guide description; the corrected scalar is covered by a generated-TOML regression test. Independent code and instruction reviews reported no remaining blocking findings.
+Final local verification: `make test` passes 104 tests; the version-against-base gate passes for 1.3.1 → 2.0.1; `git diff --check`, Bash syntax validation, and ShellCheck 0.11.0 pass. All 38 skill/agent frontmatter documents parse as YAML. The frontmatter check also exposed an existing unquoted colon in the TDD guide description; the corrected scalar is covered by a generated-TOML regression test. Independent code and instruction reviews reported no remaining blocking findings.
 
 The bundled skill creator validator passes 14 of the 15 changed skills. Its remaining failure rejects Ponytail's existing `argument-hint` field; the same failure reproduces on the base branch. That Claude-compatible metadata is preserved. This limitation is separate from the successful YAML parse and repository test suite.
 
 Regression tests first demonstrated unowned-file deletion, overwriting, late partial installation, ignored CODEX_HOME, parser record loss/merging, idle-worker cancellation failure, quoted-command false positives, and Claude-loop truncation/retry/budget failures. Tests invoke real child processes and isolated filesystem destinations; failure injection covers a caught rename error. No live global install or plugin enablement was used to verify this PR.
 
-An isolated agent evaluated nine UI workflow cases: low/high weights, stale behavior evidence, P2 findings, optional-pass refusal, exhausted budget after edits, current Impeccable surface modes, accepted nonblocking tradeoffs, and contaminated reviewer context. This checks instruction interpretation, not the visual quality of a live application or every possible model response.
+An isolated agent initially evaluated nine UI workflow cases. After the follow-up corrections below, a fresh isolated agent evaluated ten cases covering valid N/A dimensions, required locale/register evidence, budget exhaustion, preservation within the redesign, accepted tradeoffs, blocking audit findings, uncertain/definitive Linear creation outcomes, and medium-only codegraph findings. This checks instruction interpretation, not live UI or API behavior or every possible model response.
+
+## Follow-up contract corrections
+
+The stricter review distinguished conflicting contracts from valid domain specialization. This documentation/configuration follow-up preserves the existing standards and makes these corrections:
+
+| Confirmed issue | Result |
+|---|---|
+| Obsolete UI critique example | Example follows the grader's eight-dimension output contract, including evidence and both gates; implementation follows the skill's coherent-batch and budget rules. |
+| Numeric scores versus N/A and undefined REJECT | All eight keys remain present. Null scores require explicit N/A or UNVERIFIED exceptions; missing required evidence blocks acceptance. Verdict precedence is explicit. |
+| Preservation N/A outside the redesign only | N/A requires an explicitly empty preservation contract; behavior within the redesign can still require verification. |
+| TDD guide redefining profiles | The guide references core taxonomy and selects TDD by the change's proof needs, not a second set of profile definitions. |
+| Overlapping codegraph approval categories | APPROVE has no remaining defects; WARNING has only disclosed medium/low findings, handled under core policy. |
+| Missing Linear identifier called definitive failure | Reconcile uncertain results using bounded reads; definitive rejection stops; both retain the one-create-call limit. |
+| Wrong Claude canonical-source notice | Claude identifies its own canonical adapter and installed rule-link provenance; shared policy stays aligned with Codex. |
+| Delegation triggered by CLI alone | Both phase and dispatch table require the delegation skill's prerequisites, including plugin commands. |
+| Atomic version-write claim | Documentation accurately describes updating and verifying the three manifests together. |
+
+Clarifications keep the UI loop budget with the parent, distinguish database schema migrations from application writes, align planning dispatch with the existing planning phase, and scope the model-routing example to workflow design. Both doctrine adapters retain mandatory gates and distinguish doctrine, project, skill, agent, template, and runtime responsibilities. No changes were made solely to eliminate valid specialized language conventions, conditional mock policies, incident mitigation, or existing authorization exceptions.
+
+Follow-up proof: 104 repository tests pass; all seven language mirrors match; all five changed skills pass the bundled skill validator. Both UI JSON examples parse, expose the same top-level fields and eight dimension keys, and have valid null-score exceptions and gate states. The strict instruction review found no blocker. These checks do not replace a future live rollout evaluation; no global sync or installation was performed.
 
 The hook is not a shell parser or security boundary. Per-file atomic rename plus rollback is not a cross-filesystem transaction; abrupt process death requires journal inspection/recovery. Serialization covers one CODEX_HOME; do not run different installers against the shared skill destination concurrently or edit managed files during installation. Normal tests do not call Anthropic, OpenAI image generation, or any paid model API.

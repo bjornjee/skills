@@ -11,7 +11,7 @@
 | `PASS` | Every row below has `Pass` with fresh evidence; nothing in `preservation-contract.md` is missing from this file. |
 | `WARN` | Required evidence is missing/stale or a visual deviation needs authorization, with no confirmed blocking defect. |
 | `FAIL` | Any row below has `Fail`. |
-| `N/A` | `preservation-contract.md` declares no reachable surfaces outside the redesign scope. |
+| `N/A` | `preservation-contract.md` explicitly has no surfaces to preserve. Behaviors within the redesign scope can still require preservation. |
 
 `WARN` and `FAIL` block the loop's exit. Repair and verify the regression; an authorized intentional contract change must be recorded and verified against the revised contract.
 

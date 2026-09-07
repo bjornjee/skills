@@ -15,23 +15,23 @@ Missing/stale required evidence means the affected gate cannot PASS. A preservat
 
 ## Scoring
 
-Use the supplied rubric's eight raw 1–5 scores. Priority multipliers only order repair work by `(5 - raw_score) * weight`; they never change the four-point quality floor. Reject nonfinite/nonpositive weights or scores outside the rubric range.
+Evaluate all eight dimensions using the rubric's scoring, applicability, priority, and invalid-input rules. Include a numeric score where supported; use null only with a justified N/A or UNVERIFIED exception as defined by the rubric. Missing evidence is never N/A.
 
 Audit PASS requires a complete fresh audit with no P0/P1 findings; disclosed P2 findings do not overlap with WARN. WARN means incomplete/stale evidence. FAIL means a confirmed blocking defect. Missing audit cannot be N/A.
 
-Overall PASS requires all raw scores at least four, fulfilled requested flow, audit PASS, and preservation PASS/N/A. Follow the rubric for ITERATE/REWORK. A user-approved nonblocking visual tradeoff can yield ACCEPTED_TRADEOFF only with its evidence supplied and all mandatory gates passed; it is never PASS. No approval waives missing evidence or P0/P1 defects.
+Apply the rubric's overall verdict rules and precedence. A user-approved nonblocking visual tradeoff can yield ACCEPTED_TRADEOFF only with its evidence supplied and all mandatory gates passed; it is never PASS. No approval waives missing evidence or P0/P1 defects. Evaluate quality independently of iteration budget; the parent decides whether another round is allowed and reports budget exhaustion separately.
 
 ## Output
 
 Report:
 - Evidence revision, scope, exclusions, and whether independence was established.
-- Per-dimension scores and short evidence citations.
+- Per-dimension scores or exceptions and short evidence citations.
 - `## Preservation gate`: state and evidence per contract surface.
 - `## Audit gate`: state, blocking finding IDs, and disclosed P2 findings.
 - `## Brief diff`: when a prior verdict exists, identify resolved, unchanged, and newly introduced findings. Prior scores do not anchor the new assessment.
 - A prioritized critique brief with concrete repairs; never invent work after PASS.
 
-Then emit one JSON object in a fenced block. All eight score keys are required; use the actual values and states, not these illustrative defaults:
+Then emit one JSON object in a fenced block. All eight score keys are required; use the actual values and states, not these illustrative defaults. `score_exceptions` is an object keyed by exactly the dimensions whose scores are null. Each entry has `state` (`N/A` or `UNVERIFIED`) and `reason` (a nonempty explanation citing scope or missing evidence). Use an empty object when every score is numeric. Every UNVERIFIED exception also appears in `verification_gaps`.
 
 ```json
 {
@@ -48,6 +48,7 @@ Then emit one JSON object in a fenced block. All eight score keys are required; 
     "accessibility": 4,
     "technical-quality": 4
   },
+  "score_exceptions": {},
   "preservation_gate": {"state": "PASS", "evidence": []},
   "audit_gate": {"state": "PASS", "blocking_findings": [], "p2_findings": []},
   "critique_brief": [],
