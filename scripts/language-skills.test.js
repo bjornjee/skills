@@ -12,6 +12,8 @@ const REPO = path.resolve(__dirname, '..');
 // .claude/rules source: the rule gives Claude Code glob auto-loading,
 // the skill gives Codex (and on-demand Claude) the same content.
 const PAIRS = [
+  ['skills/golang-patterns/references/basics.md', '.claude/rules/golang.md'],
+  ['skills/terminal-ops/references/shell.md', '.claude/rules/shell.md'],
   ['skills/python-patterns/SKILL.md', '.claude/rules/python.md'],
   ['skills/fastapi-patterns/SKILL.md', '.claude/rules/fastapi.md'],
   ['skills/react-native-patterns/SKILL.md', '.claude/rules/react-native.md'],

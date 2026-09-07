@@ -42,7 +42,7 @@ Any code change follows the Verification profile rules in the core doctrine (`.c
 ## Go specifics
 
 - **Escape analysis**: `go build -gcflags="-m"` shows what heap-allocates in the hot path. Small short-lived structs escaping in per-request code are GC pressure — restructure or pool (measured, `sync.Pool` misuse is a real cost too).
-- **GC tuning is a last resort with two knobs**: `GOGC` (frequency vs heap size) and `GOMEMLIMIT` (hard ceiling for container SLOs). Tune only after allocation reduction stalls, and record the values next to the SLO they serve.
+- **GC tuning is a last resort with two knobs**: `GOGC` (frequency vs heap size) and `GOMEMLIMIT` (soft Go-runtime memory limit; reserve headroom for non-runtime/process memory and container limits). Tune only after allocation reduction stalls, and record the values next to the SLO they serve.
 - **pprof labels** (`pprof.Do(ctx, pprof.Labels("route", r.URL.Path), ...)`) attribute CPU to request classes — without them a service profile is one anonymous blob.
 - **`go tool trace`** when latency is bursty but CPU is idle: scheduler stalls, blocked goroutines, GC assist show here, not in the CPU profile.
 - Benchmarks use `b.Loop()` (or `b.N` pre-1.24), `b.ReportAllocs()`, and fixed inputs; compare with `benchstat old.txt new.txt` — a single run is noise.

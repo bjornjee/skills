@@ -103,12 +103,7 @@ Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off, a PCA9685 runs a few percent fast. Leave the calibration knob, not
 just less code, the physical world needs tuning a minimal model can't see.
 
-Lazy code without its check is unfinished. Non-trivial logic (a branch, a
-loop, a parser, a money/security path) leaves ONE runnable check behind, the
-smallest thing that fails if the logic breaks: an `assert`-based
-`demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no
-fixtures, no per-function suites unless asked. Trivial one-liners need no
-test, YAGNI applies to tests too.
+Use the active root doctrine’s verification profile and the repository’s existing runner and fixtures. Simplify the implementation without reducing required evidence, boundary verification, or security coverage. Do not add implementation-only tests for trivial or mechanical edits.
 
 ## Boundaries
 

@@ -12,11 +12,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: lts/*
-      - name: Verify Codex plugin symlink
-        run: ./scripts/sync-codex-plugin.sh --check
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: stable
+          cache: false
+      - name: Check payload version against PR base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REV: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --depth=1 origin "$BASE_REV"
+          node scripts/check-version-bump.js "$BASE_REV"
       - name: Run repository tests
         run: make test

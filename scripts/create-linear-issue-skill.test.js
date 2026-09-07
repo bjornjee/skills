@@ -14,7 +14,8 @@ const METADATA_PATH = path.join(
 );
 const PACKAGED_SKILL_PATH = path.join(
   REPO,
-  'plugins/skills/skills/create-linear-issue/SKILL.md',
+  JSON.parse(fs.readFileSync(path.join(REPO, '.codex-plugin/plugin.json'), 'utf8')).skills,
+  'create-linear-issue/SKILL.md',
 );
 
 function read(relativePath) {

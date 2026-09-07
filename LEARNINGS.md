@@ -2,29 +2,28 @@
 
 Settled decisions this repo litigated more than once. Strict reviewers load this file as Layer-2 evidence; treat each entry as a pattern known to have caused real churn here. Re-opening one of these requires new evidence, not new taste.
 
-## 1. Hooks live in agent-dashboard, never in this plugin
-**Churn ended:** #45 moved hook registration out; CURATION.md records the policy; skills (safety-guard, strategic-compact) later needed corrective PRs because they *described* hook behavior this plugin cannot ship.
-**Rule:** this plugin is pure configuration — zero hook implementations. Enforcement belongs to agent-dashboard (`test-gate`, `warn-destructive`, `block-main-commit`). Personal global Codex wiring may reference those canonical sources, but must never copy their implementation into this repo.
+## 1. Separate packaged configuration from personal global enforcement
+**Decision:** the plugin package exposes skills. Repository-owned `native-codex/` scripts support explicit personal global installation; they are not automatically enabled by plugin installation.
+**Rule:** `make sync-codex` installs the repository's advisory destructive-command hook and preserves other hook owners' registrations. Agent-dashboard gates are optional and must never be assumed present. Native permissions remain the enforcement boundary. Do not claim directory freezing or complete shell-command coverage from this hook.
 
 ## 2. codegraph-audit is on-demand, not a hard pre-PR dispatch
 **Churn ended:** three states across #60/#75 — CI-driven → local hard-dispatch → on-demand. The hard dispatch silently couldn't fire without the third-party `codegraph` CLI installed.
 **Rule:** a mandatory gate whose tooling may be absent is false confidence. codegraph-audit stays on-demand; do not restore the dispatch row.
 
 ## 3. This repo is canonical for doctrine; home-dir copies are synced, never edited
-**Churn ended:** #53 (and repeat confusion before it). `~/.claude/rules/*` are symlinks via `make sync-rules`; Codex globals are installed via `make sync-codex`.
-**Rule:** edit here, bump, sync. Editing a destination copy is a bug.
+**Churn ended:** #53 (and repeat confusion before it). `make sync-rules ARGS=--check` inspects Claude symlink drift; `make sync-codex ARGS=--check` inspects Codex file ownership and content. Sync only from the chosen permanent checkout after review.
+**Rule:** edit here, bump, sync. Reconcile destination-only changes before sync; never assume that the newest checkout contains all live edits.
 
-## 4. Plan mode = `EnterPlanMode`/`ExitPlanMode`, never the `Plan` agent
-**Churn ended:** litigated in #52–#54 and again in the parity wave (#71). The recurring trap is the naming clash — a `Plan` agent exists and sounds right.
-**Rule:** user shorthand "plan it" always resolves to the plan-mode tools; the `Plan` agent's output is invisible to the dashboard's plan surfaces.
+## 4. Plan mode is a user-visible planning workflow
+**Rule:** when the user requests plan mode, use the runtime's supported plan-mode tools rather than a hidden Plan agent. An already-approved concrete implementation does not need another approval cycle.
 
 ## 5. Codex delegation requires `--write` and `-C/--cwd`
 **Churn ended:** discovered across five same-day PRs (#47–#51). Codex defaults to a read-only sandbox in the wrong directory.
-**Rule:** every Codex dispatch carries both flags. If codex-delegate is ever rewritten, these are the two invariants that were paid for in production.
+**Rule:** select the exact worktree and required sandbox/write scope with the installed dispatch tool’s supported flags. The historical wrapper used `--write` and `-C/--cwd`; native CLI commands may differ. Verify capability rather than copying wrapper flags blindly.
 
-## 6. Version bumps are three-file atomic — use `make bump`
+## 6. Version bumps stay in lockstep — use `make bump`
 **Churn ended:** 100 manual touches across history on `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`; the Codex manifest silently drifted six minor versions before the lockstep test existed.
-**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. Remaining prose-only gap: nothing verifies a bump *happened* when behavior changed vs the base branch — candidate for a CI diff-vs-base check.
+**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. `scripts/check-version-bump.js <base-revision>` additionally verifies that payload changes increase the version against the PR base.
 
 ## 7. `.codex/AGENTS.md` is Codex-canonical doctrine, symmetric to `.claude/rules/core.md`
 **Churn ended:** removed in #58, deliberately re-added in #75/#76. The removal read the file as dead weight; it is the only always-on surface Codex has.

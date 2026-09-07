@@ -9,7 +9,7 @@ skills/                  Slash command skills (SKILL.md per directory) — canon
 agents/                  Named subagent definitions (.md files)
 .claude/rules/           Claude Code rules (glob-scoped .md files)
 .claude-plugin/          Claude plugin metadata (plugin.json, marketplace.json)
-plugins/skills/          Codex plugin package (.codex-plugin/plugin.json + skills/ symlink to ../../skills)
+.codex-plugin/           Codex manifest; repository root is the package root
 .agents/plugins/         Codex marketplace pointer (marketplace.json)
 .codex/                  Canonical Codex doctrine (AGENTS.md) — synced via make sync-codex
 scripts/                 Utility scripts
@@ -17,7 +17,7 @@ scripts/                 Utility scripts
 
 ## Versioning
 
-Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `plugins/skills/.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
+Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
 
 ## Principles
 
@@ -34,9 +34,9 @@ Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/mar
 
 ## Workflow
 
-0. Worktree first. Any code-modifying task beyond a single-line fix runs in a git worktree — no edits, writes, or `git add` on the source branch, even when the task starts as "just look at it".
+0. Worktree first. Any code-modifying task beyond a single-line fix runs in a git worktree — no edits, writes, or `git add` on the source branch, only once modifications are authorized; read-only audits stay read-only.
 1. Research before writing. Check the repo, docs, and package registries first.
-2. Plan before coding. Break into phases, identify risks.
+2. Plan before coding. Break into phases and identify risks. Approval of a concrete proposal authorizes its reversible implementation without another confirmation.
 3. Proportional proof. Use TDD for behavior changes, bug fixes, and regressions; do not add padding tests for docs/config/mechanical edits. Choose Surgical, Targeted, or Full verification before editing, run the smallest command that bounds the risk during the loop, and reserve full suites for broad/shared changes or PR/push gates. The core rules own the profile taxonomy; agent-dashboard owns orchestration/state and should carry profile names plus proof commands without redefining them.
    - When adding a new test file, verify it is included by the package's normal test command. If tests are explicitly listed in a manifest or runner config, update that manifest/config and run the package test command.
    - For state reconciliation fixes, identify the source of truth for each predicate. Do not use state-field equality as a proxy for filesystem, git, or process identity when a structured check exists.
@@ -59,7 +59,7 @@ Language-specific conventions ship two ways, same content:
 - **Skills** (`skills/<name>-patterns/`) — invoked on demand, work in both Claude Code and Codex.
 - **Claude Code rules** (`.claude/rules/*.md`) — auto-loaded via glob `paths` frontmatter when a matching file is edited (Claude Code only; installed by `make sync-rules`).
 
-`scripts/language-skills.test.js` keeps the python/fastapi/react-native/ai-ml/typescript skill bodies byte-identical to their rules files; the Go skills are standalone references. When working on a language, reach for the matching skill:
+`scripts/language-skills.test.js` keeps the python/fastapi/react-native/ai-ml/typescript skill bodies byte-identical to their rules files; the Go and shell references are also checked against their Claude rules. When working on a language, reach for the matching skill:
 
 - **Go** → `$skills:golang-patterns`, `$skills:golang-testing`
 - **Python** → `$skills:python-patterns`

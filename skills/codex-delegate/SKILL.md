@@ -89,7 +89,8 @@ Then run the appropriate strict reviewers on the changed files:
 
 - **Go files changed** → spawn `go-reviewer-strict` with the diff and file paths
 - **Python files changed** → spawn `python-reviewer-strict` with the diff and file paths
-- **Any files changed** → spawn `code-reviewer` for general correctness
+- **TypeScript/Node files changed** → spawn `typescript-reviewer-strict` with the full review scope
+- **Other files changed** → review their declared contracts directly; do not require an unavailable generic reviewer
 
 Review against the **original plan** — does the implementation match what was approved?
 
@@ -113,9 +114,9 @@ For minor issues (formatting, naming, missing error wraps):
 For significant issues (wrong approach, missing feature, architectural mismatch):
 - Either fix in Claude, or re-delegate to Codex with specific feedback:
   ```
-  codex exec resume --last "Review found these issues: [paste findings]. Fix them."
+  codex exec resume "$SESSION_ID" "Review found these issues: [paste findings]. Fix them."
   ```
-  Session resumption preserves Codex's full context from the original implementation.
+  Capture SESSION_ID from the original dispatch result and resume that exact ID; never use recency as task identity. Session resumption preserves the original implementation context.
 
 ### 6. Integrate
 
@@ -245,7 +246,7 @@ go vet ./internal/service/...
 | Critical/security-sensitive | `--effort xhigh --profile strict` | Maximum compliance |
 | Fast iteration/scaffolding | `--model gpt-5.3-codex-spark` | Boilerplate |
 
-Model names drift — verify availability with `codex models` before pinning one.
+Model names drift — inspect the current runtime’s advertised models and `codex --help` before selecting a supported command; do not assume a `codex models` subcommand exists.
 
 ## Available Commands
 

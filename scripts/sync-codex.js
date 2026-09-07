@@ -3,6 +3,7 @@
 
 const fs = require('node:fs');
 const os = require('node:os');
+const { createHash, randomUUID } = require('node:crypto');
 const path = require('node:path');
 
 const REPO = path.resolve(__dirname, '..');
@@ -10,14 +11,13 @@ const HOME = os.homedir();
 const CHECK = process.argv.includes('--check');
 const unknownArgs = process.argv.slice(2).filter(arg => arg !== '--check');
 const drift = [];
-const MANIFEST_VERSION = 1;
-const HOOK_COMMAND = 'node "$HOME/.codex/hooks/warn-destructive.js"';
+const MANIFEST_VERSION = 2;
+const HOOK_COMMAND = 'node "${CODEX_HOME:-$HOME/.codex}/hooks/warn-destructive.js"';
 // Migration-only commands written by earlier releases; none are installed.
 const LEGACY_HOOK_COMMANDS = new Set([
-  'block-main-commit',
-  'commit-lint',
   'warn-destructive',
 ].map(name => `node "$HOME/Code/bjornjee/agent-dashboard/adapters/codex/hooks/${name}.js"`));
+LEGACY_HOOK_COMMANDS.add('node "$HOME/.codex/hooks/warn-destructive.js"');
 
 if (unknownArgs.length > 0) {
   process.stderr.write('usage: sync-codex.js [--check]\n');
@@ -71,59 +71,6 @@ function lstatOrNull(filename) {
   }
 }
 
-function sameFile(source, destination, mode) {
-  const stat = lstatOrNull(destination);
-  if (!stat) return false;
-  if (!stat.isFile() || stat.isSymbolicLink()) return false;
-  if (mode !== undefined && (stat.mode & 0o777) !== mode) return false;
-  return fs.readFileSync(source).equals(fs.readFileSync(destination));
-}
-
-function sameTree(source, destination, sourceFiles) {
-  if (!lstatOrNull(destination)) return false;
-  try {
-    const destinationFiles = listFiles(destination);
-    if (sourceFiles.length !== destinationFiles.length) return false;
-    return sourceFiles.every((relative, index) => (
-      relative === destinationFiles[index]
-      && sameFile(path.join(source, relative), path.join(destination, relative))
-    ));
-  } catch {
-    return false;
-  }
-}
-
-function copyFile(source, destination, mode) {
-  if (CHECK) {
-    if (!sameFile(source, destination, mode)) drift.push(destination);
-    return;
-  }
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  const stat = lstatOrNull(destination);
-  if (stat && (!stat.isFile() || stat.isSymbolicLink())) {
-    fs.rmSync(destination, { recursive: true, force: true });
-  }
-  fs.copyFileSync(source, destination);
-  if (mode !== undefined) fs.chmodSync(destination, mode);
-}
-
-function copyTree(source, destination, sourceFiles) {
-  if (CHECK) {
-    if (!sameTree(source, destination, sourceFiles)) drift.push(destination);
-    return;
-  }
-
-  fs.rmSync(destination, { recursive: true, force: true });
-  fs.mkdirSync(destination, { recursive: true });
-  for (const relative of sourceFiles) {
-    const sourceFile = path.join(source, relative);
-    const destinationFile = path.join(destination, relative);
-    fs.mkdirSync(path.dirname(destinationFile), { recursive: true });
-    fs.copyFileSync(sourceFile, destinationFile);
-    fs.chmodSync(destinationFile, fs.statSync(sourceFile).mode & 0o777);
-  }
-}
-
 function parseAgent(source) {
   const content = fs.readFileSync(source, 'utf8');
   const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -133,9 +80,13 @@ function parseAgent(source) {
   for (const line of match[1].split('\n')) {
     const separator = line.indexOf(':');
     if (separator === -1) continue;
-    metadata[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
+    const value = line.slice(separator + 1).trim();
+    // Canonical agent metadata uses plain or JSON-compatible quoted scalars.
+    metadata[line.slice(0, separator).trim()] = value.startsWith('"') ? JSON.parse(value) : value;
   }
-  if (!metadata.name || !metadata.description) {
+  if (typeof metadata.name !== 'string' || !metadata.name
+    || typeof metadata.description !== 'string' || !metadata.description
+    || (metadata.tools !== undefined && typeof metadata.tools !== 'string')) {
     throw new Error(`agent requires name and description: ${source}`);
   }
 
@@ -150,29 +101,10 @@ function parseAgent(source) {
   return `${lines.join('\n')}\n`;
 }
 
-function writeGenerated(content, destination) {
-  if (CHECK) {
-    const stat = lstatOrNull(destination);
-    if (!stat
-      || !stat.isFile()
-      || stat.isSymbolicLink()
-      || fs.readFileSync(destination, 'utf8') !== content) {
-      drift.push(destination);
-    }
-    return;
-  }
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  const stat = lstatOrNull(destination);
-  if (stat && (!stat.isFile() || stat.isSymbolicLink())) {
-    fs.rmSync(destination, { recursive: true, force: true });
-  }
-  fs.writeFileSync(destination, content);
-}
-
 function readManifest(manifestPath) {
   const stat = lstatOrNull(manifestPath);
   if (!stat) {
-    return { version: MANIFEST_VERSION, skills: [], agents: [] };
+    return { version: MANIFEST_VERSION, skills: [], agents: [], files: {} };
   }
   if (stat.isSymbolicLink()) {
     throw new Error(`refusing symlinked Codex sync manifest: ${manifestPath}`);
@@ -186,7 +118,7 @@ function readManifest(manifestPath) {
     throw new Error(`invalid Codex sync manifest: ${error.message}`);
   }
   if (!manifest || Array.isArray(manifest) || typeof manifest !== 'object'
-    || manifest.version !== MANIFEST_VERSION
+    || ![1, MANIFEST_VERSION].includes(manifest.version)
     || !Array.isArray(manifest.skills)
     || !Array.isArray(manifest.agents)) {
     throw new Error('invalid Codex sync manifest: unsupported schema');
@@ -197,6 +129,20 @@ function readManifest(manifestPath) {
       || names.some(name => typeof name !== 'string'
         || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))) {
       throw new Error(`invalid Codex sync manifest: unsafe ${key} name`);
+    }
+  }
+  if (manifest.version === 1) manifest.files = {}; // Directory ownership cannot authorize file deletion.
+  if (!manifest.files || Array.isArray(manifest.files) || typeof manifest.files !== 'object') {
+    throw new Error('invalid Codex sync manifest: files must be an object');
+  }
+  for (const [key, value] of Object.entries(manifest.files)) {
+    if (!/^(skills|codex)\//.test(key) || key.split('/').some(part => !part || part === '.' || part === '..')
+      || key.includes('\\') || !value || !/^[a-f0-9]{64}$/.test(value.sha256)
+      || !Number.isInteger(value.mode) || value.mode < 0 || value.mode > 0o777
+      || (key.startsWith('skills/') ? key.split('/').length < 3
+        : !(key === 'codex/AGENTS.md' || key === 'codex/hooks/warn-destructive.js'
+          || /^codex\/agents\/[A-Za-z0-9][A-Za-z0-9._-]*\.toml$/.test(key)))) {
+      throw new Error('invalid Codex sync manifest: unsafe managed file');
     }
   }
   return manifest;
@@ -294,57 +240,157 @@ const agents = agentFiles.map(filename => {
   };
 });
 
-const codexHome = path.join(HOME, '.codex');
+const codexHome = path.resolve(process.env.CODEX_HOME || path.join(HOME, '.codex'));
+const skillsDestination = path.join(HOME, '.agents', 'skills');
 const hooksPath = path.join(codexHome, 'hooks.json');
 const manifestPath = path.join(codexHome, 'bjornjee-skills-manifest.json');
-const hooksContent = desiredHooks(hooksPath);
-const previousManifest = readManifest(manifestPath);
-const agentNames = agents.map(agent => agent.name);
-const manifestContent = `${JSON.stringify({
-  version: MANIFEST_VERSION,
-  skills: skillNames,
-  agents: agentNames,
-}, null, 2)}\n`;
+const lockPath = path.join(codexHome, '.bjornjee-skills-sync');
 
-const skillsDestination = path.join(HOME, '.agents', 'skills');
-const staleSkills = previousManifest.skills.filter(name => !skillNames.includes(name));
-const staleAgents = previousManifest.agents.filter(name => !agentNames.includes(name));
-for (const name of staleSkills) {
-  const destination = path.join(skillsDestination, name);
-  if (CHECK) {
-    if (lstatOrNull(destination)) drift.push(destination);
-  } else {
-    fs.rmSync(destination, { recursive: true, force: true });
+function assertParents(filename) {
+  let current = path.dirname(filename);
+  while (current !== path.dirname(current)) {
+    const stat = lstatOrNull(current);
+    if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) {
+      throw new Error(`unsafe destination parent: ${current}`);
+    }
+    current = path.dirname(current);
   }
 }
-for (const name of staleAgents) {
-  const destination = path.join(codexHome, 'agents', `${name}.toml`);
-  if (CHECK) {
-    if (lstatOrNull(destination)) drift.push(destination);
-  } else {
-    fs.rmSync(destination, { recursive: true, force: true });
-  }
+
+function snapshot(filename) {
+  assertParents(filename);
+  const stat = lstatOrNull(filename);
+  if (!stat) return null;
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`unsafe destination: ${filename}`);
+  return { content: fs.readFileSync(filename), mode: stat.mode & 0o777 };
 }
+
+function fingerprint(value) {
+  return { sha256: createHash('sha256').update(value.content).digest('hex'), mode: value.mode };
+}
+
+function equal(left, right) {
+  return left === null || right === null ? left === right
+    : left.mode === right.mode && left.content.equals(right.content);
+}
+
+function destination(key) {
+  const [root, ...parts] = key.split('/');
+  return path.join(root === 'skills' ? skillsDestination : codexHome, ...parts);
+}
+
+function sourceFile(filename, mode) {
+  return { content: fs.readFileSync(filename), mode: mode ?? (fs.statSync(filename).mode & 0o777) };
+}
+
+// Only the finite source payload and previously recorded files are inspected.
+// Unowned siblings are never scanned or removed.
+const desired = new Map();
 for (const payload of skillPayloads) {
-  copyTree(payload.source, path.join(skillsDestination, payload.name), payload.files);
+  for (const relative of payload.files) {
+    desired.set(`skills/${payload.name}/${relative.split(path.sep).join('/')}`,
+      sourceFile(path.join(payload.source, relative)));
+  }
 }
-
-copyFile(globalRulesSource, path.join(codexHome, 'AGENTS.md'));
-copyFile(hookSource, path.join(codexHome, 'hooks', 'warn-destructive.js'), 0o755);
-writeGenerated(hooksContent, hooksPath);
+desired.set('codex/AGENTS.md', sourceFile(globalRulesSource));
+desired.set('codex/hooks/warn-destructive.js', sourceFile(hookSource, 0o755));
 for (const agent of agents) {
-  writeGenerated(agent.content, path.join(codexHome, 'agents', `${agent.name}.toml`));
-}
-writeGenerated(manifestContent, manifestPath);
-
-if (CHECK && drift.length > 0) {
-  drift.sort();
-  process.stderr.write(`Codex drift:\n${drift.map(file => `- ${file}`).join('\n')}\n`);
-  process.exit(1);
+  desired.set(`codex/agents/${agent.name}.toml`, { content: Buffer.from(agent.content), mode: 0o644 });
 }
 
-process.stdout.write(
-  CHECK
-    ? `ok: ${skillNames.length} skills, rules, safety hook, and agents are synced\n`
-    : `synced: ${skillNames.length} skills, rules, safety hook, and agents\n`,
-);
+assertParents(manifestPath);
+assertParents(hooksPath);
+if (lstatOrNull(lockPath)) throw new Error(`sync already active or interrupted; inspect recovery journal: ${lockPath}`);
+const previousManifest = readManifest(manifestPath);
+const changes = [];
+const files = {};
+for (const key of new Set([...desired.keys(), ...Object.keys(previousManifest.files)])) {
+  const target = destination(key);
+  const before = snapshot(target);
+  const after = desired.get(key) || null;
+  const owned = previousManifest.files[key];
+  if (after) files[key] = fingerprint(after);
+  if (equal(before, after)) continue;
+  if (CHECK) {
+    drift.push(target);
+    continue;
+  }
+  if (before && (!owned || JSON.stringify(fingerprint(before)) !== JSON.stringify(owned))) {
+    throw new Error(`sync conflict: ${target}; preserve/reconcile this file before retrying`);
+  }
+  changes.push({ target, before, after });
+}
+
+// Shared hook config is merged, never treated as exclusively owned.
+const hooksBefore = snapshot(hooksPath);
+const hooksAfter = { content: Buffer.from(desiredHooks(hooksPath)), mode: hooksBefore?.mode ?? 0o600 };
+const manifestBefore = snapshot(manifestPath);
+const manifestAfter = {
+  content: Buffer.from(`${JSON.stringify({
+    version: MANIFEST_VERSION,
+    source: { path: REPO, payload_sha256: createHash('sha256').update(JSON.stringify(files)).digest('hex') },
+    skills: skillNames,
+    agents: agents.map(agent => agent.name),
+    files,
+  }, null, 2)}\n`),
+  mode: 0o600,
+};
+for (const change of [
+  { target: hooksPath, before: hooksBefore, after: hooksAfter },
+  { target: manifestPath, before: manifestBefore, after: manifestAfter },
+]) {
+  if (!equal(change.before, change.after)) {
+    if (CHECK) drift.push(change.target);
+    else changes.push(change);
+  }
+}
+
+if (CHECK) {
+  if (drift.length) {
+    process.stderr.write(`Codex drift:\n${drift.sort().map(file => `- ${file}`).join('\n')}\n`);
+    process.exitCode = 1;
+  } else process.stdout.write(`ok: ${skillNames.length} skills, rules, safety hook, and agents are synced\n`);
+} else if (changes.length) {
+  // A persistent exclusive directory also stops a later run after process death.
+  fs.mkdirSync(codexHome, { recursive: true });
+  fs.mkdirSync(lockPath, { mode: 0o700 });
+  const applied = [];
+  let recovered = false;
+  function replace(target, value) {
+    if (value === null) {
+      fs.unlinkSync(target);
+      return;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const staged = `${target}.sync-${randomUUID()}`;
+    try {
+      fs.writeFileSync(staged, value.content, { mode: 0o600, flag: 'wx' });
+      fs.chmodSync(staged, value.mode);
+      fs.renameSync(staged, target);
+    } finally {
+      if (lstatOrNull(staged)) fs.unlinkSync(staged);
+    }
+  }
+  try {
+    // Recheck under the lock: no destination may have changed since preflight.
+    for (const change of changes) {
+      if (!equal(snapshot(change.target), change.before)) throw new Error(`destination changed: ${change.target}`);
+    }
+    fs.writeFileSync(path.join(lockPath, 'recovery.json'), JSON.stringify(changes.map(change => ({
+      target: change.target,
+      before: change.before && { content_base64: change.before.content.toString('base64'), mode: change.before.mode },
+    }))), { mode: 0o600 });
+    for (const change of changes) {
+      replace(change.target, change.after);
+      applied.push(change);
+    }
+    recovered = true;
+  } catch (error) {
+    for (const change of applied.reverse()) replace(change.target, change.before);
+    recovered = true;
+    throw error;
+  } finally {
+    if (recovered) fs.rmSync(lockPath, { recursive: true });
+  }
+  process.stdout.write(`synced: ${skillNames.length} skills, rules, safety hook, and agents\n`);
+} else process.stdout.write('ok: no changes needed\n');

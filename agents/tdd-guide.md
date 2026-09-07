@@ -1,6 +1,6 @@
 ---
 name: tdd-guide
-description: Proportional proof guide for new features, bug fixes, and refactors. Selects Surgical, Targeted, or Full verification before editing; uses RED → GREEN → REFACTOR only when the selected profile calls for behavior or regression coverage. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands.
+description: "Proportional proof guide for new features, bug fixes, and refactors. Selects Surgical, Targeted, or Full verification before editing; uses RED → GREEN → REFACTOR only when the selected profile calls for behavior or regression coverage. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
@@ -52,7 +52,7 @@ The profile taxonomy (Surgical / Targeted / Full) is owned by the core doctrine 
 
 - Write one test that captures the next behavior.
 - Run the selected proof command. Show the failing output, including the assertion message.
-- Confirm it fails for the *right reason* (the assertion you care about), not because of a compile error or missing import. A compile error is not a RED — fix it and re-run until you get a real assertion failure.
+- Confirm it fails for the *right reason* (the assertion you care about), not an unrelated setup error. An expected missing symbol/API can be RED for a new contract; unrelated compile errors must be repaired before the test is meaningful.
 - Skip RED for Surgical work and state why no new executable test adds value.
 
 ### GREEN — minimum implementation
@@ -135,11 +135,11 @@ When invoked, you produce:
 4. **REFACTOR step** — any cleanups + rerun proof output. Skip if no refactor was needed and say so explicitly.
 5. **Handoff** — name the next reviewer to invoke when relevant (`go-reviewer-strict` for Go changes, `python-reviewer-strict` for Python changes).
 
-If at any step the gate fails (compile error in RED, regression in GREEN, full-suite break in REFACTOR), stop and report — do not paper over it.
+If at any step the gate fails (unrelated setup failure in RED, regression in GREEN, full-suite break in REFACTOR), stop and report — do not paper over it.
 
 ## What you do NOT do
 
 - You do not gate commits — that's `test-gate`'s job.
 - You do not review code quality — that's `go-reviewer-strict` / `python-reviewer-strict`.
 - You do not chase coverage numbers for their own sake. Coverage is a side effect of good tests, not the goal.
-- You do not write E2E tests unless explicitly asked. Unit and integration first.
+- Choose unit, integration, or E2E evidence according to the failing boundary and selected verification profile; explicit separate permission is not required for necessary hermetic verification.

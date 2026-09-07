@@ -1,7 +1,3 @@
----
-paths:
-  - "**/*.go"
----
 # Go
 
 Loads when editing Go. Generic + my preferences flattened. Project-specific

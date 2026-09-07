@@ -1,6 +1,6 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.codex/AGENTS.md`. To change doctrine: edit the canonical file, bump the skills-plugin version, run `make sync-codex` from the skills repo. Do not edit the destination copy at `~/.codex/AGENTS.md` directly.*
+> *Canonical source: this repository’s `.codex/AGENTS.md`. Edit doctrine in a linked worktree, review and merge it, then explicitly sync from the chosen permanent checkout. Installed copies are outputs; use the sync manifest’s source path and payload hash to identify their origin. Never edit installed copies directly.*
 
 Always-on doctrine for Codex CLI. Loaded every session.
 What to do, in what order, and which skill to reach for. Methodology for
@@ -32,12 +32,12 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
 
 ## Workflow phases (in what order)
 
-0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch. If the current checkout is already a linked worktree, including one managed by the Codex app, reuse it and never create a nested worktree. Otherwise, derive the path from the source checkout: `<workspace>/<repo>` maps to `<workspace>/worktrees/<repo>/<name>`. From the source checkout, create it with separate commands: `mkdir -p "../worktrees/<repo>"`, then `git worktree add -b <type>/<name> "../worktrees/<repo>/<name>" main`. The folder uses the branch leaf (`chore/example` → `<repo>/example`) to match the agent-dashboard layout. This applies even when the task starts as "just look at it" — every audit turns into commits eventually. No edits and no `git add` on the source checkout.
+0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree — never on the source branch. If the current checkout is already a linked worktree, including one managed by the Codex app, reuse it and never create a nested worktree. Otherwise, derive the path from the source checkout: `<workspace>/<repo>` maps to `<workspace>/worktrees/<repo>/<name>`. From the source checkout, create it with separate commands: `mkdir -p "../worktrees/<repo>"`, then `git worktree add -b <type>/<name> "../worktrees/<repo>/<name>" <discovered-default-branch>`. The folder uses the branch leaf (`chore/example` → `<repo>/example`) to match the agent-dashboard layout. Read-only audits and advice do not require a worktree and never imply permission to edit or commit. Discover the repository’s default branch instead of assuming `main`. No edits and no `git add` on the source checkout.
 1. **Research.** Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
-2. **Plan.** No code until the approach is agreed. Break work into phases, identify risks and affected files.
+2. **Plan.** State the approach before editing. Existing approval to implement a concrete proposal is agreement; do not ask again for reversible work within that scope. Break work into phases, identify risks and affected files.
    - **Execution context.** Identify the code paths touched and classify each as interactive, request/response, background, startup, test-only, or batch. State what calls it, how often it can run, and what blocks while it runs.
    - **Scale shape.** State the data volume the change scales with and whether that volume is bounded by the current request/selection or by global accumulated state. If it scales with global state, the plan must include a bounding strategy.
-   - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout must move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
+   - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocess work, network fanout, and full-history reads move to startup/background work, an index/cache, a queue, or an explicit incremental strategy. Bounded request I/O is allowed with deadlines and bounded concurrency.
    - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors require Full-profile verification, an explicit rollback plan, and an ADR.
 3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
    - **Verification profile.** Pick one before editing and escalate if the diff grows:
@@ -62,6 +62,7 @@ each step lives inside the corresponding skill in `~/.agents/skills/`, not here.
    - Scope the review to the changed-file list plus package manifests, CI config, and test-runner config. Check cross-adapter drift when equivalent Claude/Codex or platform-specific files changed.
    - High/Critical findings block push. Medium findings must be fixed when cheap or called out in the PR body.
 5. **Git.** Conventional commits (`<type>: <description>` — feat/fix/refactor/docs/test/chore/perf/ci, no scopes). Before PR/push, run the repo's final gate when it exists (`make test`, `make test-fast`, CI check, or documented equivalent). PRs include diff-against-base summary and a test plan.
+   - **GitHub access paths are independent.** Check the connected GitHub app and repository remote transport independently. A stale `gh` token blocks only that fallback; use a healthy connector for PR operations and a working remote for push.
    - **No self-attribution.** No `Co-Authored-By` trailer naming the assistant in commits; no "Generated with" footer in PR bodies. The author is the user — attribution to the tool is noise.
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
@@ -115,7 +116,7 @@ Invoke the matching skill from `~/.agents/skills/` proactively — don't wait to
 
 **Parallel by default.** Independent tool calls go in one batch. Never serialize without a dependency.
 
-**Context injection when delegating to subagents.** Subagents get a fresh context — they do NOT inherit this session's AGENTS.md or history. Every spawn must include:
+**Context injection when delegating to subagents.** Context inheritance depends on the runtime and dispatch options. For blind review/evaluation, explicitly disable history inheritance (Codex: `fork_turns: "none"`); otherwise state what is inherited and supply the applicable instructions. Every spawn must include:
 1. Exact file paths (not descriptions).
 2. Relevant diff or snippet inline.
 3. Enough task context to start without exploring.
