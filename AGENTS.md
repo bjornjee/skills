@@ -34,7 +34,7 @@ Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/mar
 
 ## Workflow
 
-0. Worktree first. Any code-modifying task beyond a single-line fix runs in a git worktree — no edits, writes, or `git add` on the source branch, only once modifications are authorized; read-only audits stay read-only.
+0. Worktree first. For authorized modifications beyond a single-line fix, reuse an existing linked worktree or create one; do not edit or stage those changes in the source checkout. An authorized single-line fix may use the source checkout unless stricter project instructions require isolation. Read-only audits stay read-only and require no worktree.
 1. Research before writing. Check the repo, docs, and package registries first.
 2. Plan before coding. Break into phases and identify risks. Approval of a concrete proposal authorizes its reversible implementation without another confirmation.
 3. Proportional proof. Use TDD for behavior changes, bug fixes, and regressions; do not add padding tests for docs/config/mechanical edits. Choose Surgical, Targeted, or Full verification before editing, run the smallest command that bounds the risk during the loop, and reserve full suites for broad/shared changes or PR/push gates. The core rules own the profile taxonomy; agent-dashboard owns orchestration/state and should carry profile names plus proof commands without redefining them.

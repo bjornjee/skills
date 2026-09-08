@@ -49,7 +49,7 @@ External consumers are marketplace installation paths, the ownership manifest, a
 
 ## Verification and limits
 
-Final local verification: `make test` passes 104 tests; the version-against-base gate passes for 1.3.1 → 2.0.1; `git diff --check`, Bash syntax validation, and ShellCheck 0.11.0 pass. All 38 skill/agent frontmatter documents parse as YAML. The frontmatter check also exposed an existing unquoted colon in the TDD guide description; the corrected scalar is covered by a generated-TOML regression test. Independent code and instruction reviews reported no remaining blocking findings.
+Verification at version 2.0.1: `make test` passed 104 tests; the version-against-base gate passed for 1.3.1 → 2.0.1; `git diff --check`, Bash syntax validation, and ShellCheck 0.11.0 passed. All 38 skill/agent frontmatter documents parsed as YAML. The frontmatter check also exposed an existing unquoted colon in the TDD guide description; the corrected scalar is covered by a generated-TOML regression test. Independent code and instruction reviews reported no remaining blocking findings at that stage. The subsequent cold review identified the corrections below.
 
 The bundled skill creator validator passes 14 of the 15 changed skills. Its remaining failure rejects Ponytail's existing `argument-hint` field; the same failure reproduces on the base branch. That Claude-compatible metadata is preserved. This limitation is separate from the successful YAML parse and repository test suite.
 
@@ -76,5 +76,22 @@ The stricter review distinguished conflicting contracts from valid domain specia
 Clarifications keep the UI loop budget with the parent, distinguish database schema migrations from application writes, align planning dispatch with the existing planning phase, and scope the model-routing example to workflow design. Both doctrine adapters retain mandatory gates and distinguish doctrine, project, skill, agent, template, and runtime responsibilities. No changes were made solely to eliminate valid specialized language conventions, conditional mock policies, incident mitigation, or existing authorization exceptions.
 
 Follow-up proof: 104 repository tests pass; all seven language mirrors match; all five changed skills pass the bundled skill validator. Both UI JSON examples parse, expose the same top-level fields and eight dimension keys, and have valid null-score exceptions and gate states. The strict instruction review found no blocker. These checks do not replace a future live rollout evaluation; no global sync or installation was performed.
+
+## Cold-review corrections — version 2.0.2
+
+| Finding or clarification | Correction |
+|---|---|
+| Claude plan mode unintentionally became optional | Restore the default plan-mode gate for nontrivial implementation and the planning red flags. Preserve the already-approved concrete proposal exception. Restore historical context in LEARNINGS; Codex retains its own runtime-supported workflow. This corrects a policy regression, not merely phrasing. |
+| Single-line worktree exception contradicted the blanket source-edit ban | All three workflow clauses explicitly allow an authorized single-line fix in the source checkout unless stricter project instructions require isolation. Larger modifications remain isolated; read-only work remains read-only. |
+| Relative CODEX_HOME depended on hook working directory | Reject nonempty relative values before writes. Absolute paths, including spaces, remain supported; the installed hook is exercised from a different directory. |
+| Late Claude rule directory collision left earlier rules replaced | Check every planned rule destination for directory collisions before making backups or links. Keep the mutation-time check too; this is predictable-failure preflight, not a transaction or protection against concurrent editors. |
+| MCP path guidance named only POSIX parent traversal | Use separator-aware component checks with the same path implementation for relative, absolute, and separator operations. |
+| Parser decision diagram used universal percentages | Tie completion to task acceptance criteria and record accounting; calibrate confidence and validate repairs before acceptance. Correct the malformed opening sentence. |
+| UI behavior template implied unlimited repair | WARN/FAIL block successful acceptance; exhausted verification budget stops with incomplete evidence or unresolved defects. |
+| P3 optionality absent from the UI audit mapping | Preserve original severity and optionality; expose P3 separately in the map, grader, rubric, and example without turning suggestions into required work. |
+| Reviewer ownership lists omitted TypeScript | Include TypeScript/Node and distinguish agent-owned review methods from governing doctrine/project rules. |
+| CI checked only the grader's numeric example | Check both published JSON examples for eight dimensions, matching output fields, null N/A/UNVERIFIED exceptions, verification gaps, gate states, and P3 reporting. The critique example now demonstrates missing live evidence explicitly. |
+
+Final proof for these corrections: `make test` passes **108 tests**, including the two installer failures first reproduced through real child processes with temporary homes. All three manifests declare **2.0.2**; the version-against-base check passes for **1.3.1 → 2.0.2**. `git diff --check`, Bash syntax validation, and ShellCheck 0.11.0 pass. Independent strict code and instruction reviews found no actionable defects in the correction diff. This is scoped evidence, not proof of optimal behavior across all future sessions. No installed globals were changed.
 
 The hook is not a shell parser or security boundary. Per-file atomic rename plus rollback is not a cross-filesystem transaction; abrupt process death requires journal inspection/recovery. Serialization covers one CODEX_HOME; do not run different installers against the shared skill destination concurrently or edit managed files during installation. Normal tests do not call Anthropic, OpenAI image generation, or any paid model API.

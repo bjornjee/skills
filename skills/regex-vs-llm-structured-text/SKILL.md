@@ -5,7 +5,7 @@ description: Decision framework for choosing between regex and LLM when parsing 
 
 # Regex vs LLM for Structured Text Parsing
 
-A practical decision framework for parsing structured text (quizzes, forms, invoices, documents). The key insight: regex handles measured of cases cheaply and deterministically. Reserve expensive LLM calls for the remaining edge cases.
+A practical decision framework for parsing structured text (quizzes, forms, invoices, documents). Regex can handle a defined format cheaply and deterministically; measure its coverage and accuracy on representative inputs. Consider LLM calls only for unresolved cases that need them.
 
 ## When to Activate
 
@@ -18,10 +18,10 @@ A practical decision framework for parsing structured text (quizzes, forms, invo
 
 ```
 Is the text format consistent and repeating?
-├── Yes (>90% follows a pattern) → Start with Regex
-│   ├── Regex handles 95%+ → Done, no LLM needed
-│   └── Regex handles <95% → Add LLM for edge cases only
-└── No (free-form, highly variable) → Use LLM directly
+├── Yes → Start with Regex or an existing format parser
+│   ├── Meets task acceptance criteria, all records accounted for → Done
+│   └── Unresolved cases → Correct/reject explicitly or evaluate bounded LLM repair
+└── No → Evaluate an existing parser or LLM against the task acceptance criteria
 ```
 
 ## Architecture Pattern
@@ -38,9 +38,9 @@ Source Text
     ▼
 [Confidence Scorer] ─── Flags low-confidence extractions
     │
-    ├── High confidence (≥0.95) → Direct output
+    ├── Meets calibrated acceptance threshold and source checks → Accept
     │
-    └── Low confidence (<0.95) → [LLM Validator] → Output
+    └── Otherwise → Correct/reject or bounded LLM repair → Validate before acceptance
 ```
 
 ## Implementation

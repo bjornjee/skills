@@ -15,7 +15,8 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 **Rule:** edit here, bump, sync. Reconcile destination-only changes before sync; never assume that the newest checkout contains all live edits.
 
 ## 4. Plan mode is a user-visible planning workflow
-**Rule:** when the user requests plan mode, use the runtime's supported plan-mode tools rather than a hidden Plan agent. An already-approved concrete implementation does not need another approval cycle.
+**Churn ended:** #52–#54 and the parity wave in #71 established user-visible plan mode rather than the hidden Plan agent. The audit follow-up restores that default after wording made it optional unintentionally.
+**Rule:** Claude uses `EnterPlanMode` / `ExitPlanMode` for nontrivial implementation without an already-approved concrete proposal, and whenever the user requests plan mode. Codex follows its own runtime-supported planning workflow. An already-approved concrete implementation does not need another approval cycle; that exception does not make planning optional for unapproved work. Research alone is not an agreed plan.
 
 ## 5. Codex delegation requires `--write` and `-C/--cwd`
 **Churn ended:** discovered across five same-day PRs (#47–#51). Codex defaults to a read-only sandbox in the wrong directory.

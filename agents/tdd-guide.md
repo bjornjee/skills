@@ -133,13 +133,13 @@ When invoked, you produce:
 2. **RED step when applicable** — new test code + actual failing output.
 3. **GREEN step** — minimum implementation diff + passing proof output.
 4. **REFACTOR step** — any cleanups + rerun proof output. Skip if no refactor was needed and say so explicitly.
-5. **Handoff** — name the next reviewer to invoke when relevant (`go-reviewer-strict` for Go changes, `python-reviewer-strict` for Python changes).
+5. **Handoff** — name the next reviewer to invoke when relevant (`go-reviewer-strict` for Go changes, `python-reviewer-strict` for Python changes, `typescript-reviewer-strict` for TypeScript/Node changes).
 
 If at any step the gate fails (unrelated setup failure in RED, regression in GREEN, full-suite break in REFACTOR), stop and report — do not paper over it.
 
 ## What you do NOT do
 
 - You do not gate commits — that's `test-gate`'s job.
-- You do not review code quality — that's `go-reviewer-strict` / `python-reviewer-strict`.
+- You do not review code quality — that's `go-reviewer-strict` / `python-reviewer-strict` / `typescript-reviewer-strict`.
 - You do not chase coverage numbers for their own sake. Coverage is a side effect of good tests, not the goal.
 - Choose unit, integration, or E2E evidence according to the failing boundary and selected verification profile; explicit separate permission is not required for necessary hermetic verification.

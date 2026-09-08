@@ -46,6 +46,17 @@ afterEach(() => {
 });
 
 describe('sync-codex', () => {
+  it('rejects relative CODEX_HOME before creating installation destinations', () => {
+    const home = tempHome();
+    const result = spawnSync(process.execPath, [SYNC], {
+      cwd: home,
+      env: { ...process.env, HOME: home, CODEX_HOME: 'state' }, encoding: 'utf8',
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /CODEX_HOME must be an absolute path/);
+    assert.deepEqual(fs.readdirSync(home), []);
+  });
+
   it('preserves unowned files inside a same-name skill', () => {
     const home = tempHome();
     const extra = path.join(home, '.agents', 'skills', 'python-patterns', 'custom-note.md');
@@ -73,7 +84,7 @@ describe('sync-codex', () => {
     assert.equal(fs.existsSync(path.join(home, '.agents')), false);
   });
 
-  it('honors an isolated CODEX_HOME', () => {
+  it('honors an absolute CODEX_HOME with spaces when the installed hook runs from another directory', () => {
     const home = tempHome();
     const codexHome = path.join(home, 'custom codex');
     execFileSync(process.execPath, [SYNC], {
@@ -81,6 +92,14 @@ describe('sync-codex', () => {
     });
     assert.ok(fs.existsSync(path.join(codexHome, 'AGENTS.md')));
     assert.equal(fs.existsSync(path.join(home, '.codex')), false);
+    const hooks = JSON.parse(fs.readFileSync(path.join(codexHome, 'hooks.json'), 'utf8'));
+    const command = hooks.hooks.PreToolUse[0].hooks[0].command;
+    const hook = spawnSync('bash', ['-c', command], {
+      cwd: home,
+      env: { ...process.env, HOME: home, CODEX_HOME: codexHome },
+      input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git status' } }), encoding: 'utf8',
+    });
+    assert.equal(hook.status, 0, hook.stderr);
   });
 
   it('rolls back earlier files when an actual destination rename fails', () => {

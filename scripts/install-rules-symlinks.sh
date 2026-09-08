@@ -27,6 +27,15 @@ if ! "$CHECK"; then
     echo 'Refusing symlinked rule destination directories.' >&2
     exit 1
   fi
+  # Reject predictable collisions before backing up or linking any rule.
+  for src in "$REPO_RULES_DIR"/*.md; do
+    [[ -f "$src" ]] || continue
+    dst="$USER_RULES_DIR/$(basename "$src")"
+    if [[ -d "$dst" && ! -L "$dst" ]]; then
+      echo "Refusing directory collision: $dst" >&2
+      exit 1
+    fi
+  done
   mkdir -p "$USER_RULES_DIR"
 fi
 

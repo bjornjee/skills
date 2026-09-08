@@ -17,7 +17,7 @@ Missing/stale required evidence means the affected gate cannot PASS. A preservat
 
 Evaluate all eight dimensions using the rubric's scoring, applicability, priority, and invalid-input rules. Include a numeric score where supported; use null only with a justified N/A or UNVERIFIED exception as defined by the rubric. Missing evidence is never N/A.
 
-Audit PASS requires a complete fresh audit with no P0/P1 findings; disclosed P2 findings do not overlap with WARN. WARN means incomplete/stale evidence. FAIL means a confirmed blocking defect. Missing audit cannot be N/A.
+Audit PASS requires a complete fresh audit with no P0/P1 findings; disclosed P2 findings and optional P3 suggestions do not overlap with WARN. Keep P3 suggestions optional and report them separately in `p3_findings`; their presence alone does not lower a score or require another iteration. WARN means incomplete/stale evidence. FAIL means a confirmed blocking defect. Missing audit cannot be N/A.
 
 Apply the rubric's overall verdict rules and precedence. A user-approved nonblocking visual tradeoff can yield ACCEPTED_TRADEOFF only with its evidence supplied and all mandatory gates passed; it is never PASS. No approval waives missing evidence or P0/P1 defects. Evaluate quality independently of iteration budget; the parent decides whether another round is allowed and reports budget exhaustion separately.
 
@@ -27,7 +27,7 @@ Report:
 - Evidence revision, scope, exclusions, and whether independence was established.
 - Per-dimension scores or exceptions and short evidence citations.
 - `## Preservation gate`: state and evidence per contract surface.
-- `## Audit gate`: state, blocking finding IDs, and disclosed P2 findings.
+- `## Audit gate`: state, blocking finding IDs, disclosed P2 findings, and optional P3 suggestions.
 - `## Brief diff`: when a prior verdict exists, identify resolved, unchanged, and newly introduced findings. Prior scores do not anchor the new assessment.
 - A prioritized critique brief with concrete repairs; never invent work after PASS.
 
@@ -50,7 +50,7 @@ Then emit one JSON object in a fenced block. All eight score keys are required; 
   },
   "score_exceptions": {},
   "preservation_gate": {"state": "PASS", "evidence": []},
-  "audit_gate": {"state": "PASS", "blocking_findings": [], "p2_findings": []},
+  "audit_gate": {"state": "PASS", "blocking_findings": [], "p2_findings": [], "p3_findings": []},
   "critique_brief": [],
   "brief_diff": [],
   "accepted_tradeoffs": [],

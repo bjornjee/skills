@@ -23,6 +23,10 @@ if (unknownArgs.length > 0) {
   process.stderr.write('usage: sync-codex.js [--check]\n');
   process.exit(2);
 }
+if (process.env.CODEX_HOME && !path.isAbsolute(process.env.CODEX_HOME)) {
+  process.stderr.write('CODEX_HOME must be an absolute path; unset it to use ~/.codex\n');
+  process.exit(2);
+}
 
 function assertDirectory(directory) {
   const stat = fs.lstatSync(directory);

@@ -6,6 +6,31 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const REPO = path.resolve(__dirname, '..');
+it('Claude rules preflight a late directory collision before replacing earlier rules', () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'rules-collision-'));
+  const source = path.join(fixture, 'source');
+  const home = path.join(fixture, 'home');
+  const destination = path.join(home, '.claude/rules');
+  try {
+    fs.mkdirSync(path.join(source, 'scripts'), { recursive: true });
+    fs.mkdirSync(path.join(source, '.claude/rules'), { recursive: true });
+    fs.copyFileSync(path.join(REPO, 'scripts/install-rules-symlinks.sh'), path.join(source, 'scripts/install-rules-symlinks.sh'));
+    for (const rule of ['core.md', 'fastapi.md']) fs.writeFileSync(path.join(source, '.claude/rules', rule), '# source');
+    fs.mkdirSync(path.join(destination, 'fastapi.md'), { recursive: true });
+    fs.writeFileSync(path.join(destination, 'core.md'), 'personal rules');
+    const init = spawnSync('git', ['init', source], { encoding: 'utf8' });
+    assert.equal(init.status, 0, init.stderr);
+    const result = spawnSync('bash', [path.join(source, 'scripts/install-rules-symlinks.sh')], {
+      env: { ...process.env, HOME: home }, encoding: 'utf8',
+    });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Refusing directory collision/);
+    assert.equal(fs.readFileSync(path.join(destination, 'core.md'), 'utf8'), 'personal rules');
+    assert.equal(fs.lstatSync(path.join(destination, 'core.md')).isSymbolicLink(), false);
+    assert.deepEqual(fs.readdirSync(destination).sort(), ['core.md', 'fastapi.md']);
+  } finally { fs.rmSync(fixture, { recursive: true, force: true }); }
+});
+
 it('Claude rules check is read-only when rules are absent', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rules-check-'));
   try {

@@ -34,7 +34,7 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
 
 ## Workflow phases (in what order)
 
-0. **Worktree.** For authorized modifications beyond a single-line fix, reuse an existing linked worktree or create one from the repository’s discovered default branch. Do not create nested worktrees. Read-only audits and advice require no worktree and imply no permission to edit or commit. The optional agent-dashboard workflow is not a prerequisite for ordinary Git worktrees.
+0. **Worktree.** For authorized modifications beyond a single-line fix, reuse an existing linked worktree or create one from the repository’s discovered default branch; do not edit or stage those changes in the source checkout. An authorized single-line fix may use the source checkout unless project instructions require isolation. Do not create nested worktrees. Read-only audits and advice require no worktree and imply no permission to edit or commit. The optional agent-dashboard workflow is not a prerequisite for ordinary Git worktrees.
 
 1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 
@@ -44,7 +44,13 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
    - "`Explore` is overkill for one question."
    - You're about to write code without having read the existing entry point.
 
-2. **Plan.** State affected paths, execution context, scale shape, verification profile, reversibility, and the three blast radii before editing. Existing authorization for a concrete proposal is sufficient for reversible implementation. Use available plan-mode tools when the user requests plan mode; otherwise a concise written plan is sufficient. Read-only audits do not imply edits. Ask only for unresolved material choices or irreversible actions not already authorized.
+2. **Plan.** State affected paths, execution context, scale shape, verification profile, reversibility, and the three blast radii before editing. For nontrivial implementation (multiple affected files, competing approaches, or unclear requirements), use `EnterPlanMode` and `ExitPlanMode` to present the plan and obtain agreement before implementation. A hidden `Plan` agent is not this user-visible workflow. An already-approved concrete proposal authorizes its reversible implementation without re-entering plan mode or requesting the same approval again. If the user requests plan mode, use it. Read-only audits do not imply edits. Ask only for unresolved material choices or irreversible actions not already authorized.
+
+   <HARD-GATE>
+   Do not begin nontrivial implementation without an agreed plan. Use the plan-mode workflow above unless a concrete proposal is already approved.
+   </HARD-GATE>
+
+   Red flags: "I'll plan as I go" and "I already explored, that counts as planning." Research supplies evidence; it does not replace agreement on the approach.
 
    Interactive/request paths allow bounded CPU and I/O with deadlines and concurrency limits. Move unbounded scans, subprocess work, history reads, and fanout to a bounded batch/background strategy. One-way doors require Full verification, rollback, and an ADR.
 
@@ -167,7 +173,7 @@ Spawn without waiting for the user to ask:
 | Trigger | Agent / tool | Source |
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
-| Complex feature, refactor, or architectural decision | written plan per Phase 2; use available plan-mode tools when the user requests plan mode | Claude Code built-in |
+| Nontrivial implementation without an already-approved concrete proposal, or user requests plan mode | `EnterPlanMode` / `ExitPlanMode` per Phase 2 | Claude Code built-in |
 | Plan approved, in a worktree, delegation prerequisites satisfied per Phase 3 | `skills:codex-delegate` | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |

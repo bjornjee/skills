@@ -123,7 +123,7 @@ Verdict: APPROVE | WARNING | BLOCK
 
 ## Reuse, don't duplicate
 
-The strict reviewer agents (`agents/go-reviewer-strict.md`, `agents/python-reviewer-strict.md`) are the **single source of truth** for review rules. This skill orchestrates context-gathering and dispatch; it does not restate Layer 1 principles, Layer 2 rules, or the output contract. If the rules need to change, change them in the agent files.
+The strict reviewer agents (`agents/go-reviewer-strict.md`, `agents/python-reviewer-strict.md`, `agents/typescript-reviewer-strict.md`) own their review method and output contract, subject to core doctrine and applicable project rules. This skill orchestrates context-gathering and dispatch; it does not restate Layer 1 principles, Layer 2 rules, or the output contract. Change a rule in its owning layer.
 
 ## Anti-patterns
 

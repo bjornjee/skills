@@ -196,11 +196,11 @@ States are `PASS | WARN | FAIL`; an audit is required, so N/A is not an audit st
 
 | State | Meaning |
 |---|---|
-| PASS | Fresh complete audit at the evidence revision, no unresolved P0/P1; any P2 findings are disclosed. |
+| PASS | Fresh complete audit at the evidence revision, no unresolved P0/P1; any P2 findings and optional P3 suggestions are disclosed separately. |
 | WARN | Audit is absent, stale, or incomplete and there is no known unresolved P0/P1. |
 | FAIL | One or more known P0/P1 findings remain unresolved, regardless of evidence freshness. |
 
-These conditions are disjoint. Audit the baseline surface files, then the entire declared change since baseline. An empty unstaged diff does not mean there is nothing to audit. User acceptance cannot turn an unresolved P1 into PASS.
+These conditions are disjoint. P3 suggestions remain optional; their presence alone does not lower raw scores or require another iteration. Audit the baseline surface files, then the entire declared change since baseline. An empty unstaged diff does not mean there is nothing to audit. User acceptance cannot turn an unresolved P1 into PASS.
 
 ## Evidence and output
 

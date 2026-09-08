@@ -13,7 +13,7 @@
 | `FAIL` | Any row below has `Fail`. |
 | `N/A` | `preservation-contract.md` explicitly has no surfaces to preserve. Behaviors within the redesign scope can still require preservation. |
 
-`WARN` and `FAIL` block the loop's exit. Repair and verify the regression; an authorized intentional contract change must be recorded and verified against the revised contract.
+`WARN` and `FAIL` block successful acceptance. Repair and verify within the remaining budget; if it is exhausted, stop and report incomplete verification or unresolved defects as SKILL.md requires. An authorized intentional contract change must be recorded and verified against the revised contract.
 
 ## Run context
 
