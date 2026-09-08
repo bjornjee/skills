@@ -4,7 +4,7 @@ description: Use when writing or reviewing Go concurrency, context handling, mod
 ---
 # Go Patterns
 
-The layer above `.claude/rules/golang.md`. The rule owns the basics — interfaces at the consumer, error wrapping, one lifetime owner per goroutine, the shutdown sequence. This file owns the decisions it doesn't make: how to *run* concurrency, where module seams go, how to survive flaky dependencies. Every rule is checkable in review.
+Read [Go basics](references/basics.md) for the shared language conventions. This skill adds bounded concurrency, context, and reliability decisions.
 
 ## Concurrency
 
@@ -52,19 +52,32 @@ go func() {
 ```
 
 ### Bounded worker pool — teardown order is load-bearing
-Order: close `jobs` (producers done) → workers drain via `range` → `wg.Wait()` → close `results`. Closing `results` before `wg.Wait()` panics a still-running worker on send; skipping the `jobs` close deadlocks the drain.
+Normal completion: producers close `jobs` → workers drain → `wg.Wait()` → close `results`. Cancellation interrupts idle receives and output sends; `process(ctx, job)` must honor the context. The caller validates a positive worker count and owns producer shutdown. Closing `results` before `wg.Wait()` panics a still-running worker on send; skipping the `jobs` close deadlocks the drain.
 
 ```go
 func run(ctx context.Context, jobs <-chan Job, n int) <-chan Result {
+    if n < 1 {
+        panic("worker count must be positive") // caller configuration invariant
+    }
     results := make(chan Result)
     var wg sync.WaitGroup
     wg.Add(n)
     for range n {
         go func() {
             defer wg.Done()
-            for j := range jobs { // drains until jobs is closed
+            for {
+                var j Job
                 select {
-                case results <- process(j):
+                case <-ctx.Done():
+                    return
+                case job, open := <-jobs:
+                    if !open { return }
+                    j = job
+                }
+                if ctx.Err() != nil { return }
+                result := process(ctx, j) // processing must honor cancellation too
+                select {
+                case results <- result:
                 case <-ctx.Done():
                     return
                 }
@@ -78,7 +91,7 @@ func run(ctx context.Context, jobs <-chan Job, n int) <-chan Result {
 When NOT to pool: CPU-bound work over a small, finite slice is simpler and equivalent as `errgroup` + `SetLimit(runtime.GOMAXPROCS(0))`. A channel-fed pool earns its complexity only for a long-lived stream you can't hold in memory.
 
 ## Context discipline
-- Deadline vs timeout: `WithDeadline` when the budget is absolute (a request must finish by a wall-clock T shared across hops); `WithTimeout` when it's relative to now. Wrapping a downstream call in a fresh `WithTimeout` inside an already-deadlined request silently extends the budget past the caller's deadline — propagate the deadline, don't reset it.
+- Deadline vs timeout: `WithDeadline` when the budget is absolute (a request must finish by a wall-clock T shared across hops); `WithTimeout` when it's relative to now. A timeout derived from the parent cannot extend the parent’s deadline. Deriving from `context.Background()` instead would lose that cancellation/budget; propagate the parent. See [context.WithDeadline](https://pkg.go.dev/context#WithDeadline).
 - Check `ctx.Err() != nil` before starting any expensive or irreversible unit (a batch, a remote call) — the caller may have cancelled while you sat in a queue. Cheap check, skips a doomed call.
 - Never store `context.Context` in a struct field. First argument, always. Exception: request-scoped types whose lifetime *is* the request (`*http.Request`, a per-RPC handler object) may hold it — say so in a comment so the reviewer doesn't flag it.
 - Context values only for request-scoped, cross-cutting data that rides the whole call tree: trace/correlation IDs, auth principal. Never for optional parameters (those are function args). The key must be an unexported package-local type (`type ctxKey int`) so no other package can collide with or read it.

@@ -18,15 +18,14 @@ Production patterns for the Messages API and Claude Agent SDK. Examples are Pyth
 
 Default to Sonnet 4.6; escalate to Opus/Fable only when a task actually stalls on reasoning; drop to Haiku for classification, extraction, and routing.
 
-**Production: pin the dated snapshot, never the alias.** `claude-sonnet-4-6` (alias) silently rolls to the next snapshot and can shift behavior under you; `claude-haiku-4-5-20251001` (snapshot) is frozen. Pin snapshots in anything you regression-test, and re-verify current IDs at docs.anthropic.com before shipping.
+**Production: use a pinned canonical model ID.** Starting with Claude 4.6, dateless IDs such as `claude-sonnet-4-6` are pinned snapshots, not rolling aliases. Earlier generations also have convenience aliases. Verify supported IDs and limits in [Anthropic’s model versioning documentation](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions).
 
 ## The tool-use loop
 
-One example, because everything else is a variation on it. Note the four things that keep it from wedging: the iteration cap, the identical-call breaker, a `tool_result` for every `tool_use` (even failures), and all results returned as one user turn.
+One example, because everything else is a variation on it. Note the four things that keep it from wedging: an iteration cap with explicit exhaustion, explicit stop-reason handling, a `tool_result` for every executed `tool_use` (even failures), and all results returned as one user turn. This minimal example dispatches sequentially; callers can add bounded concurrency for independent calls. `dispatch` validates tool arguments and returns textual results.
 
 ```python
 MAX_STEPS = 10
-seen = set()
 messages = [{"role": "user", "content": task}]
 
 for _ in range(MAX_STEPS):
@@ -34,32 +33,29 @@ for _ in range(MAX_STEPS):
         model="claude-sonnet-4-6", max_tokens=4096, tools=tools, messages=messages,
     )
     messages.append({"role": "assistant", "content": resp.content})
-    if resp.stop_reason != "tool_use":
+    if resp.stop_reason in ("end_turn", "stop_sequence"):
         break
+    if resp.stop_reason != "tool_use":
+        raise RuntimeError(f"Incomplete turn: {resp.stop_reason}; preserve state for recovery")
 
     results = []  # every tool_result for this turn goes in ONE user message
     for block in resp.content:
         if block.type != "tool_use":
             continue
-        sig = (block.name, json.dumps(block.input, sort_keys=True))
-        if sig in seen:                       # loop breaker: identical repeat call
-            results.append({"type": "tool_result", "tool_use_id": block.id,
-                            "content": "Duplicate call; you already have this result.",
-                            "is_error": True})
-            continue
-        seen.add(sig)
         try:
             out = dispatch(block.name, block.input)
             results.append({"type": "tool_result", "tool_use_id": block.id, "content": out})
         except Exception as e:                # a failure still returns a tool_result
             results.append({"type": "tool_result", "tool_use_id": block.id,
-                            "content": f"error: {e}", "is_error": True})
+                            "content": f"Tool failed ({type(e).__name__}); inspect sanitized diagnostics.", "is_error": True})
     messages.append({"role": "user", "content": results})
+else:
+    raise RuntimeError("Tool execution budget exhausted; preserve state and report incomplete")
 ```
 
 - **Every `tool_use` gets a `tool_result` with the matching `tool_use_id`** — even on error, return `is_error: True` with an actionable string. A missing pairing 400s the next request and wedges the conversation.
 - **Parallel calls come back in ONE user turn.** When the assistant emits several `tool_use` blocks, execute them concurrently and return all `tool_result` blocks in a single user message, each keyed to its id. Never serialize independent calls one-result-per-turn — that breaks the pairing contract and burns round-trips.
-- **Cap the loop and break on repeats.** An unbounded loop with a flaky tool spins forever; identical repeated calls (same name + input) mean the model is stuck, not progressing — feed back an error result to break the cycle.
+- **Cap execution and detect lack of progress.** Repeated signatures alone do not prove a loop: reads may need refreshing, failed calls may be retryable, and state can change. Use bounded retries and idempotency rules for mutations; report budget exhaustion explicitly.
 
 ### stop_reason drives control flow
 
@@ -67,7 +63,7 @@ for _ in range(MAX_STEPS):
 |---|---|---|
 | `end_turn` | Model finished | Return the answer |
 | `tool_use` | Model wants results | Execute, append results, loop |
-| `max_tokens` | Output truncated mid-turn | Continue or summarize (below) |
+| `max_tokens` | Output truncated mid-turn | Report incomplete; never execute partial tool arguments; recover explicitly |
 | `stop_sequence` | Hit a stop string | Treat as done |
 
 ### tool_choice
@@ -82,7 +78,7 @@ Add `"disable_parallel_tool_use": true` inside `tool_choice` when you need exact
 
 ## Token & context management
 
-- **Count before you send** when input is user-controlled or growing: `client.messages.count_tokens(model=..., system=..., tools=..., messages=...)` returns `input_tokens`. Gate against the 200K context window before the API 400s you.
+- **Count before you send** when input is user-controlled or growing: `client.messages.count_tokens(model=..., system=..., tools=..., messages=...)` returns `input_tokens`. Gate against the selected model’s current context and output limits before the API rejects the request.
 - **Prune to preserve the cache prefix.** A cache breakpoint only hits on a byte-identical prefix. Keep the system prompt, tool defs, and few-shot examples byte-identical across turns; when history grows, truncate the *middle* (oldest turns after the few-shots) — never the head, or every cache read reverts to a full re-charge.
 - **At `stop_reason == "max_tokens"`** the turn was cut off, not finished. Two recoveries:
   - *Continuation* — the generation itself was long: append the partial assistant message and send a `"continue"` user turn.

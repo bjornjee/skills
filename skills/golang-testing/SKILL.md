@@ -4,7 +4,7 @@ description: Use when writing or reviewing Go tests — table-driven suites, gol
 ---
 # Go Testing
 
-The layer above `.claude/rules/golang.md` (which owns table-driven + subtests, no real-world I/O, `-race` in CI) and core doctrine (which owns the RED→GREEN→REFACTOR cadence — not repeated here). This file owns what those don't: which tool to reach for, and the traps that make Go tests flaky or falsely green.
+Read [Go basics](../golang-patterns/references/basics.md) for shared conventions. This skill covers testing decisions beyond the root verification profile.
 
 ## Table-driven: the non-obvious bits
 The rule already mandates table + `t.Run`. Two things it doesn't:
@@ -13,7 +13,7 @@ The rule already mandates table + `t.Run`. Two things it doesn't:
 
 ## t.Parallel() hazards
 `t.Parallel()` is where "passes locally, flakes in CI" is born.
-- **Teardown timing (the live Go 1.22+ trap):** a parent test's body returns *before* its parallel children run, so a `defer cleanup()` or parent-level `t.Cleanup` fires while children still need the fixture. Register cleanup *inside each parallel subtest*, or own shared setup in `TestMain`. (The old `tt := tt` capture is a no-op now — loop vars are per-iteration.)
+- **Teardown timing:** a parent’s ordinary `defer` runs when its body returns, before parallel children finish. Parent `t.Cleanup` runs after the test and all subtests complete, so it can safely own their shared fixture. Go 1.22 loop-variable semantics apply only when the module selects Go 1.22+. See [testing.T.Cleanup](https://pkg.go.dev/testing#T.Cleanup).
 - **Env is process-global:** `t.Setenv` panics if the test also calls `t.Parallel`, precisely because one test's mutation would leak into concurrent siblings. A parallel test cannot use `t.Setenv` — inject config instead.
 - **Shared state / fixtures:** two parallel tests mutating the same map, temp table, or singleton race even when `-race` happens to pass on one run. Give each its own namespace: `t.TempDir()`, a UUID-suffixed table, a fresh struct.
 

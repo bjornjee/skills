@@ -5,7 +5,7 @@ description: Decision framework for choosing between regex and LLM when parsing 
 
 # Regex vs LLM for Structured Text Parsing
 
-A practical decision framework for parsing structured text (quizzes, forms, invoices, documents). The key insight: regex handles 95-98% of cases cheaply and deterministically. Reserve expensive LLM calls for the remaining edge cases.
+A practical decision framework for parsing structured text (quizzes, forms, invoices, documents). Regex can handle a defined format cheaply and deterministically; measure its coverage and accuracy on representative inputs. Consider LLM calls only for unresolved cases that need them.
 
 ## When to Activate
 
@@ -18,10 +18,10 @@ A practical decision framework for parsing structured text (quizzes, forms, invo
 
 ```
 Is the text format consistent and repeating?
-├── Yes (>90% follows a pattern) → Start with Regex
-│   ├── Regex handles 95%+ → Done, no LLM needed
-│   └── Regex handles <95% → Add LLM for edge cases only
-└── No (free-form, highly variable) → Use LLM directly
+├── Yes → Start with Regex or an existing format parser
+│   ├── Meets task acceptance criteria, all records accounted for → Done
+│   └── Unresolved cases → Correct/reject explicitly or evaluate bounded LLM repair
+└── No → Evaluate an existing parser or LLM against the task acceptance criteria
 ```
 
 ## Architecture Pattern
@@ -30,7 +30,7 @@ Is the text format consistent and repeating?
 Source Text
     │
     ▼
-[Regex Parser] ─── Extracts structure (95-98% accuracy)
+[Regex Parser] ─── Extracts structure (measured accuracy)
     │
     ▼
 [Text Cleaner] ─── Removes noise (markers, page numbers, artifacts)
@@ -38,14 +38,16 @@ Source Text
     ▼
 [Confidence Scorer] ─── Flags low-confidence extractions
     │
-    ├── High confidence (≥0.95) → Direct output
+    ├── Meets calibrated acceptance threshold and source checks → Accept
     │
-    └── Low confidence (<0.95) → [LLM Validator] → Output
+    └── Otherwise → Correct/reject or bounded LLM repair → Validate before acceptance
 ```
 
 ## Implementation
 
-### 1. Regex Parser (Handles the Majority)
+### A bounded parser with explicit failure
+
+This example accepts numbered, single-line questions with three or four consecutively labeled choices and an answer. It deliberately rejects other formats instead of silently losing records. Work is linear in the selected document length; bound document size at ingestion. Treat this as a format-specific example, not a general document parser.
 
 ```python
 import re
@@ -57,159 +59,33 @@ class ParsedItem:
     text: str
     choices: tuple[str, ...]
     answer: str
-    confidence: float = 1.0
 
 def parse_structured_text(content: str) -> list[ParsedItem]:
-    """Parse structured text using regex patterns."""
-    pattern = re.compile(
-        r"(?P<id>\d+)\.\s*(?P<text>.+?)\n"
-        r"(?P<choices>(?:[A-D]\..+?\n)+)"
-        r"Answer:\s*(?P<answer>[A-D])",
-        re.MULTILINE | re.DOTALL,
-    )
-    items = []
-    for match in pattern.finditer(content):
-        choices = tuple(
-            c.strip() for c in re.findall(r"[A-D]\.\s*(.+)", match.group("choices"))
-        )
-        items.append(ParsedItem(
-            id=match.group("id"),
-            text=match.group("text").strip(),
-            choices=choices,
-            answer=match.group("answer"),
-        ))
+    records = re.split(r"(?m)(?=^\d+\. )", content.strip())
+    items: list[ParsedItem] = []
+    seen: set[str] = set()
+    for record in records:
+        if not record.strip():
+            continue
+        lines = record.strip().splitlines()
+        heading = re.fullmatch(r"(\d+)\. (.+)", lines[0])
+        answer = re.fullmatch(r"Answer: ([A-D])", lines[-1])
+        choices = [re.fullmatch(r"([A-D])\. (.+)", line) for line in lines[1:-1]]
+        if (heading is None or answer is None or len(choices) not in (3, 4)
+                or any(choice is None for choice in choices)):
+            raise ValueError("Malformed record; preserve source for review")
+        labels = "".join(choice[1] for choice in choices if choice is not None)
+        if labels != "ABCD"[:len(choices)] or answer[1] not in labels or heading[1] in seen:
+            raise ValueError("Invalid choice labels, answer, or duplicate record ID")
+        seen.add(heading[1])
+        items.append(ParsedItem(heading[1], heading[2], tuple(
+            choice[2] for choice in choices if choice is not None
+        ), answer[1]))
     return items
 ```
 
-### 2. Confidence Scoring
+### Escalation and completeness
 
-Flag items that may need LLM review:
+On failure, retain the original record and failure reason. Either reject the import for correction or send only the failed record and its local context to an available LLM. Validate the returned structure, ID, choice labels, and answer against the source before accepting it; cap repair attempts and expose unresolved records. Do not resend the whole document once per failed item.
 
-```python
-@dataclass(frozen=True)
-class ConfidenceFlag:
-    item_id: str
-    score: float
-    reasons: tuple[str, ...]
-
-def score_confidence(item: ParsedItem) -> ConfidenceFlag:
-    """Score extraction confidence and flag issues."""
-    reasons = []
-    score = 1.0
-
-    if len(item.choices) < 3:
-        reasons.append("few_choices")
-        score -= 0.3
-
-    if not item.answer:
-        reasons.append("missing_answer")
-        score -= 0.5
-
-    if len(item.text) < 10:
-        reasons.append("short_text")
-        score -= 0.2
-
-    return ConfidenceFlag(
-        item_id=item.id,
-        score=max(0.0, score),
-        reasons=tuple(reasons),
-    )
-
-def identify_low_confidence(
-    items: list[ParsedItem],
-    threshold: float = 0.95,
-) -> list[ConfidenceFlag]:
-    """Return items below confidence threshold."""
-    flags = [score_confidence(item) for item in items]
-    return [f for f in flags if f.score < threshold]
-```
-
-### 3. LLM Validator (Edge Cases Only)
-
-```python
-def validate_with_llm(
-    item: ParsedItem,
-    original_text: str,
-    client,
-) -> ParsedItem:
-    """Use LLM to fix low-confidence extractions."""
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",  # Cheapest model for validation
-        max_tokens=500,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Extract the question, choices, and answer from this text.\n\n"
-                f"Text: {original_text}\n\n"
-                f"Current extraction: {item}\n\n"
-                f"Return corrected JSON if needed, or 'CORRECT' if accurate."
-            ),
-        }],
-    )
-    # Parse LLM response and return corrected item...
-    return corrected_item
-```
-
-### 4. Hybrid Pipeline
-
-```python
-def process_document(
-    content: str,
-    *,
-    llm_client=None,
-    confidence_threshold: float = 0.95,
-) -> list[ParsedItem]:
-    """Full pipeline: regex -> confidence check -> LLM for edge cases."""
-    # Step 1: Regex extraction (handles 95-98%)
-    items = parse_structured_text(content)
-
-    # Step 2: Confidence scoring
-    low_confidence = identify_low_confidence(items, confidence_threshold)
-
-    if not low_confidence or llm_client is None:
-        return items
-
-    # Step 3: LLM validation (only for flagged items)
-    low_conf_ids = {f.item_id for f in low_confidence}
-    result = []
-    for item in items:
-        if item.id in low_conf_ids:
-            result.append(validate_with_llm(item, content, llm_client))
-        else:
-            result.append(item)
-
-    return result
-```
-
-## Real-World Metrics
-
-From a production quiz parsing pipeline (410 items):
-
-| Metric | Value |
-|--------|-------|
-| Regex success rate | 98.0% |
-| Low confidence items | 8 (2.0%) |
-| LLM calls needed | ~5 |
-| Cost savings vs all-LLM | ~95% |
-| Test coverage | 93% |
-
-## Best Practices
-
-- **Start with regex** — even imperfect regex gives you a baseline to improve
-- **Use confidence scoring** to programmatically identify what needs LLM help
-- **Use the cheapest LLM** for validation (Haiku-class models are sufficient)
-- **Never mutate** parsed items — return new instances from cleaning/validation steps
-- **TDD works well** for parsers — write tests for known patterns first, then edge cases
-- **Log metrics** (regex success rate, LLM call count) to track pipeline health
-- **Schema-constrained LLM output** when the target schema is fixed — cheaper and more reliable than free-text plus repair; free-text only for genuinely ambiguous correction tasks
-- **Drift alert** when the regex success rate drops below your baseline threshold — that's the vendor changing the format, not noise
-- **Shadow-mode migrations** — run old and new parser side-by-side and diff outputs before cutting over on a format change
-
-## Anti-Patterns to Avoid
-
-- Sending all text to an LLM when regex handles 95%+ of cases (expensive and slow)
-- Using regex for free-form, highly variable text (LLM is better here)
-- Skipping confidence scoring and hoping regex "just works"
-- Mutating parsed objects during cleaning/validation steps
-- Not testing edge cases (malformed input, missing fields, encoding issues)
-
+A parser match is not a calibrated confidence score. Measure record recall and field accuracy on a labeled corpus, including unmatched text, duplicate IDs, missing answers, and neighboring malformed records. Never claim a universal accuracy percentage from regex use alone. For formats with multiline content or embedded numbered lists, use an established parser or an explicit record-boundary contract before extraction.

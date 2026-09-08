@@ -9,6 +9,8 @@ Use this when the user wants real repo execution: run commands, inspect git stat
 
 This skill is intentionally narrower than general coding guidance. It is an operator workflow for evidence-first terminal execution.
 
+When editing shell scripts, read [Shell conventions](references/shell.md).
+
 ## Skill Stack
 
 Pull these skills and agents into the workflow when relevant:
