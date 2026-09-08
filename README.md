@@ -103,49 +103,7 @@ The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md
 
 ## Codex Setup
 
-This repo includes configuration for [OpenAI Codex CLI](https://github.com/openai/codex) so you can install the same workflow skills in Codex or delegate isolated coding tasks from Claude Code.
-
-### Install globally in native or Cloud Codex
-
-Clone this repository and install the coding skills, global rules, compatible
-subagents, and repository-owned safety hook directly into Codex:
-
-```bash
-git clone https://github.com/bjornjee/skills.git "$HOME/skills"
-cd "$HOME/skills"
-make sync-codex
-make sync-codex ARGS=--check
-```
-
-Use the same path for maintenance:
-
-```bash
-cd "$HOME/skills"
-git pull --ff-only
-make sync-codex
-make sync-codex ARGS=--check
-```
-
-The sync uses Codex's native global locations under `~/.agents/skills` and
-`~/.codex`. It preserves unrelated peer skills, agents, and hooks while keeping
-repository-owned payloads deterministic; a path-validated ownership manifest at
-`~/.codex/bjornjee-skills-manifest.json` distinguishes retired managed entries
-from unrelated user entries. The installed `warn-destructive` hook blocks common
-destructive shell commands and fails closed on invalid hook input. Review and
-trust the installed user hook with `/hooks` when Codex asks.
-
-The global worktree rule derives the destination from the source checkout's
-parent, matching agent-dashboard: `<workspace>/<repo>` maps to
-`<workspace>/worktrees/<repo>/<branch-leaf>`. For example,
-`~/Code/bjornjee/skills` uses `~/Code/bjornjee/worktrees/skills/...`, while a
-repo under `~/Code/tomoro` keeps its worktrees under
-`~/Code/tomoro/worktrees/...`. If Codex is already running in a linked
-worktree, it reuses that worktree instead of nesting another one.
-
-Codex app-managed worktrees use the Worktree root configured under
-**Settings > Worktrees**. Use a manually created worktree as a local project
-when the exact source-relative layout is required; both forms remain ordinary
-Git worktrees and support normal commits, pushes, and PRs.
+Choose one permanent checkout as the source for global maintenance. Edit and review changes in worktrees, merge, then explicitly install from that permanent checkout. Repository review and `make test` do not install anything globally.
 
 ### Skills plugin
 
@@ -158,66 +116,39 @@ skills/<name>/SKILL.md
 
 Use the runtime's plugin UI or supported marketplace/install commands to install `skills@bjornjee-skills` from this repository. The plugin exposes skills; it does not install root doctrine, agents, or user hooks. Avoid enabling duplicate skill installations unless the runtime's precedence is understood. `make test` verifies an isolated package with no source-checkout symlinks.
 
-The native destructive-command hook is an advisory lexical guard. It recognizes common direct command forms, including executable paths and Git global options. It does not interpret aliases, substitutions, eval, scripts, or all shell syntax and does not implement directory freezing. Platform permissions and authorization remain authoritative.
+### Explicit global installation
 
-### Project-local Codex config
-
-The marketplace install ships skills only. If you also want this repo's project-level Codex config (`AGENTS.md`, `.codex/`) inside another checkout, copy them in:
+From the chosen permanent checkout, inspect before applying:
 
 ```bash
-SKILLS_REPO="$HOME/Code/bjornjee/skills"  # adjust to your clone path
-cp "$SKILLS_REPO/AGENTS.md" ./AGENTS.md
-cp -r "$SKILLS_REPO/.codex" ./.codex
+make sync-codex ARGS=--check
+# After reconciling the reported differences and authorizing global changes:
+make sync-codex
+make sync-codex ARGS=--check
 ```
 
-To install the always-on Codex doctrine globally, run `make sync-codex` from the skills repo. The same command installs the global skills, guardrail registrations, and compatible agents.
+The installer uses `~/.agents/skills` and `CODEX_HOME` (default `~/.codex` when unset or empty). A custom `CODEX_HOME` must be an absolute path so installed hooks work independently of their working directory; relative values are rejected before any writes. It records the source checkout, payload hash, and per-file content hashes/modes in `bjornjee-skills-manifest.json`. Extra files are preserved. Existing identical files can be adopted; conflicting unowned or locally edited files are refused before payload writes. No directory-name-only deletion is allowed. Only unchanged files recorded by the current ownership schema can be retired; empty directories may remain.
 
-Then verify:
+A complete source/destination preflight precedes writes. An exclusive journal serializes installers sharing CODEX_HOME; per-file replacements use atomic rename. Caught failures roll back changed files. A process kill or failed rollback leaves `.bjornjee-skills-sync/recovery.json` and blocks another run. The journal is private and contains original bytes/modes; do not publish it. Inspect and restore the recorded targets (absence means remove only that newly installed file), preserve concurrent edits, then remove the journal only after recovery. This is not a cross-filesystem atomic transaction or a lock against unrelated editors; do not edit managed destinations during installation or run installers sharing the same skill destination concurrently.
 
-```bash
-codex exec "summarize the current instructions"
-```
+### Migrating older installations
 
-### Delegation from Claude Code
+Schema v1 recorded directory names without file hashes. Version 2 does not use those names as deletion/overwrite authority. First compare the installed content to the selected source, preserve destination-only changes, and back up conflicting files outside managed paths. Reconcile or move those specific files before retrying. Do not mass-delete globals or assume extra skills are obsolete. Retired untracked skills require a separately reviewed ownership inventory.
 
-Use the `/codex-delegate` skill inside Claude Code for the full Plan → Delegate → Review → Rectify workflow.
+The native destructive-command hook is an advisory lexical guard. It recognizes common direct command forms, including executable paths and Git global options. It does not interpret aliases, substitutions, eval, scripts, or all shell syntax and does not implement directory freezing. Platform permissions and authorization remain authoritative. Sync replaces only the old owned warning registration; other owners' main-branch and commit gates remain registered. Review/trust the installed hook through the runtime's hook UI when required.
 
----
+### Scope and rollback
 
-## Migration from ECC
+Installing a plugin does not authorize replacing a project's AGENTS.md. Adapt project-local instructions to that repository instead of copying this repository's maintenance rules wholesale.
 
-If you previously used `everything-claude-code` for rules, follow these steps to switch to bjornjee-skills as the source of truth.
+Before a global rollout, keep a verified backup of affected files and the ownership manifest. Roll back installed content from that backup; reverting a repository commit alone does not roll back globals. The root package-path and ownership changes are described in [ADR 001](docs/adr/001-global-skill-contracts.md).
 
-### Step 1: Remove overlapping global rules
+### Verification and delegation
 
-These files in `~/.claude/rules/` are now owned by bjornjee-skills. Remove them:
+`make test` requires Node.js, Python 3, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory.
 
-```bash
-rm ~/.claude/rules/agents.md           # replaced by: core.md (agent dispatch)
-rm ~/.claude/rules/coding-style.md     # replaced by: python.md
-rm ~/.claude/rules/development-workflow.md  # replaced by: core.md
-rm ~/.claude/rules/git-workflow.md     # replaced by: core.md
-rm ~/.claude/rules/hooks.md            # replaced by: python.md (logging rule)
-rm ~/.claude/rules/patterns.md         # replaced by: python.md + fastapi.md
-rm ~/.claude/rules/performance.md      # replaced by: core.md (model selection)
-rm ~/.claude/rules/security.md         # replaced by: python.md (secrets rule)
-rm ~/.claude/rules/testing.md          # replaced by: python.md + core.md
-```
+Use the `/codex-delegate` skill for its declared delegation workflow.
 
-### Step 2: Verify
+## Migration from other rule collections
 
-Restart Claude Code and confirm:
-- Rules load from bjornjee-skills plugin (check with `/config`)
-- No duplicate rules from `~/.claude/rules/`
-
-### Step 3 (optional): Remove ECC entirely
-
-Once you've confirmed everything works, you can disable ECC in `~/.claude/settings.json`:
-
-```json
-"enabledPlugins": {
-  "everything-claude-code@everything-claude-code": false
-}
-```
-
-Keep it enabled if you still use ECC's skills catalog.
+Inventory overlaps and preserve local edits before choosing this repository as owner. Disable or archive only confirmed overlapping rules after separately authorizing the global change. A matching filename is not proof of ownership. Keep unrelated plugin capabilities enabled when they are still used.

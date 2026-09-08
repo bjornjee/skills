@@ -5,6 +5,7 @@ const { afterEach, describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
+const { createHash } = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -22,7 +23,7 @@ function tempHome() {
 function runSync(home, ...args) {
   return execFileSync(process.execPath, [SYNC, ...args], {
     cwd: REPO,
-    env: { ...process.env, HOME: home },
+    env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
     encoding: 'utf8',
   });
 }
@@ -45,6 +46,122 @@ afterEach(() => {
 });
 
 describe('sync-codex', () => {
+  it('rejects relative CODEX_HOME before creating installation destinations', () => {
+    const home = tempHome();
+    const result = spawnSync(process.execPath, [SYNC], {
+      cwd: home,
+      env: { ...process.env, HOME: home, CODEX_HOME: 'state' }, encoding: 'utf8',
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /CODEX_HOME must be an absolute path/);
+    assert.deepEqual(fs.readdirSync(home), []);
+  });
+
+  it('preserves unowned files inside a same-name skill', () => {
+    const home = tempHome();
+    const extra = path.join(home, '.agents', 'skills', 'python-patterns', 'custom-note.md');
+    fs.mkdirSync(path.dirname(extra), { recursive: true });
+    fs.writeFileSync(extra, 'personal note');
+    runSync(home);
+    assert.equal(fs.readFileSync(extra, 'utf8'), 'personal note');
+  });
+
+  it('refuses conflicting unowned files before installing anything', () => {
+    const home = tempHome();
+    const target = path.join(home, '.codex', 'AGENTS.md');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, 'personal doctrine');
+    assert.throws(() => runSync(home), /conflict/i);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'personal doctrine');
+    assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  });
+
+  it('preflights late destination failures before changing earlier skills', () => {
+    const home = tempHome();
+    fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.codex', 'hooks'), 'not a directory');
+    assert.throws(() => runSync(home));
+    assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  });
+
+  it('honors an absolute CODEX_HOME with spaces when the installed hook runs from another directory', () => {
+    const home = tempHome();
+    const codexHome = path.join(home, 'custom codex');
+    execFileSync(process.execPath, [SYNC], {
+      env: { ...process.env, HOME: home, CODEX_HOME: codexHome },
+    });
+    assert.ok(fs.existsSync(path.join(codexHome, 'AGENTS.md')));
+    assert.equal(fs.existsSync(path.join(home, '.codex')), false);
+    const hooks = JSON.parse(fs.readFileSync(path.join(codexHome, 'hooks.json'), 'utf8'));
+    const command = hooks.hooks.PreToolUse[0].hooks[0].command;
+    const hook = spawnSync('bash', ['-c', command], {
+      cwd: home,
+      env: { ...process.env, HOME: home, CODEX_HOME: codexHome },
+      input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git status' } }), encoding: 'utf8',
+    });
+    assert.equal(hook.status, 0, hook.stderr);
+  });
+
+  it('rolls back earlier files when an actual destination rename fails', () => {
+    const home = tempHome();
+    const fault = path.join(home, 'fault.cjs');
+    fs.writeFileSync(fault, `const fs = require('node:fs');
+const original = fs.renameSync;
+let failed = false;
+fs.renameSync = function(from, to) {
+  if (!failed && to.endsWith('/AGENTS.md')) {
+    failed = true;
+    throw Object.assign(new Error('injected write failure'), {code: 'EIO'});
+  }
+  return original(from, to);
+};`);
+    const result = spawnSync(process.execPath, ['--require', fault, SYNC], {
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') }, encoding: 'utf8',
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /injected write failure/);
+    assert.equal(fs.existsSync(path.join(home, '.agents/skills/terminal-ops/SKILL.md')), false);
+    assert.equal(fs.existsSync(path.join(home, '.codex/bjornjee-skills-manifest.json')), false);
+    assert.equal(fs.existsSync(path.join(home, '.codex/.bjornjee-skills-sync')), false);
+  });
+
+  it('preserves a locally edited owned file instead of overwriting it', () => {
+    const home = tempHome();
+    runSync(home);
+    const target = path.join(home, '.agents/skills/python-patterns/SKILL.md');
+    fs.appendFileSync(target, '\nlocal change');
+    assert.throws(() => runSync(home), /sync conflict/);
+    assert.match(fs.readFileSync(target, 'utf8'), /local change$/);
+  });
+
+  it('does not infer stale-file deletion authority from a v1 directory manifest', () => {
+    const home = tempHome();
+    fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.codex/bjornjee-skills-manifest.json'), JSON.stringify({
+      version: 1, skills: ['retired-skill'], agents: [],
+    }));
+    const target = path.join(home, '.agents/skills/retired-skill/SKILL.md');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, 'retain without hashes');
+    runSync(home);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'retain without hashes');
+  });
+
+  it('refuses concurrent or interrupted sync without touching payload files', () => {
+    const home = tempHome();
+    fs.mkdirSync(path.join(home, '.codex/.bjornjee-skills-sync'), { recursive: true });
+    assert.throws(() => runSync(home), /active or interrupted/);
+    assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  });
+
+  it('refuses symlinked destination ancestors', () => {
+    const home = tempHome();
+    const outside = tempHome();
+    fs.symlinkSync(outside, path.join(home, '.agents'));
+    assert.throws(() => runSync(home), /unsafe destination parent/);
+    assert.deepEqual(fs.readdirSync(outside), []);
+  });
+
   it('installs skills, global rules, the owned guardrail, and compatible agents', () => {
     const home = tempHome();
     runSync(home);
@@ -78,6 +195,16 @@ describe('sync-codex', () => {
     assert.match(reviewer, /^developer_instructions = /m);
     assert.match(reviewer, /^sandbox_mode = "read-only"/m);
     assert.doesNotMatch(reviewer, /model = "sonnet"/);
+  });
+
+  it('preserves a quoted agent description when generating TOML', () => {
+    const home = tempHome();
+    runSync(home);
+    const source = fs.readFileSync(path.join(REPO, 'agents/tdd-guide.md'), 'utf8');
+    const sourceDescription = source.match(/^description: (.+)$/m)[1];
+    const installed = fs.readFileSync(path.join(home, '.codex/agents/tdd-guide.toml'), 'utf8');
+    const installedDescription = JSON.parse(installed.match(/^description = (.+)$/m)[1]);
+    assert.equal(installedDescription, JSON.parse(sourceDescription));
   });
 
   it('preserves unrelated peer skills, agents, and hooks', () => {
@@ -115,7 +242,7 @@ describe('sync-codex', () => {
       .some(hook => hook.command === 'node "/opt/local/warn-destructive.js"'));
   });
 
-  it('registers only the self-contained guardrail and removes exact legacy registrations', () => {
+  it('migrates the owned guardrail while preserving unrelated enforcement', () => {
     const home = tempHome();
     const hooksPath = path.join(home, '.codex', 'hooks.json');
     fs.mkdirSync(path.dirname(hooksPath), { recursive: true });
@@ -140,11 +267,14 @@ describe('sync-codex', () => {
     const hooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
     const commands = hooks.hooks.PreToolUse.flatMap(group => group.hooks)
       .map(hook => hook.command);
-    assert.deepEqual(commands, ['node "$HOME/.codex/hooks/warn-destructive.js"']);
-    assert.doesNotMatch(JSON.stringify(hooks), /agent-dashboard|block-main-commit|commit-lint/);
+    assert.deepEqual(commands, [
+      'node "$HOME/Code/bjornjee/agent-dashboard/adapters/codex/hooks/block-main-commit.js"',
+      'node "$HOME/Code/bjornjee/agent-dashboard/adapters/codex/hooks/commit-lint.js"',
+      'node "${CODEX_HOME:-$HOME/.codex}/hooks/warn-destructive.js"',
+    ]);
   });
 
-  it('is idempotent and detects content or stale-file drift', () => {
+  it('is idempotent, detects owned-file drift, and ignores unowned extras', () => {
     const home = tempHome();
     runSync(home);
     runSync(home);
@@ -157,16 +287,16 @@ describe('sync-codex', () => {
 
     const result = spawnSync(process.execPath, [SYNC, '--check'], {
       cwd: REPO,
-      env: { ...process.env, HOME: home },
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
       encoding: 'utf8',
     });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /AGENTS\.md/);
-    assert.match(result.stderr, /terminal-ops/);
+    assert.doesNotMatch(result.stderr, /terminal-ops/);
     assert.match(result.stderr, /warn-destructive\.js/);
   });
 
-  it('removes only stale payloads recorded in the ownership manifest', () => {
+  it('removes only unchanged stale files recorded in the ownership manifest', () => {
     const home = tempHome();
     runSync(home);
 
@@ -174,19 +304,28 @@ describe('sync-codex', () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     manifest.skills.push('retired-skill');
     manifest.agents.push('retired-agent');
-    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
     const retiredSkill = path.join(home, '.agents', 'skills', 'retired-skill');
     fs.mkdirSync(retiredSkill, { recursive: true });
     fs.writeFileSync(path.join(retiredSkill, 'SKILL.md'), '# retired\n');
     const retiredAgent = path.join(home, '.codex', 'agents', 'retired-agent.toml');
     fs.writeFileSync(retiredAgent, 'name = "retired-agent"\n');
+    const extra = path.join(retiredSkill, 'personal.txt');
+    fs.writeFileSync(extra, 'keep');
+    for (const [key, target] of [
+      ['skills/retired-skill/SKILL.md', path.join(retiredSkill, 'SKILL.md')],
+      ['codex/agents/retired-agent.toml', retiredAgent],
+    ]) manifest.files[key] = {
+      sha256: createHash('sha256').update(fs.readFileSync(target)).digest('hex'),
+      mode: fs.statSync(target).mode & 0o777,
+    };
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
     const unrelatedAgent = path.join(home, '.codex', 'agents', 'local-only.toml');
     fs.writeFileSync(unrelatedAgent, 'name = "local-only"\n');
 
     const check = spawnSync(process.execPath, [SYNC, '--check'], {
       cwd: REPO,
-      env: { ...process.env, HOME: home },
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
       encoding: 'utf8',
     });
     assert.equal(check.status, 1);
@@ -194,7 +333,8 @@ describe('sync-codex', () => {
     assert.match(check.stderr, /retired-agent/);
 
     runSync(home);
-    assert.equal(fs.existsSync(retiredSkill), false);
+    assert.equal(fs.existsSync(path.join(retiredSkill, 'SKILL.md')), false);
+    assert.equal(fs.readFileSync(extra, 'utf8'), 'keep');
     assert.equal(fs.existsSync(retiredAgent), false);
     assert.equal(fs.existsSync(unrelatedAgent), true);
     assert.doesNotThrow(() => runSync(home, '--check'));
@@ -226,7 +366,7 @@ describe('sync-codex', () => {
 
     const result = spawnSync(process.execPath, [path.join(fixture, 'scripts', 'sync-codex.js')], {
       cwd: fixture,
-      env: { ...process.env, HOME: home },
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
       encoding: 'utf8',
     });
 
@@ -244,7 +384,7 @@ describe('sync-codex', () => {
 
     const result = spawnSync(process.execPath, [SYNC], {
       cwd: REPO,
-      env: { ...process.env, HOME: home },
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
       encoding: 'utf8',
     });
 
@@ -267,7 +407,7 @@ describe('sync-codex', () => {
 
     const result = spawnSync(process.execPath, [SYNC], {
       cwd: REPO,
-      env: { ...process.env, HOME: home },
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
       encoding: 'utf8',
     });
 
@@ -281,7 +421,7 @@ describe('sync-codex', () => {
     const home = tempHome();
     const result = spawnSync(process.execPath, [SYNC, '--force'], {
       cwd: REPO,
-      env: { ...process.env, HOME: home },
+      env: { ...process.env, HOME: home, CODEX_HOME: path.join(home, '.codex') },
       encoding: 'utf8',
     });
 

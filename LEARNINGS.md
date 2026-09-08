@@ -4,7 +4,7 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 
 ## 1. Separate packaged configuration from personal global enforcement
 **Decision:** the plugin package exposes skills. Repository-owned `native-codex/` scripts support explicit personal global installation; they are not automatically enabled by plugin installation.
-**Rule:** `make sync-codex` installs the repository's advisory destructive-command hook. Agent-dashboard gates are optional and must never be assumed present. Native permissions remain the enforcement boundary. Do not claim directory freezing or complete shell-command coverage from this hook.
+**Rule:** `make sync-codex` installs the repository's advisory destructive-command hook and preserves other hook owners' registrations. Agent-dashboard gates are optional and must never be assumed present. Native permissions remain the enforcement boundary. Do not claim directory freezing or complete shell-command coverage from this hook.
 
 ## 2. codegraph-audit is on-demand, not a hard pre-PR dispatch
 **Churn ended:** three states across #60/#75 — CI-driven → local hard-dispatch → on-demand. The hard dispatch silently couldn't fire without the third-party `codegraph` CLI installed.
@@ -24,7 +24,7 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 
 ## 6. Version bumps stay in lockstep — use `make bump`
 **Churn ended:** 100 manual touches across history on `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`; the Codex manifest silently drifted six minor versions before the lockstep test existed.
-**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. `scripts/check-version-bump.js <base-revision>` additionally verifies that payload changes increase the version against the PR base.
+**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. `scripts/check-version-bump.js <base-revision>` verifies a release bump against its base. CI runs this gate for non-stacked PRs and the final PR of a native GitHub stack, comparing the latter with the stack base; intermediate PRs still run the manifest lockstep and full test suite.
 
 ## 7. `.codex/AGENTS.md` is Codex-canonical doctrine, symmetric to `.claude/rules/core.md`
 **Churn ended:** removed in #58, deliberately re-added in #75/#76. The removal read the file as dead weight; it is the only always-on surface Codex has.

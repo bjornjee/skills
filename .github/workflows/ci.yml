@@ -16,10 +16,11 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: lts/*
-      - name: Check payload version against PR base
-        if: github.event_name == 'pull_request'
+      # A native stack is one release; intermediate PRs keep the base version.
+      - name: Check release version against base
+        if: github.event_name == 'pull_request' && (!github.event.pull_request.stack || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
         env:
-          BASE_REV: ${{ github.event.pull_request.base.sha }}
+          BASE_REV: ${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}
         run: |
           git fetch --depth=1 origin "$BASE_REV"
           node scripts/check-version-bump.js "$BASE_REV"
