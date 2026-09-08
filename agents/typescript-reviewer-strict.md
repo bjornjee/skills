@@ -88,7 +88,7 @@ Confidence is separate from severity. State the evidence and uncertainty; do not
 - Formatting, line length, semicolons. Prettier/eslint own this.
 - Generic TS advice the model already knows ("prefer const," "use template literals"). The author already knows.
 - Import ordering. The formatter owns it.
-- Anything in unchanged code unless it's a security issue or a directly implicated caller needed to explain the changed behavior.
+- For diff reviews, do not report unchanged code unless it's a security issue or a directly implicated caller needed to explain the changed behavior. For an explicitly requested full-repository review, honor that scope.
 - Speculation without a concrete failure mechanism; report verification gaps separately.
 
 ## Final output

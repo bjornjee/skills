@@ -89,7 +89,7 @@ Confidence is separate from severity. State the evidence and uncertainty; do not
 - Line length, formatting, whitespace. `ruff format` / `black` own this.
 - Generic Python advice the model already knows ("use f-strings," "use pathlib"). The author already knows.
 - Import ordering. `ruff` / `isort` own this.
-- Anything in unchanged code unless it's a security issue or a directly implicated caller needed to explain the changed behavior.
+- For diff reviews, do not report unchanged code unless it's a security issue or a directly implicated caller needed to explain the changed behavior. For an explicitly requested full-repository review, honor that scope.
 - Speculation without a concrete failure mechanism; report verification gaps separately.
 
 ## Final output
