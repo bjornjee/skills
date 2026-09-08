@@ -22,9 +22,10 @@ code is the code never written.
 
 ## Persistence
 
-ACTIVE EVERY RESPONSE. No drift back to over-building. Still active if
-unsure. Off only: "stop ponytail" / "normal mode". Default: **full**.
-Switch: `/ponytail lite|full|ultra`.
+The selected level persists for implementation choices until changed or the
+session ends. It does not override the user's explicit scope, requested output
+format, explanation depth, or planning request. Off: "stop ponytail" /
+"normal mode". Default: **full**. Switch: `/ponytail lite|full|ultra`.
 
 ## The ladder
 
@@ -58,18 +59,18 @@ every sibling caller still broken. Fix it once, where all callers route through.
 - No boilerplate, no scaffolding "for later", later can scaffold for itself.
 - Deletion over addition. Boring over clever, clever is what someone decodes at 3am.
 - Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
-- Complex request? Ship the lazy version and question it in the same response, "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
+- Complex request? Simplify the implementation while satisfying every explicit
+  requirement. If a smaller deliverable would change scope, propose it before
+  substituting it; do not silently ship a partial version.
 - Two stdlib options, same size? Take the one that's correct on edge cases. Lazy means writing less code, not picking the flimsier algorithm.
 - Mark deliberate simplifications with a `ponytail:` comment (`// ponytail: this exists`), simple reads as intent, not ignorance. Shortcut with a known ceiling (global lock, O(n²) scan, naive heuristic)? The comment names the ceiling and the upgrade path: `# ponytail: global lock, per-account locks if throughput matters`.
 
 ## Output
 
-Code first. Then at most three short lines: what was skipped, when to add it.
-No essays, no feature tours, no design notes. If the explanation is longer
-than the code, delete the explanation, every paragraph defending a
-simplification is complexity smuggled back in as prose. Explanation the user
-explicitly asked for (a report, a walkthrough, per-phase notes) is not debt,
-give it in full, the rule is only against unrequested prose.
+Keep unrequested implementation summaries concise: state what was skipped and
+when to add it. Follow the user's requested format and depth for plans, reviews,
+reports, walkthroughs, and status updates; Ponytail governs the implementation,
+not how the user asks to communicate.
 
 Pattern: `[code] → skipped: [X], add when [Y].`
 
@@ -107,8 +108,8 @@ Use the active root doctrine’s verification profile and the repository’s exi
 
 ## Boundaries
 
-Ponytail governs what you build, not how you talk (pair with Caveman for
-terse prose). "stop ponytail" / "normal mode": revert. Level persists until
-changed or session end.
+Ponytail governs what you build, not how you talk (pair with Caveman for terse
+prose). "stop ponytail" / "normal mode": revert. Level persists until changed
+or session end.
 
 The shortest path to done is the right path.

@@ -31,18 +31,21 @@ gh issue comment <n> --body "Thanks — could you share reproduction steps?"
 
 ## PR management
 
-Review order: CI status → mergeable → age / last activity → tests-and-conventions for community PRs. Flag any PR older than 5 days with no review.
+For the selected PR, review CI status, mergeability, relevant activity, and
+tests/conventions. Apply the repository's age-based rules within an authorized
+maintenance scope.
 
 ```bash
 gh pr checks <n>                          # CI state
 gh pr view <n> --json mergeable,reviewDecision,updatedAt
 ```
 
-### Stale policy
+### Stale maintenance (when authorized)
 
-- Issues idle 14+ days: add `stale`, comment asking for an update.
-- PRs idle 7+ days: comment asking if still active.
-- Auto-close stale issues after 30 days of silence (add `closed-stale`).
+- Use the repository's configured inactivity periods, labels, messages, and
+  closure policy.
+- Comment, label, close, or reopen only on objects included in the user's
+  authority for the maintenance run.
 
 Compute cutoffs relative to *now* — never hardcode a date that rots:
 
@@ -81,11 +84,14 @@ gh api repos/{owner}/{repo}/secret-scanning/alerts --jq '.[].state'
 gh pr list --label "dependencies" --json number,title
 ```
 
-Auto-merge safe bumps; escalate critical/high advisories immediately; sweep alerts weekly.
+For dependency updates and alerts, inspect the selected items and follow the
+repository's merge and maintenance policy. Auto-merge, alert sweeps, comments,
+and closures require user authorization covering those operations and objects;
+repository policy does not broaden a narrow task's scope.
 
 ## CODEOWNERS
 
-Lives in `.github/CODEOWNERS`. Each line is `path-pattern  @owner…` using gitignore glob syntax.
+Lives in `.github/CODEOWNERS`. Each line is `path-pattern  @owner…` using [GitHub's CODEOWNERS pattern syntax](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners), which differs from gitignore syntax for negation, character ranges, and escaped leading `#`.
 
 - **Last matching rule wins** — put specific rules *after* general ones, never before.
 - **Fallthrough owner:** a leading `*  @org/maintainers` line guarantees every path has an owner; tighter rules below override it.
@@ -110,23 +116,31 @@ Reach for a **reusable workflow** to share a whole pipeline (build + test + depl
 
 ## Monorepo path filtering
 
-Skip a whole workflow when the touched paths don't matter:
+Keep a required workflow triggered for pull requests. Determine path relevance
+inside it, then conditionally run relevant jobs; a job skipped by `jobs.<id>.if`
+reports success, while a path-filtered workflow may leave a required check
+pending.
 
 ```yaml
 on:
-  push:
-    paths: ["services/api/**", ".github/workflows/api.yml"]
+  pull_request:
+  # Add `merge_group:` when this repository uses merge queues.
 ```
 
-For per-job gating inside one workflow, run `dorny/paths-filter` and branch on its boolean outputs.
+For per-job gating inside one workflow, run `dorny/paths-filter` and branch on
+its boolean outputs. A final required gate that depends on conditional jobs
+must run with `if: ${{ always() }}` (or equivalent), verify path detection
+succeeded, and require `success` in `needs.<job>.result` for every relevant job.
+Failure, cancellation, or an unexpectedly skipped relevant job must not pass.
 
-**The required-check trap:** a path-filtered required check that gets *skipped* posts no status, so the PR blocks forever waiting on a check that will never report. Fixes: (a) keep the check required but add a no-op job of the **same name** that reports success on the filtered-out paths, or (b) drop it from required checks and lean on GitHub's merge-queue / expected-status config instead. Never mark a path-filtered job required without one of these.
+If the repository uses merge queues, include `merge_group` in required workflow
+triggers and verify queue runs as well as pull-request runs. Do not remove a
+required test merely to avoid a pending check.
 
 ## Quality gate
 
-Before calling a GitHub task done:
-- every triaged issue carries appropriate labels
-- no PR older than 7 days without a review or comment
-- CI failures investigated, not just re-run
-- releases ship accurate changelogs
-- security alerts acknowledged and tracked
+Before calling a GitHub task done, check only criteria relevant to the requested
+operation and selected objects. For example: a triage task verifies its labels;
+a CI task investigates its failures; a release task verifies its notes. Stale
+durations, automatic maintenance, and auto-merge are repository policy, not
+universal completion criteria.

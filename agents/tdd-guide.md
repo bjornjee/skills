@@ -76,7 +76,7 @@ Detect the stack from the repo you're in and use the right command:
 |---|---|
 | `Makefile` with scoped targets | Use the narrow target first (`make test-fast`, package target, validator) |
 | `go.mod` | `go test ./pkg` or the narrow package; add `-race` for concurrency/shared-state risk |
-| `pyproject.toml` / `pytest.ini` | `pytest path::test_name` or the smallest package/module |
+| Python test configuration | The repository's established runner and smallest included test/module command |
 | `package.json` with Node tests | `node --test file.test.js`, package test, or `npm test` when no smaller proof exists |
 | Terraform/config docs | native validator such as `terraform validate` in the touched module, or no executable proof if none applies |
 
@@ -101,9 +101,10 @@ If a test you're about to write would shell out to a real binary, stop and rewri
 
 ## Python-specific rules (when working in a Python repo)
 
-- Use `pytest` with explicit fixtures. Don't rely on test ordering.
-- Mock external services at the boundary (`requests`, DB clients, OpenAI/Anthropic SDKs). The `monkeypatch` and `unittest.mock` patterns are both acceptable; pick one per file and stay consistent.
-- For async code, use `pytest-asyncio` and mark coroutine tests explicitly.
+- Use the repository's established runner, fixtures, and async-test mechanism.
+  In pytest projects, use explicit fixtures and the configured async support;
+  don't rely on test ordering.
+- Mock external services at the boundary (`requests`, DB clients, OpenAI/Anthropic SDKs). Use the project's existing mocking style consistently.
 
 ## Edge cases you must consider
 

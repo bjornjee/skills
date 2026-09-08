@@ -46,7 +46,7 @@ These are the only hardcoded rules. They are deliberately stack-agnostic within 
 
 8. **No fallbacks or compatibility shims** unless they're at a documented boundary (CLI flag, config option, version migration). `if v1Format { ... } else { ... }` branches that aren't tied to an explicit migration plan are bugs waiting to happen.
 
-9. **Hot paths must be identified and protected.** Code that runs on every render frame, every request, every event, every tool call needs explicit attention. Flag: allocations in render loops, syscalls in request handlers, mutex contention in pub/sub fan-out, unbounded slice growth in long-lived goroutines.
+9. **Hot paths must be identified and protected.** Inspect code that runs on every render frame, request, event, or tool call for allocations in render loops, syscalls in request handlers, mutex contention in pub/sub fan-out, and unbounded slice growth in long-lived goroutines. Report only when the path is unbounded, violates a project rule, or has a concrete latency/capacity mechanism or measurement.
 
 10. **Stderr/logs must remain capturable.** Code that takes over the terminal (TUI, daemons that detach) must redirect stderr to a file before doing so. Otherwise panics, OS signals, and unstructured errors become invisible. Same rule for any code that closes/replaces `os.Stderr`.
 
@@ -88,7 +88,7 @@ Confidence is separate from severity. State the evidence and uncertainty; do not
 - Comment/docstring presence. Missing godoc on an exported function is not a bug.
 - Line length, formatting, whitespace. `gofmt` owns this.
 - Generic Go advice the model already knows ("use `errors.Is`," "context as first parameter"). The author already knows.
-- Anything in unchanged code unless it's a security issue or a directly implicated caller needed to explain the changed behavior.
+- For diff reviews, do not report unchanged code unless it's a security issue or a directly implicated caller needed to explain the changed behavior. For an explicitly requested full-repository review, honor that scope.
 - Speculation without a concrete failure mechanism; report verification gaps separately.
 
 ## Final output
