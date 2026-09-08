@@ -4,49 +4,52 @@ description: Use when deciding whether/when to compact the session, or when audi
 ---
 # Context Management
 
-Two halves of one problem: **when** to compact (timing beats auto-compaction) and **what** is eating the window (audit before adding more components).
+Two halves of one problem: **when** to compact without losing task continuity, and **what** is consuming the active runtime's context.
 
 ## When to compact — phase boundaries, not thresholds
 
-Auto-compaction fires at arbitrary points, often mid-task. Compact deliberately at logical boundaries:
+If context pressure warrants compaction, prefer a logical phase boundary. These are opportunities, not instructions to compact after every phase:
 
 | Phase transition | Compact? | Why |
 |-----------------|----------|-----|
-| Research → Planning | Yes | Research context is bulky; the plan is the distilled output |
-| Planning → Implementation | Yes | Plan lives in the task list or a file; free context for code |
+| Research → Planning | Consider | Preserve relevant evidence and unresolved questions before summarizing |
+| Planning → Implementation | Consider | Preserve the agreed plan, constraints, and proof commands first |
 | Implementation → Testing | Maybe | Keep if tests reference recent code; compact if switching focus |
-| Debugging → Next feature | Yes | Debug traces pollute unrelated work |
+| Debugging → Next feature | Consider | Preserve the diagnosis and verification before discarding traces |
 | Mid-implementation | No | Losing variable names, paths, and partial state is costly |
-| After a failed approach | Yes | Clear the dead-end reasoning before the new attempt |
+| After a failed approach | Consider | Preserve what failed and why so the next attempt does not repeat it |
 
-What survives compaction: CLAUDE.md/rules, the task list, memory files, git state, files on disk. What's lost: intermediate reasoning, previously-read file contents, tool-call history, verbally-stated nuances. **Write before compacting** — durable context goes to files or memory first. Use `/compact <focus message>` to steer the summary.
+What the runtime retains or summarizes varies. Files and git state persist, but reloading them and preserving conversational constraints are separate responsibilities. Before compacting, preserve the active request, accepted decisions, constraints, evidence, failed approaches, and next step in the runtime's supported handoff mechanism. Use `/compact <focus message>` when that command is available.
 
 ## Optional reminder hook
 
-The skill works on demand with no hook — this plugin deliberately ships zero hooks. For automatic nudges, wire `suggest-compact.sh` (in this skill's directory) as a PreToolUse hook in `~/.claude/settings.json`:
+The skill works on demand. The plugin does not register this optional hook. For Claude Code on macOS/Linux with Bash and Python 3, first resolve the installed skill's absolute path and verify `suggest-compact.sh` and its adjacent `scripts/suggest_compact.py` exist. Under the user's existing installation authority, replace the example path below and merge this entry into the selected Claude settings without replacing unrelated hooks:
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Edit", "hooks": [{ "type": "command", "command": "bash ~/.claude/skills/context-management/suggest-compact.sh" }] },
-      { "matcher": "Write", "hooks": [{ "type": "command", "command": "bash ~/.claude/skills/context-management/suggest-compact.sh" }] }
+      { "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "bash '/absolute/path/to/context-management/suggest-compact.sh'", "timeout": 5 }] }
     ]
   }
 }
 ```
 
-It counts tool calls per session and suggests compaction at a threshold (`COMPACT_THRESHOLD`, default 50), reminding every 25 after.
+The helper reads the documented stdin `session_id`, counts matching tool invocations, and emits agent-facing PreToolUse JSON context at `COMPACT_THRESHOLD` (a positive integer, default 50), then every 25 invocations after that threshold. It never invokes compaction itself. Verify a reminder through the actual runtime before claiming successful hook setup; captured stderr is not agent-facing evidence. See the [Claude hook input/output contract](https://code.claude.com/docs/en/hooks).
+
+State is one small hashed-session counter under `${XDG_STATE_HOME:-$HOME/.local/state}/bjornjee-skills/compact`. The base must be absolute; path components must not be symlinks. State directories and files must be user-owned and private. Symlinked or hard-linked counters are refused. No old `/tmp/claude-tool-count-*` files are read, migrated, or deleted.
+
+Each invocation reads at most 1 MiB of input and 32 bytes of counter state. Malformed input, unsafe state, missing Python, and lock contention skip the optional reminder without blocking a tool. Counts are approximate under contention or interrupted writes; corrupt numeric state resets the count. Counters persist across resumes and are not automatically scanned or pruned. Cleanup, if requested, is limited to identified session counters when those sessions have stopped.
 
 ## Auditing the window
 
 Run when the session feels sluggish, after adding components, or before adding more.
 
-**Inventory** (token estimate: `words × 1.3` prose, `chars / 4` code-heavy):
-- **Agents** (`agents/*.md`) — flag files >200 lines; flag descriptions >30 words (the description loads into *every* Task invocation even if the agent is never spawned).
-- **Skills** (`skills/*/SKILL.md`) — flag >400 lines; skip identical copies behind Codex plugin symlinks (e.g. `plugins/skills/skills/`) to avoid double-counting.
+**Inventory** what the active runtime actually loads. `words × 1.3` for prose and `chars / 4` for code are rough estimates, not measured token counts. The size cues below identify inspection candidates, not removal thresholds:
+- **Agents** (`agents/*.md`) — inspect files >200 lines or descriptions >30 words; distinguish advertised metadata from bodies loaded only on delegation.
+- **Skills** (`skills/*/SKILL.md`) — inspect bodies >400 lines; distinguish the active catalog from loaded bodies and avoid counting one installation twice.
 - **Rules** (`.claude/rules/*.md`) — flag >100 lines; detect overlap between rule files and CLAUDE.md.
-- **MCP servers** — ~500 tokens per tool schema; flag servers with >20 tools and servers wrapping CLIs you already have (`gh`, `git`, `npm`). **MCP is the biggest lever** — one 30-tool server outweighs all your skills combined.
+- **MCP servers** — measure exposed schema size and account for deferred tool loading. Inspect overlap with existing capabilities without assuming a CLI and connector have equivalent permissions or behavior.
 - **CLAUDE.md chain** — flag combined >300 lines.
 
 **Classify** each component: always needed (referenced by doctrine/commands/project type) → keep; sometimes needed (domain-specific) → on-demand; rarely needed (no reference, overlapping) → remove.
@@ -57,4 +60,4 @@ Run when the session feels sluggish, after adding components, or before adding m
 
 - Audit after every component addition — creep is invisible until it isn't.
 - Bloated frontmatter descriptions are a permanent tax; body bloat is only paid on invocation. Fix descriptions first.
-- Don't compact to "tidy up" mid-implementation — the table above is the contract.
+- Preserve task continuity; do not compact just to satisfy the table or remove context solely to hit a size cue.
