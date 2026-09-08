@@ -17,7 +17,8 @@ Pull these skills and agents into the workflow when relevant:
 
 - the project's test suite for exact proving steps after changes
 - the `tdd-guide` agent when the right fix needs regression coverage
-- `/security-review` when secrets, auth, or external inputs are involved
+- the active doctrine's security-boundary review when changed secrets, auth, or external-input boundaries are involved; use an installed security capability only when its declared scope applies
+- `security-design` when designing a trust boundary; it informs design and does not replace the required review
 - `github-ops` when the task depends on CI runs, PR state, or release status
 - LEARNINGS.md / project memory when the verified outcome needs to be captured into durable project context
 

@@ -1,13 +1,13 @@
 ---
 name: codex-delegate
-description: Delegate coding tasks to Codex CLI (GPT-5.4) with a structured plan handoff. Use after planning is complete and the Codex CLI plugin is installed — pass the plan directly to Codex for implementation.
+description: Delegate coding tasks to a configured, supported Codex model with a structured plan handoff. Use after planning is complete and the Codex CLI plugin is installed — pass the plan directly to Codex for implementation.
 ---
 
 # Codex Delegation
 
 Delegate implementation to Codex CLI after planning with Claude. The plan is the context handoff.
 
-GPT-5.4 is competitive with frontier Claude models on agentic coding benchmarks. Claude plans, Codex implements.
+Claude plans and retains review responsibility; the configured, supported Codex model implements the approved plan.
 
 ## When to Activate
 
@@ -252,17 +252,19 @@ go vet ./internal/service/...
 </verification>
 ```
 
-## Effort and Model Selection
+## Companion Helper Effort and Model Options
+
+These are options consumed by the declared companion helper, not native Codex CLI configuration. The helper/version provenance remains the one declared above.
 
 | Task Type | Flag | When |
 |---|---|---|
 | Quick fix, small change | `--effort low` | < 5 min tasks |
-| Standard implementation | (default medium) | Most tasks |
+| Standard implementation | Omit overrides | Use the verified helper/runtime configuration |
 | Complex multi-file feature | `--effort high` | Architectural work |
-| Critical/security-sensitive | `--effort xhigh --profile strict` | Maximum compliance |
-| Fast iteration/scaffolding | `--model gpt-5.3-codex-spark` | Boilerplate |
+| Critical/security-sensitive | `--effort xhigh` | Use when task risk warrants a higher supported effort |
+| Fast iteration/scaffolding | `--model <supported-model>` | Select a model supported by the selected transport |
 
-Model names drift — inspect the current runtime’s advertised models and `codex --help` before selecting a supported command; do not assume a `codex models` subcommand exists.
+Before selecting a model or effort, inspect the selected helper's accepted options and the current runtime's advertised capabilities. Native Codex CLI configuration uses its own syntax; verify it separately. Do not assume a `codex models` subcommand exists.
 
 ## Available Commands
 
