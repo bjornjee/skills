@@ -22,9 +22,9 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 **Churn ended:** discovered across five same-day PRs (#47–#51). Codex defaults to a read-only sandbox in the wrong directory.
 **Rule:** every Codex dispatch carries both flags. If codex-delegate is ever rewritten, these are the two invariants that were paid for in production.
 
-## 6. Version bumps are three-file atomic — use `make bump`
+## 6. Version bumps stay in lockstep — use `make bump`
 **Churn ended:** 100 manual touches across history on `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`; the Codex manifest silently drifted six minor versions before the lockstep test existed.
-**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. Remaining prose-only gap: nothing verifies a bump *happened* when behavior changed vs the base branch — candidate for a CI diff-vs-base check.
+**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. `scripts/check-version-bump.js <base-revision>` additionally verifies that payload changes increase the version against the PR base.
 
 ## 7. `.codex/AGENTS.md` is Codex-canonical doctrine, symmetric to `.claude/rules/core.md`
 **Churn ended:** removed in #58, deliberately re-added in #75/#76. The removal read the file as dead weight; it is the only always-on surface Codex has.

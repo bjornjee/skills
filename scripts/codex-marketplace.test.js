@@ -1,122 +1,57 @@
 #!/usr/bin/env node
 'use strict';
-
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const childProcess = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
-
 const REPO = path.resolve(__dirname, '..');
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function skillNames(root) {
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => entry.name)
-    .sort();
-}
-
-function relativeFiles(root) {
-  const entries = [];
-
-  function walk(current) {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const fullPath = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        walk(fullPath);
-      } else if (entry.isFile()) {
-        entries.push(path.relative(root, fullPath));
-      }
-    }
-  }
-
-  walk(root);
-  return entries.sort();
-}
+const readJson = filename => JSON.parse(fs.readFileSync(filename, 'utf8'));
 
 describe('codex marketplace', () => {
-  it('uses a non-root plugin source path with a Codex manifest', () => {
+  it('resolves a self-contained repository-root package', () => {
     const marketplace = readJson(path.join(REPO, '.agents/plugins/marketplace.json'));
-    const plugin = marketplace.plugins.find(entry => entry.name === 'skills');
-    assert.ok(plugin, 'skills plugin entry should exist');
-    assert.equal(plugin.source.source, 'local');
-    assert.equal(plugin.source.path, './plugins/skills');
-
-    const pluginRoot = path.join(REPO, plugin.source.path);
-    assert.equal(fs.existsSync(path.join(pluginRoot, '.codex-plugin/plugin.json')), true);
-  });
-
-  it('packages skills inside the Codex plugin root', () => {
-    const manifest = readJson(path.join(REPO, 'plugins/skills/.codex-plugin/plugin.json'));
-    assert.equal(manifest.name, 'skills');
+    const entry = marketplace.plugins.find(plugin => plugin.name === 'skills');
+    assert.equal(entry.source.source, 'local');
+    assert.equal(entry.source.path, './');
+    const root = path.resolve(REPO, entry.source.path);
+    const manifest = readJson(path.join(root, '.codex-plugin/plugin.json'));
     assert.equal(manifest.skills, './skills/');
-    assert.equal(manifest.skills.includes('..'), false);
-
-    const skillsRoot = path.resolve(REPO, 'plugins/skills', manifest.skills);
-    assert.equal(fs.existsSync(path.join(skillsRoot, 'search-first/SKILL.md')), true);
-    assert.equal(fs.existsSync(path.join(skillsRoot, 'terminal-ops/SKILL.md')), true);
+    assert.equal(fs.lstatSync(path.join(root, manifest.skills)).isSymbolicLink(), false);
   });
 
-  it('keeps the packaged Codex skills in sync with the top-level skills', () => {
-    const packagedSkills = path.join(REPO, 'plugins/skills/skills');
-    const topLevelSkills = path.join(REPO, 'skills');
-
-    assert.deepEqual(
-      skillNames(packagedSkills),
-      skillNames(topLevelSkills),
-    );
-
-    for (const relativeFile of relativeFiles(topLevelSkills)) {
-      assert.equal(
-        fs.readFileSync(path.join(packagedSkills, relativeFile), 'utf8'),
-        fs.readFileSync(path.join(topLevelSkills, relativeFile), 'utf8'),
-        `${relativeFile} should match the top-level skill copy`,
-      );
+  it('loads every bundled skill in an isolated package without the source checkout', () => {
+    const isolated = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-package-'));
+    try {
+      // Copy exactly the package components, without dereferencing escaping links.
+      const root = path.resolve(REPO, readJson(path.join(REPO, '.agents/plugins/marketplace.json')).plugins[0].source.path);
+      for (const component of ['.codex-plugin', 'skills']) {
+        fs.cpSync(path.join(root, component), path.join(isolated, component), { recursive: true, verbatimSymlinks: true });
+      }
+      const manifest = readJson(path.join(isolated, '.codex-plugin/plugin.json'));
+      const skills = path.join(isolated, manifest.skills);
+      for (const name of fs.readdirSync(path.join(REPO, 'skills'))) {
+        assert.ok(fs.existsSync(path.join(skills, name, 'SKILL.md')), `missing packaged skill ${name}`);
+      }
+      function inspect(directory) {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+          const filename = path.join(directory, entry.name);
+          assert.equal(entry.isSymbolicLink(), false, `package link: ${filename}`);
+          if (entry.isDirectory()) inspect(filename);
+        }
+      }
+      inspect(isolated);
+    } finally {
+      fs.rmSync(isolated, { recursive: true, force: true });
     }
   });
 
-  it('uses a single Codex manifest under the packaged plugin root', () => {
-    assert.equal(fs.existsSync(path.join(REPO, '.codex-plugin/plugin.json')), false);
-  });
-
-  it('exposes the Codex skills as a symlink to the canonical skills tree', () => {
-    const linkPath = path.join(REPO, 'plugins/skills/skills');
-    const stat = fs.lstatSync(linkPath);
-    assert.equal(stat.isSymbolicLink(), true, 'plugins/skills/skills should be a symlink');
-    assert.equal(fs.readlinkSync(linkPath), '../../skills');
-    assert.equal(
-      fs.realpathSync(linkPath),
-      fs.realpathSync(path.join(REPO, 'skills')),
-    );
-  });
-
-  it('has an idempotent sync check for the packaged Codex skills', () => {
-    childProcess.execFileSync(
-      path.join(REPO, 'scripts/sync-codex-plugin.sh'),
-      ['--check'],
-      { stdio: 'pipe' },
-    );
-  });
-
-  it('keeps the Codex plugin version in lockstep with the Claude plugin', () => {
-    // Three version files, one version. The Codex manifest silently drifted
-    // 6 minor versions behind (0.33.5 vs 0.39.3) across 7 behavior-changing
-    // commits before this assertion existed.
-    const claudePlugin = readJson(path.join(REPO, '.claude-plugin/plugin.json'));
+  it('keeps three manifest versions in lockstep', () => {
+    const claude = readJson(path.join(REPO, '.claude-plugin/plugin.json'));
     const marketplace = readJson(path.join(REPO, '.claude-plugin/marketplace.json'));
-    const codexPlugin = readJson(path.join(REPO, 'plugins/skills/.codex-plugin/plugin.json'));
-
-    const marketplaceEntry = marketplace.plugins.find(entry => entry.name === 'skills');
-    assert.ok(marketplaceEntry, 'marketplace must contain the skills plugin');
-    assert.equal(marketplaceEntry.version, claudePlugin.version);
-    assert.equal(
-      codexPlugin.version,
-      claudePlugin.version,
-      'plugins/skills/.codex-plugin/plugin.json version must match .claude-plugin/plugin.json — bump all three together (see CLAUDE.md)',
-    );
+    const codex = readJson(path.join(REPO, '.codex-plugin/plugin.json'));
+    assert.equal(marketplace.plugins.find(entry => entry.name === 'skills').version, claude.version);
+    assert.equal(codex.version, claude.version);
+    assert.equal(fs.existsSync(path.join(REPO, 'plugins/skills/.codex-plugin/plugin.json')), false);
   });
 });
