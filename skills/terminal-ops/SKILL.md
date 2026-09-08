@@ -42,7 +42,7 @@ Pause and confirm intent (or take the safer alternative) before any of:
 - `DROP TABLE` / `DROP DATABASE`; destructive `kubectl delete`; `docker system prune`
 - `chmod 777`; accidental `npm publish`; anything with `--no-verify`
 
-State what the command will destroy and the recovery path (or "none") before running it. Default-on for autonomous sessions (`codex -a never`). The agent-dashboard plugin's `warn-destructive` / `block-main-commit` hooks enforce a subset mechanically; this checklist covers the rest.
+State what the command will destroy and the recovery path (or "none") before running it. Default-on for autonomous sessions (`codex -a never`). A verified native or agent-dashboard hook may warn about a subset of command shapes. It cannot enforce directory freezing or comprehensive shell safety; platform permissions and scoped authorization remain authoritative.
 
 ## Workflow
 

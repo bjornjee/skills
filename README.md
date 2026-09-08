@@ -158,6 +158,8 @@ skills/<name>/SKILL.md
 
 Use the runtime's plugin UI or supported marketplace/install commands to install `skills@bjornjee-skills` from this repository. The plugin exposes skills; it does not install root doctrine, agents, or user hooks. Avoid enabling duplicate skill installations unless the runtime's precedence is understood. `make test` verifies an isolated package with no source-checkout symlinks.
 
+The native destructive-command hook is an advisory lexical guard. It recognizes common direct command forms, including executable paths and Git global options. It does not interpret aliases, substitutions, eval, scripts, or all shell syntax and does not implement directory freezing. Platform permissions and authorization remain authoritative.
+
 ### Project-local Codex config
 
 The marketplace install ships skills only. If you also want this repo's project-level Codex config (`AGENTS.md`, `.codex/`) inside another checkout, copy them in:

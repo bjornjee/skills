@@ -2,9 +2,9 @@
 
 Settled decisions this repo litigated more than once. Strict reviewers load this file as Layer-2 evidence; treat each entry as a pattern known to have caused real churn here. Re-opening one of these requires new evidence, not new taste.
 
-## 1. Hooks live in agent-dashboard, never in this plugin
-**Churn ended:** #45 moved hook registration out; CURATION.md records the policy; skills (safety-guard, strategic-compact) later needed corrective PRs because they *described* hook behavior this plugin cannot ship.
-**Rule:** this plugin is pure configuration — zero hook implementations. Enforcement belongs to agent-dashboard (`test-gate`, `warn-destructive`, `block-main-commit`). Personal global Codex wiring may reference those canonical sources, but must never copy their implementation into this repo.
+## 1. Separate packaged configuration from personal global enforcement
+**Decision:** the plugin package exposes skills. Repository-owned `native-codex/` scripts support explicit personal global installation; they are not automatically enabled by plugin installation.
+**Rule:** `make sync-codex` installs the repository's advisory destructive-command hook. Agent-dashboard gates are optional and must never be assumed present. Native permissions remain the enforcement boundary. Do not claim directory freezing or complete shell-command coverage from this hook.
 
 ## 2. codegraph-audit is on-demand, not a hard pre-PR dispatch
 **Churn ended:** three states across #60/#75 — CI-driven → local hard-dispatch → on-demand. The hard dispatch silently couldn't fire without the third-party `codegraph` CLI installed.
