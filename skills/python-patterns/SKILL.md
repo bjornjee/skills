@@ -10,17 +10,17 @@ the `python-reviewer-strict` agent.
 
 ## Style & types
 - PEP 8. Type annotations on every public function signature.
-- PEP 604 union syntax (`X | None`), not `Optional[X]`. No untyped `**kwargs` in public APIs.
-- Pydantic `BaseModel` over `@dataclass` for data classes. `frozen=True` or `NamedTuple` when Pydantic isn't needed.
+- Use union syntax supported by the project's Python target (`X | None` where available; otherwise `Optional[X]`). No untyped `**kwargs` in public APIs.
+- Use stdlib dataclasses for internal records; use Pydantic at boundaries when its validation is needed and already available.
 - `Protocol` for interfaces (duck typing).
-- Pydantic v2 idioms: `@field_validator` / `@model_validator`, discriminated unions via `Field(discriminator=...)`, `model_config` — not the v1 class `Config`.
+- Use validation and configuration APIs consistently for the project's installed Pydantic version; do not migrate solely to copy newer syntax.
 - Top-level imports only. No nested/inline imports inside functions or methods. The only exception is breaking a genuine circular import — and even then, fix the cycle instead.
 
 ## Side effects & boundaries
 - Inject HTTP clients, DB sessions, time, randomness, env vars as parameters or attributes. Never reach for them inside business logic.
 - Context managers for resources. Generators for lazy evaluation.
-- `logging` module, never `print()`.
-- Secrets and config via `pydantic-settings` (`BaseSettings`). Never hardcoded, never `os.getenv()` scattered through the codebase.
+- `logging` for application diagnostics; `print()` is appropriate for a CLI’s intentional user output.
+- Centralize config at the boundary. Use existing settings tooling; stdlib environment parsing is sufficient for small scripts, and `pydantic-settings` is appropriate when structured validation warrants it. Never hardcode secrets.
 
 ## Errors
 - No silent exceptions. No `except:`, no `except Exception: pass`, no `except Exception: return None`.
@@ -35,11 +35,11 @@ the `python-reviewer-strict` agent.
 - Store references to `asyncio.create_task(...)` — bare task spawns can be GC'd mid-flight.
 
 ## Concurrency model
-- asyncio for I/O-bound; `ProcessPoolExecutor` for CPU-bound (the GIL makes threads useless there); thread pools only to wrap sync libraries that can't be made async.
+- Use asyncio for I/O-bound work and thread pools to isolate synchronous libraries when needed. GIL-bound Python code does not gain CPU parallelism from threads; consider processes or native code that releases the GIL. On a free-threaded runtime, verify dependency support and measure thread scaling.
 
 ## Tooling
-- Format + lint: `ruff` (with `ruff format`). Types: `mypy`. Security: `bandit`.
-- Package management: `uv`. Build backend: `hatchling`. Dev/test extras via uv dependency-groups — no `requirements-dev.txt`.
-- Layout: `src/` package, `tests/` at repo root.
-- Settings: a single `Settings(BaseSettings)` class in `src/settings.py` exposed via an `@lru_cache(maxsize=1) get_settings()` function. No scattered `os.getenv` calls.
-- Tests: `pytest`, `pytest-cov`, `pytest-asyncio`, `pytest-mock`. Tests never touch the real network, real DB, real wall clock — use `tmp_path`, `monkeypatch`, `responses`/`httpx.MockTransport`, `freezegun`.
+- Use the existing formatter, lint/type checks, and security checks. Do not add tooling just to satisfy a preference.
+- For new packaged projects, `uv` is a useful default; preserve existing package managers/build backends unless migration is requested.
+- Use the established layout; a small script need not become a package.
+- Centralize settings parsing and inject the result; avoid scattered environment reads in business logic.
+- Use the established test runner; add plugins only when required. Unit tests isolate external services and time. Hermetic integration tests may use local processes, sockets, temporary files, and disposable databases; real-boundary regressions require evidence at the failing surface. Use the established runner and fixtures.

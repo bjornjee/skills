@@ -4,7 +4,7 @@ description: Use when writing or reviewing Go tests — table-driven suites, gol
 ---
 # Go Testing
 
-The layer above `.claude/rules/golang.md` (which owns table-driven + subtests, no real-world I/O, `-race` in CI) and core doctrine (which owns the RED→GREEN→REFACTOR cadence — not repeated here). This file owns what those don't: which tool to reach for, and the traps that make Go tests flaky or falsely green.
+Read [Go basics](../golang-patterns/references/basics.md) for shared conventions. This skill covers testing decisions beyond the root verification profile.
 
 ## Table-driven: the non-obvious bits
 The rule already mandates table + `t.Run`. Two things it doesn't:
@@ -13,16 +13,16 @@ The rule already mandates table + `t.Run`. Two things it doesn't:
 
 ## t.Parallel() hazards
 `t.Parallel()` is where "passes locally, flakes in CI" is born.
-- **Teardown timing (the live Go 1.22+ trap):** a parent test's body returns *before* its parallel children run, so a `defer cleanup()` or parent-level `t.Cleanup` fires while children still need the fixture. Register cleanup *inside each parallel subtest*, or own shared setup in `TestMain`. (The old `tt := tt` capture is a no-op now — loop vars are per-iteration.)
+- **Teardown timing:** a parent’s ordinary `defer` runs when its body returns, before parallel children finish. Parent `t.Cleanup` runs after the test and all subtests complete, so it can safely own their shared fixture. Check the module's loop-variable semantics before capturing table entries in parallel subtests. See [testing.T.Cleanup](https://pkg.go.dev/testing#T.Cleanup).
 - **Env is process-global:** `t.Setenv` panics if the test also calls `t.Parallel`, precisely because one test's mutation would leak into concurrent siblings. A parallel test cannot use `t.Setenv` — inject config instead.
 - **Shared state / fixtures:** two parallel tests mutating the same map, temp table, or singleton race even when `-race` happens to pass on one run. Give each its own namespace: `t.TempDir()`, a UUID-suffixed table, a fresh struct.
 
 ## TestMain for expensive shared setup
-One container or migration for the whole package, not per-test.
+One container or migration for the whole package, not per-test. Here `postgresImage` is test configuration: choose an image matching the database features and release used by the target environment, and pin it for reproducibility.
 ```go
 func TestMain(m *testing.M) {
     ctx := context.Background()
-    pg, err := postgres.Run(ctx, "postgres:16") // testcontainers-go
+    pg, err := postgres.Run(ctx, postgresImage) // testcontainers-go
     if err != nil {
         log.Fatalf("start postgres: %v", err)
     }
@@ -60,7 +60,7 @@ func TestCounter_Concurrent(t *testing.T) {
     var c Counter
     start := make(chan struct{}) // gate: line everyone up before releasing
     var wg sync.WaitGroup
-    for range 100 {
+    for worker := 0; worker < 100; worker++ {
         wg.Add(1)
         go func() {
             defer wg.Done()
@@ -121,12 +121,14 @@ func FuzzRoundTrip(f *testing.F) {
 Good properties: round-trip identity, never-panics, output-always-reparses, invariant-preserved. A crasher the fuzzer finds is saved under `testdata/fuzz/` — commit it, and it becomes a permanent regression case in the normal `go test` run.
 
 ## Benchmarks
+Use `b.Loop()` when supported by the project's toolchain. Otherwise follow its established `b.N` benchmark pattern, excluding setup from timing and retaining results so the compiler cannot eliminate the work.
+
 ```go
 func BenchmarkEncode(b *testing.B) {
     v := build()      // setup before b.Loop() is auto-excluded from timing
     b.ReportAllocs()  // allocs/op is usually the real signal, not ns/op
-    for b.Loop() {    // Go 1.24+: replaces the b.N loop + ResetTimer,
-        _ = Encode(v) // and keeps v alive so the call isn't optimized away
+    for b.Loop() {    // excludes setup and protects calls in the loop from elimination
+        _ = Encode(v)
     }
 }
 ```

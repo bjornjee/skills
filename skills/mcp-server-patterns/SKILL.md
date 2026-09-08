@@ -1,11 +1,11 @@
 ---
 name: mcp-server-patterns
-description: Use when building or debugging an MCP server — tool/resource/prompt registration, tool-description engineering, the isError contract, authz and path sandboxing, stdio vs Streamable HTTP. Node/TypeScript SDK; defer to Context7 for current signatures.
+description: Use when building or debugging an MCP server — tool/resource/prompt registration, tool-description engineering, the isError contract, authz and path sandboxing, stdio vs Streamable HTTP. Node/TypeScript SDK; verify signatures for the project's installed SDK.
 ---
 
 # MCP Server Patterns
 
-The Model Context Protocol lets a client's model call your **tools**, read your **resources**, and expand your **prompts**. This covers the design rules that don't churn; the SDK surface does — verify method names and signatures against the current [MCP docs](https://modelcontextprotocol.io) or Context7 (query "MCP") before copying any signature.
+The Model Context Protocol lets a client's model call your **tools**, read your **resources**, and expand your **prompts**. Verify imports, method signatures, and schema support against the project's installed SDK and negotiated protocol using the [MCP docs](https://modelcontextprotocol.io) or Context7 (query "MCP"). Adapt examples to those targets; do not upgrade merely to match a snippet.
 
 ## Primitives
 
@@ -17,11 +17,13 @@ Pick the primitive by control and effect: **resource** for read-only, addressabl
 
 Validate every tool input with **Zod** (or the SDK's schema format) — an unvalidated `input` reaches your handler as `any`.
 
+In this excerpt, `serverVersion` comes from the server's package metadata; it is not an SDK or protocol version.
+
 ```typescript
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-const server = new McpServer({ name: "my-server", version: "1.0.0" });
+const server = new McpServer({ name: "my-server", version: serverVersion });
 
 // registration signature varies by SDK version (positional vs options-object) — check the docs
 server.registerTool(
@@ -61,7 +63,7 @@ The description is the **only** signal the model uses to decide whether to call 
 The model acts on your result shape, so make failure legible:
 
 - **User-recoverable errors** (bad input, not-found, rate-limited) → return content with **`isError: true`** and an actionable message the model can relay or retry on: `{ content: [{ type: "text", text: "No file at <path>. Check the path and retry." }], isError: true }`.
-- **Protocol / programmer failures** (server bug, unreachable dependency) → **throw**, and let the transport surface a protocol error rather than dressing it up as a tool result.
+- **Tool execution failures**, including unreachable dependencies/API failures, return `isError: true` with actionable, sanitized context. Reserve protocol errors for protocol-level failures such as an unknown tool or unsupported operation; follow the SDK/spec error contract.
 - **Empty success must be distinguishable from error.** A tool that returns `[]` for both "no matches" and "query failed" makes the model retry blindly. Return an explicit `"no matches"` success versus an `isError` failure.
 - Never leak raw stack traces into tool content — they burn tokens and teach the model nothing it can act on.
 
@@ -70,9 +72,9 @@ The model acts on your result shape, so make failure legible:
 Tools run with your server's privileges, and the model's input is untrusted.
 
 - **Scope tool visibility per session / caller.** Register admin or destructive tools only for authorized callers — don't expose `delete_project` to every session because one operator needs it.
-- **Canonicalize file/exec paths against an allowlist root.** Resolve to an absolute real path first (`fs.realpathSync` / `path.resolve`), *then* check it is still under the allowed root. Reject `..` traversal **after** resolution — a prefix check before resolving is bypassable via symlinks and `../`.
+- **Canonicalize file/exec paths against an allowlist root.** Resolve existing targets and the allowlist root with `fs.realpathSync`; `path.resolve` alone is lexical and does not resolve symlinks. Set `relative = path.relative(root, target)` and reject when `path.isAbsolute(relative) || relative === '..' || relative.startsWith('..' + path.sep)`. Use the same platform's path implementation for all three operations; checking only `../` misses Windows `..\` escapes. For new files, canonicalize the nearest existing parent and validate remaining components. Use race-resistant descriptor-relative operations where adversarial filesystem mutation is in scope.
 - **Never let tool args reach a shell unquoted.** Pass argv arrays (`execFile`, not `exec`); string-interpolating model output into a shell command is command injection with the model as the attacker's proxy.
-- **Declare tool annotations honestly.** Hints like `readOnlyHint` / `destructiveHint` let clients gate auto-approval; a destructive tool mislabeled read-only invites an unsafe auto-run. The annotation is a claim the client trusts — don't buy smoother UX with a lie.
+- **Declare tool annotations honestly.** Hints like `readOnlyHint` / `destructiveHint` let clients gate auto-approval; a destructive tool mislabeled read-only invites an unsafe auto-run. Annotations are untrusted hints unless the server is trusted; they never replace authorization. An annotation is a claim the client may consider — don't buy smoother UX with a lie.
 
 ## Best practices
 

@@ -144,7 +144,7 @@ Before a global rollout, keep a verified backup of affected files and the owners
 
 ### Verification and delegation
 
-`make test` requires Node.js, Python 3, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory.
+`make test` requires Node.js, Python 3, Go with race support, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory. They exercise install failures and execute the published parser, worker-pool, and Claude-loop examples without calling paid APIs.
 
 Use `codex-delegate` only with its declared tools available. Retain the dispatched job ID, retrieve that job's verified session ID, and resume that session; never use the most recent task as identity.
 

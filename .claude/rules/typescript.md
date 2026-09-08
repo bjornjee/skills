@@ -27,13 +27,13 @@ General TS/Node rules. React Native specifics live in `react-native.md`; both ma
 - Async functions that can reject are handled where the context to handle them exists — an `unhandledRejection` crash in Node is a design failure, not bad luck.
 
 ## Modules & structure
-- ESM only for new code (`"type": "module"`); no new CJS. Node built-ins imported with the `node:` prefix.
+- Use ESM for new packages; preserve an existing package’s module system unless a migration is in scope. Node built-ins imported with the `node:` prefix.
 - Barrel files (`index.ts` re-export hubs) are import-cycle factories and tree-shaking obstacles — import from the concrete module.
 - No mutable module-level state; module scope is for constants and pure definitions. A mutable module singleton is a hidden global with import-order semantics.
 
 ## Runtime & deps
-- Stdlib before deps: `node:test`, built-in `fetch`, `node --env-file`, `node:util` `parseArgs` — reach for a package only when these run out.
-- Pin engines (`"engines": { "node": ">=22" }`) and commit the lockfile. CI installs with `npm ci`, never `npm install`.
+- Stdlib before deps: use built-in APIs available in the project's declared supported engine (for example, `node:test`, `fetch`, `node --env-file`, or `node:util` `parseArgs`) before adding a package.
+- Declare the supported Node engine and any required built-in APIs. Commit the package manager's lockfile, and use that project's reproducible, immutable CI install command rather than a general dependency update.
 
 ## Tests
-- `node:test` (or the repo's established runner) with the same no-real-world rule as Go/Python: no live network, no wall clock, no shared module state between tests — reset or inject.
+- Use `node:test` or the established runner. Unit tests isolate external services; hermetic integration tests may exercise local processes, sockets and temporary files. Verify boundary bugs at their original surface.

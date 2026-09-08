@@ -1,7 +1,3 @@
----
-paths:
-  - "**/*.sh"
----
 # Shell
 
 Choose Bash or POSIX `sh` deliberately, and validate required syntax and options on the actual target shell. Do not write an untested blend.

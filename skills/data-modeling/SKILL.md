@@ -19,9 +19,9 @@ The schema outlives every service that reads it. Rules for making data changes b
 
 ## Indexes
 - Index from query shapes, not intuition: write the query, run `EXPLAIN (ANALYZE, BUFFERS)`, add the index, prove the plan changed.
-- Composite index column order = equality columns first, then range. An index on `(a, b)` serves `WHERE a=?` but not `WHERE b=?`.
+- Composite index column order = equality columns first, then range. Leading-column constraints often improve B-tree efficiency, but later-column predicates can still use the index (including PostgreSQL skip scans). Verify the actual version, cardinality, and query plan.
 - Soft-delete × UNIQUE: `UNIQUE(email)` blocks re-registration after delete — use a partial index `WHERE NOT is_deleted`.
-- Every index taxes every write. Quarterly: drop indexes with zero scans (`pg_stat_user_indexes`).
+- Every index taxes every write. Zero scans (`pg_stat_user_indexes`) is a review candidate, not deletion authority. Confirm statistics-reset time and a representative business cycle, usage on replicas, constraint/rare-job roles, and a recreation/rollback plan before proposing removal.
 
 ## Migrations (expand → migrate → contract)
 1. **Expand**: additive change (new nullable column/table/index `CONCURRENTLY`). Old and new code both work.
