@@ -51,7 +51,7 @@ Streamable HTTP runs **stateful** (a session id per client; the server holds per
 
 ## Tool-description engineering
 
-The description is the **only** signal the model uses to decide whether to call your tool — it is a prompt, not a docstring.
+The tool name, description, and input schema together signal when the model should call your tool. The description is a prompt, not a docstring.
 
 - **State when to use AND when not to.** "Search indexed docs. Not for live web — use `fetch_url` for that." Explicit boundaries stop mis-fires.
 - **Name parameter semantics precisely.** `path` is ambiguous; `absolute_path` / `repo_relative_path` is not. The schema's `.describe()` text is read by the model, so spend words there.

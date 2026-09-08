@@ -20,7 +20,7 @@ Design-time rules. (Review-time checks — injection, XSS, SSRF, path traversal 
 - Service-to-service: mTLS or short-lived signed tokens (OIDC/workload identity). Static shared API keys between services are a migration debt the day they ship.
 - Token lifetimes: access tokens ≤ 1 hour; refresh tokens rotate on every use and are revocable server-side. A non-expiring token is a credential leak with a delay.
 - Passwords: argon2id/bcrypt via a maintained library, never hand-rolled comparison (timing) or hashing.
-- Webhooks verify signatures (HMAC with timestamp, reject old timestamps) — a webhook endpoint without verification is an open command channel.
+- Webhooks verify the provider-documented signature over the unmodified payload using its supported verification method; enforce signed freshness data when supplied. Delivery deduplication and idempotency belong to `distributed-systems`.
 
 ## Authorization
 - Deny by default. The absence of a rule is a rejection, not an allow.

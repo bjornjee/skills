@@ -26,11 +26,11 @@ description: FastAPI architecture, dependency injection, domain-error handling, 
 - Test enqueue behavior separately from worker behavior. Use hermetic worker/integration tests when execution or delivery is the failing boundary.
 
 ## Pagination & Responses
-- Cursor-based pagination for list endpoints; one shared response envelope schema across all endpoints.
+- Choose pagination using the `api-design` contract; one shared response envelope schema across all endpoints.
 
 ## AuthN/Z
 - Authentication belongs at the HTTP boundary (for example, a router dependency). Authorization is mandatory: enforce each decision at the project's existing reusable policy, dependency, or domain boundary. Put shared business authorization in services when services are that boundary; do not add a service layer solely for route-local checks.
-- Tenancy scoping applied in the session/repository layer only — never per-query `WHERE` discipline.
+- Use the tenancy enforcement boundary selected under `data-modeling`, including database-enforced RLS where applicable; never rely on ad-hoc per-query `WHERE` discipline. A session variable must feed an enforced policy or query mechanism; setting it alone does not isolate tenants.
 
 ## Shared Packages
 - Share models where the repository already owns persistence; a standalone service need not introduce `packages/db/`.
