@@ -140,7 +140,9 @@ The native destructive-command hook is an advisory lexical guard. It recognizes 
 
 Installing a plugin does not authorize replacing a project's AGENTS.md. Adapt project-local instructions to that repository instead of copying this repository's maintenance rules wholesale.
 
-Before a global rollout, keep a verified backup of affected files and the ownership manifest. Roll back installed content from that backup; reverting a repository commit alone does not roll back globals. The root package-path and ownership changes are described in [ADR 001](docs/adr/001-global-skill-contracts.md).
+Before a global rollout, keep a verified backup of affected files and the ownership manifest. Roll back installed content from that backup; reverting a repository commit alone does not roll back globals. The root package-path and verdict-contract changes are described in [ADR 001](docs/adr/001-global-skill-contracts.md).
+
+For the audit's complete disposition, remaining global-only findings, and verification limits, see [audit remediation](docs/audit-remediation.md). Those global-only changes are not performed by this PR.
 
 ### Verification and delegation
 

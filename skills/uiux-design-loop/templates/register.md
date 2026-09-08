@@ -1,18 +1,11 @@
-# Visual register — <feature or page name>
+# Surface register
 
-> Fill this in **before** Gate 1 of `/skills:uiux-design-loop`. Without a declared register, the grader will REJECT — by design. Polish is not a register; it is what you do once a register has been chosen.
+Fill before baseline grading from the user request and existing product/design context. Resolve the installed Impeccable contract; no hardcoded skill path or mandatory initialization.
 
-> **Auto-populated from PRODUCT.md** when `PRODUCT.md` exists. At Gate 0 pre-flight, the loop runs `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` and fills `Chosen register`, `Why this register`, and `Reference mockups / sources` from PRODUCT.md's `register:` field, theme scene sentence, and named anchors, mapped through the register-taxonomy table in `skills/uiux-design-loop/impeccable-map.md`. Confirm or override the auto-fill before proceeding; the artifact still has to exist on disk — sourcing does not skip Gate 0. (Impeccable is a Gate 0 precondition for the loop, so the script is always available.)
-
-## Auto-populated from PRODUCT.md (Gate 0 pre-flight, when applicable)
-
-The orchestrator fills the block below from `context.mjs` output. If `PRODUCT.md` is missing, run `/impeccable init` first to declare register + theme + anti-references, then re-enter Gate 0. Manual filling of this template is reserved for projects whose register cannot be sourced from PRODUCT.md after init; complete the manual blocks below and note `Source: manual` in the auto-populated block.
-
-- Source: `PRODUCT.md` `register:` → `<impeccable family: brand | product>`
-- Mapped via impeccable-map.md taxonomy → `<loop register member>`
-- Theme scene sentence (verbatim from PRODUCT.md): `<paste>`
-- Named anchors (from PRODUCT.md / DESIGN.md): `<list>`
-- User confirmed at Gate 0: `<yes | overridden to: …>`
+- Surface and mode (Persuade / Operate / Read / Experience):
+- Durable constraints from PRODUCT.md / DESIGN.md:
+- Source of direction (request, existing design, or explicit user choice):
+- Evidence revision:
 
 ## Chosen register
 
