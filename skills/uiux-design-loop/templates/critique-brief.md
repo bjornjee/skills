@@ -1,76 +1,75 @@
 # Critique brief — example
 
-> This is what the `uiux-grader` subagent writes back. The implementer reads only the `## Critique brief` section to drive the next inner-loop pass. Verdict block format is the contract — do not edit the grader's output, do not summarise it.
+This illustrative response follows the JSON contract in `agents/uiux-grader.md`; that file owns the output shape and `rubric.md` owns scoring and acceptance. The parent captures the response unchanged and follows SKILL.md for implementation and iteration limits. The evidence below is fictional example input, not a verification record.
 
-```
 ## Verdict
-Overall: ITERATE
-Weakest dimension: affordance-honesty (2.0/5)
-Threshold: 2.0 ≥ 4 → not met
-Iterations remaining: 5
+
+Overall: ITERATE. The requested flow is present, but the Sessions link has unclear affordance and its supporting content needs stronger composition. Route/console behavior evidence is missing. Independence is established. All supplied evidence identifies revision `example-revision-1`.
 
 ## Per-dimension scores
-- user-flow-fidelity:        4/5 (weight 1.0) — step-1-desktop: primary CTA is visible above the fold but eyebrow text competes for first eye-stop.
-- visual-register-match:     4/5 (weight 1.0) — step-1-desktop, step-2-desktop: refined-minimal is committed in type and spacing; one footer block drifts toward generic SaaS card pattern.
-- content-density:           3/5 (weight 1.0) — step-1-desktop: hero has one short headline and no supporting composition (image, lede, eyebrow). Register is refined-minimal so this is borderline; calling 3 because the second viewport (step-2-desktop) shows the section labelled "Sessions" with only a heading and an arrow card — that's the failure mode the rubric explicitly names.
-- affordance-honesty:        2/5 (weight 1.0) — step-2-desktop: "Sessions →" card is the only path to session details but has no visible click affordance (no border, no hover state visible at default). Primary CTA in the hero is styled as a text link competing with body type.
-- brand-voice-adherence:     N/A — no project-rules.md supplied; no rule violations visible.
-- cross-locale-consistency:  N/A — only one locale's screenshots supplied.
+
+- user-flow-fidelity: 4/5 — step-1-desktop shows the primary CTA and step-2-desktop shows the required next step.
+- visual-register-match: 4/5 — both screenshots match the declared refined-minimal direction in register.md.
+- content-density: 3/5 — step-2-desktop leaves the Sessions section as a heading and arrow without the supporting content required by flow-map.md.
+- affordance-honesty: 2/5 — step-2-desktop makes the Sessions cross-link look decorative.
+- brand-voice-adherence: N/A — flow-map.md explicitly declares no brand/voice constraints for this prototype; register.md supplies visual direction only.
+- cross-locale-consistency: N/A — flow-map.md explicitly limits this task to one locale without a cross-locale preservation requirement.
+- accessibility: 4/5 — audit A-1 and behavior rows 1–3 document contrast, keyboard access, and focus behavior for the selected flow.
+- technical-quality: UNVERIFIED — behavior row 4 lacks route/console results at this revision; audit A-2's source review cannot establish live behavior.
+
+Priority weights are all 1.0. Affordance has priority 3 and content density has priority 2. Null scores do not participate in priority calculations.
 
 ## Preservation gate
-State: PASS
-Evidence: behavior-check.md rows 1–3 PASS; live console clean; computedStyle on .settings-modal matches baseline.
 
-## Brief diff (vs prior verdict)
-- prior #1 [affordance-honesty]: not-addressed — step-2-desktop still shows the "Sessions →" card with no border or button label.
-- prior #2 [content-density]: partial — hero headline raised to 4rem but lede + eyebrow still absent.
-- prior #3 [user-flow-fidelity]: addressed — eyebrow reduced to 0.85rem; H1 is now first eye-stop.
+State: WARN. Behavior rows 1–3 and screenshots step-1-desktop and step-2-desktop are fresh, but row 4 lacks required route/console results for the preservation contract. No confirmed regression is established by that missing evidence.
+
+## Audit gate
+
+State: PASS. Audit A-1/A-2 covers the selected surface files at this revision with no P0/P1 findings; disclosed P2 findings A-3/A-4 correspond to the two visual repairs below. A-5 is an optional P3 suggestion to refine decorative spacing. The source audit does not substitute for missing live behavior evidence.
+
+## Brief diff
+
+No prior verdict was supplied.
 
 ## Critique brief
-1. [affordance-honesty] step-2-desktop: the "Sessions →" cross-link card needs a visible click affordance — either a bordered card with explicit "Read about sessions" button text, or replace the pattern with an image-led card showing a session photo + headline. The arrow alone reads decorative. [Layer 1]
-2. [content-density] step-1-desktop: the hero is one headline on a white field. Refined-minimal allows this if the typographic rhythm carries, but the headline at 4rem on a 1440 viewport still reads as undersized for the negative space around it — either raise the headline to 5rem or add an eyebrow + 2-line lede to compose the block. [Layer 1]
-```
+
+1. [affordance-honesty] step-2-desktop / A-3: make the Sessions cross-link visibly actionable while preserving its destination and keyboard behavior.
+2. [content-density] step-2-desktop / A-4: compose the supporting content required by flow-map.md around the Sessions heading so it reads as a complete section.
+
+Before acceptance, collect the missing route/console results for technical-quality and the preservation gate. If no verification budget remains, report this gap without dispatching another grader. A-5 remains optional and does not authorize additional work.
 
 ```json
 {
+  "evidence_revision": "example-revision-1",
+  "independent": true,
   "overall": "ITERATE",
-  "weakest_dimension": "affordance-honesty",
-  "weakest_weighted_score": 2.0,
-  "threshold_met": false,
-  "iterations_remaining": "5",
-  "scores": [
-    { "dimension": "user-flow-fidelity", "raw": 4, "weight": 1.0, "weighted": 4.0, "screenshot": "step-1-desktop", "justification": "primary CTA visible above fold; eyebrow competes for first eye-stop" },
-    { "dimension": "visual-register-match", "raw": 4, "weight": 1.0, "weighted": 4.0, "screenshot": "step-1-desktop", "justification": "refined-minimal committed in type and spacing; one footer block drifts to generic SaaS" },
-    { "dimension": "content-density", "raw": 3, "weight": 1.0, "weighted": 3.0, "screenshot": "step-2-desktop", "justification": "Sessions section is heading + arrow card only" },
-    { "dimension": "affordance-honesty", "raw": 2, "weight": 1.0, "weighted": 2.0, "screenshot": "step-2-desktop", "justification": "Sessions card has no visible click affordance; hero CTA styled as text link" },
-    { "dimension": "brand-voice-adherence", "raw": null, "weight": 1.0, "weighted": null, "screenshot": null, "justification": "N/A — no project-rules.md supplied" },
-    { "dimension": "cross-locale-consistency", "raw": null, "weight": 1.0, "weighted": null, "screenshot": null, "justification": "N/A — only one locale supplied" }
-  ],
-  "preservation_gate": {
-    "state": "PASS",
-    "evidence": "behavior-check.md rows 1–3 PASS; live console clean; computedStyle on .settings-modal matches baseline"
+  "scores": {
+    "user-flow-fidelity": 4,
+    "visual-register-match": 4,
+    "content-density": 3,
+    "affordance-honesty": 2,
+    "brand-voice-adherence": null,
+    "cross-locale-consistency": null,
+    "accessibility": 4,
+    "technical-quality": null
   },
+  "score_exceptions": {
+    "brand-voice-adherence": {"state": "N/A", "reason": "flow-map.md explicitly declares no brand/voice constraints for this prototype; register.md supplies visual direction only."},
+    "cross-locale-consistency": {"state": "N/A", "reason": "flow-map.md explicitly limits scope to one locale without a cross-locale preservation requirement."},
+    "technical-quality": {"state": "UNVERIFIED", "reason": "behavior row 4 lacks route/console results at example-revision-1; source audit A-2 cannot establish live behavior."}
+  },
+  "preservation_gate": {"state": "WARN", "evidence": ["behavior rows 1–3 and screenshots step-1-desktop/step-2-desktop are fresh; row 4 lacks required route/console results at example-revision-1"]},
+  "audit_gate": {"state": "PASS", "blocking_findings": [], "p2_findings": ["A-3: Sessions link affordance", "A-4: Sessions content composition"], "p3_findings": ["A-5: Optional decorative spacing refinement"]},
   "critique_brief": [
-    { "dimension": "affordance-honesty", "screenshot": "step-2-desktop", "change": "Bordered Sessions card with explicit 'Read about sessions' button label, or image-led card with session photo + headline", "layer": 1, "rule": null },
-    { "dimension": "content-density", "screenshot": "step-1-desktop", "change": "Raise hero headline to 5rem, or add eyebrow + 2-line lede to compose the block", "layer": 1, "rule": null }
+    {"dimension": "affordance-honesty", "evidence": "step-2-desktop / A-3", "change": "Make the Sessions cross-link visibly actionable while preserving its destination and keyboard behavior."},
+    {"dimension": "content-density", "evidence": "step-2-desktop / A-4", "change": "Compose the supporting content required by flow-map.md around the Sessions heading."}
   ],
-  "brief_diff": [
-    { "prior_index": 1, "dimension": "affordance-honesty", "status": "not-addressed", "evidence": "step-2-desktop still shows Sessions card with no border or button label" },
-    { "prior_index": 2, "dimension": "content-density", "status": "partial", "evidence": "hero headline raised to 4rem but lede + eyebrow still absent" },
-    { "prior_index": 3, "dimension": "user-flow-fidelity", "status": "addressed", "evidence": "eyebrow reduced to 0.85rem; H1 is now first eye-stop" }
-  ]
+  "brief_diff": [],
+  "accepted_tradeoffs": [],
+  "verification_gaps": ["technical-quality and preservation gate: collect missing route/console results for behavior row 4 at example-revision-1"]
 }
 ```
 
-## How the implementer reads this
+## How the parent uses this
 
-- Item #1 first. It targets the weakest weighted dimension (`affordance-honesty` at 2/5) — fixing it has the largest verdict impact.
-- After the edit, capture fresh screenshots, dispatch a new grader pass.
-- Do **not** also address item #2 in the same iteration. The grader will catch it in the next pass — or not, if #1's fix changed the composition enough to resolve it.
-- Do **not** invent items not on the brief. The inner loop has no other input source.
-
-## What the implementer does NOT do
-
-- Argue with the verdict in the next dispatch. The grader is cold; arguing is wasted context.
-- Pre-emptively "fix" things the grader didn't flag. They will be flagged next pass if they need fixing.
-- Skip the screenshot step because the change is small. Diff-as-proof is the failure mode this skill exists to prevent.
+Follow SKILL.md Gate 2: address the evidenced findings and requested outcome in one coherent batch within the authorized scope. Check remaining iteration budget before dispatching another grader. Capture matching screenshots, behavior evidence, and audit findings after edits. Neither this example nor a quality verdict authorizes an additional round or additional scope.
