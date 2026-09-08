@@ -11,8 +11,8 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 **Rule:** a mandatory gate whose tooling may be absent is false confidence. codegraph-audit stays on-demand; do not restore the dispatch row.
 
 ## 3. This repo is canonical for doctrine; home-dir copies are synced, never edited
-**Churn ended:** #53 (and repeat confusion before it). `~/.claude/rules/*` are symlinks via `make sync-rules`; Codex globals are installed via `make sync-codex`.
-**Rule:** edit here, bump, sync. Editing a destination copy is a bug.
+**Churn ended:** #53 (and repeat confusion before it). `make sync-rules ARGS=--check` inspects Claude symlink drift; `make sync-codex ARGS=--check` inspects Codex file ownership and content. Sync only from the chosen permanent checkout after review.
+**Rule:** edit here, bump, sync. Reconcile destination-only changes before sync; never assume that the newest checkout contains all live edits.
 
 ## 4. Plan mode = `EnterPlanMode`/`ExitPlanMode`, never the `Plan` agent
 **Churn ended:** litigated in #52–#54 and again in the parity wave (#71). The recurring trap is the naming clash — a `Plan` agent exists and sounds right.

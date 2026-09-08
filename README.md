@@ -97,7 +97,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `ai-ml.md` | `**/evals/**`, `**/prompts/**` | Evals, RAG, injection defense, routing |
 | `shell.md` | `**/*.sh` | Bash safety non-negotiables |
 
-Run `make sync-rules` (wraps `scripts/install-rules-symlinks.sh`) to symlink these into `~/.claude/rules/` so Claude Code loads them at user scope. Because they are symlinks, later edits in the repo propagate automatically.
+Use `make sync-rules ARGS=--check` for a read-only drift check. After review/merge, explicitly run `make sync-rules` from the chosen permanent checkout to install links; installation from linked worktrees is refused. Existing files are backed up. Links track later changes in that permanent checkout.
 
 The `python.md`, `fastapi.md`, `react-native.md`, `ai-ml.md`, and `typescript.md` rule bodies are mirrored 1:1 by the matching `*-patterns` skills (so Codex gets the same content); `scripts/language-skills.test.js` enforces the lockstep.
 

@@ -15,7 +15,7 @@ bump: ## Set the plugin version in all three manifests (usage: make bump V=1.1.0
 	print(f"✓ all three manifests -> {v}")' "$(V)"
 
 sync-rules: ## Symlink every .claude/rules/*.md into ~/.claude/rules/ (edits then propagate automatically)
-	@./scripts/install-rules-symlinks.sh
+	@./scripts/install-rules-symlinks.sh $(ARGS)
 
 sync-codex: ## Install global Codex skills, rules, safety hook, and agents
 	@node scripts/sync-codex.js $(ARGS)

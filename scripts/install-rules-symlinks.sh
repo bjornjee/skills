@@ -1,49 +1,68 @@
 #!/usr/bin/env bash
-# install-rules-symlinks.sh
-#
-# Symlinks every rule file from this plugin repo into ~/.claude/rules/
-# so that Claude Code actually loads them at user scope.
-#
-# Why: Claude Code's plugin manifest schema has no `rules` field, so any
-# .claude/rules/*.md files inside a plugin repo are orphaned. The supported
-# locations are <project>/.claude/rules/ and ~/.claude/rules/. This script
-# wires the plugin repo as the source of truth via symlinks.
-#
-# Idempotent. Safe to re-run after editing rule files.
-
+# Explicit user-scope install; --check never creates or changes destinations.
 set -euo pipefail
 
-REPO_RULES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.claude/rules"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_RULES_DIR="$REPO_ROOT/.claude/rules"
 USER_RULES_DIR="$HOME/.claude/rules"
+CHECK=false
+case "${1:-}" in
+  '') [[ $# -eq 0 ]] || exit 2 ;;
+  --check) [[ $# -eq 1 ]] || exit 2; CHECK=true ;;
+  *) echo 'usage: install-rules-symlinks.sh [--check]' >&2; exit 2 ;;
+esac
 
 if [[ ! -d "$REPO_RULES_DIR" ]]; then
   echo "ERROR: source rules directory not found: $REPO_RULES_DIR" >&2
   exit 1
 fi
+if ! "$CHECK"; then
+  git_dir="$(git -C "$REPO_ROOT" rev-parse --absolute-git-dir)"
+  common_dir="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)"
+  if [[ "$git_dir" != "$common_dir" ]]; then
+    echo 'Refusing permanent rule links into a linked worktree; install from the chosen permanent checkout after merge.' >&2
+    exit 1
+  fi
+  if [[ -L "$HOME/.claude" || -L "$USER_RULES_DIR" ]]; then
+    echo 'Refusing symlinked rule destination directories.' >&2
+    exit 1
+  fi
+  # Reject predictable collisions before backing up or linking any rule.
+  for src in "$REPO_RULES_DIR"/*.md; do
+    [[ -f "$src" ]] || continue
+    dst="$USER_RULES_DIR/$(basename "$src")"
+    if [[ -d "$dst" && ! -L "$dst" ]]; then
+      echo "Refusing directory collision: $dst" >&2
+      exit 1
+    fi
+  done
+  mkdir -p "$USER_RULES_DIR"
+fi
 
-mkdir -p "$USER_RULES_DIR"
-
-# Every .md in the repo rules dir — new rule files are picked up automatically.
+status=0
 for src in "$REPO_RULES_DIR"/*.md; do
-  [[ -f "$src" ]] || continue  # empty-glob guard (no nullglob under set -u)
+  [[ -f "$src" ]] || continue
   f="$(basename "$src")"
   dst="$USER_RULES_DIR/$f"
-
   if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
-    echo "ok:   $f (already symlinked)"
+    echo "ok: $f"
     continue
   fi
-
-  if [[ -e "$dst" || -L "$dst" ]]; then
-    bak="$dst.$(date +%s).bak"
-    echo "warn: $dst already exists; backing up to $bak" >&2
-    mv "$dst" "$bak"
+  if "$CHECK"; then
+    echo "drift: $dst" >&2
+    status=1
+    continue
   fi
-
+  if [[ -e "$dst" || -L "$dst" ]]; then
+    if [[ -d "$dst" && ! -L "$dst" ]]; then
+      echo "Refusing directory collision: $dst" >&2
+      exit 1
+    fi
+    bak="$(mktemp "$dst.backup.XXXXXX")"
+    mv "$dst" "$bak"
+    echo "backup: $bak"
+  fi
   ln -s "$src" "$dst"
   echo "link: $f -> $src"
 done
-
-echo
-echo "Done. ~/.claude/rules/ now contains:"
-ls -la "$USER_RULES_DIR"
+exit "$status"
