@@ -124,14 +124,15 @@ Create one issue through the narrowest connected Linear issue-creation tool.
 Pass the canonical title and description plus the resolved team, project,
 state, and non-dispatch labels.
 
-Treat a top-level API error, unsuccessful result, or missing issue identifier
-as a definitive failure and stop. Never issue a second create call during the
-same invocation.
+Treat failure as definitive only when the tool/API contract establishes that
+no issue was created, and stop. Otherwise reconcile uncertainty as below. Never issue
+a second create call during the same invocation.
 
 ### 5. Reconcile uncertainty
 
-Treat a transport interruption, timeout, or incomplete response as an
-uncertain create result. Before considering any retry, perform read-only reconciliation:
+Treat a transport interruption, timeout, or incomplete response, including a
+missing issue identifier without a definitive rejection, as an uncertain create result.
+Perform read-only reconciliation without issuing another create call:
 
 - Search within the bounded invocation window using the exact title and team,
   requesting at most two result pages.

@@ -14,13 +14,13 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 **Churn ended:** #53 (and repeat confusion before it). `make sync-rules ARGS=--check` inspects Claude symlink drift; `make sync-codex ARGS=--check` inspects Codex file ownership and content. Sync only from the chosen permanent checkout after review.
 **Rule:** edit here, bump, sync. Reconcile destination-only changes before sync; never assume that the newest checkout contains all live edits.
 
-## 4. Plan mode = `EnterPlanMode`/`ExitPlanMode`, never the `Plan` agent
-**Churn ended:** litigated in #52–#54 and again in the parity wave (#71). The recurring trap is the naming clash — a `Plan` agent exists and sounds right.
-**Rule:** user shorthand "plan it" always resolves to the plan-mode tools; the `Plan` agent's output is invisible to the dashboard's plan surfaces.
+## 4. Plan mode is a user-visible planning workflow
+**Churn ended:** #52–#54 and the parity wave in #71 established user-visible plan mode rather than the hidden Plan agent. The audit follow-up restores that default after wording made it optional unintentionally.
+**Rule:** Claude uses `EnterPlanMode` / `ExitPlanMode` for nontrivial implementation without an already-approved concrete proposal, and whenever the user requests plan mode. Codex follows its own runtime-supported planning workflow. An already-approved concrete implementation does not need another approval cycle; that exception does not make planning optional for unapproved work. Research alone is not an agreed plan.
 
 ## 5. Codex delegation requires `--write` and `-C/--cwd`
 **Churn ended:** discovered across five same-day PRs (#47–#51). Codex defaults to a read-only sandbox in the wrong directory.
-**Rule:** every Codex dispatch carries both flags. If codex-delegate is ever rewritten, these are the two invariants that were paid for in production.
+**Rule:** select the exact worktree and required sandbox/write scope with the installed dispatch tool’s supported flags. The historical wrapper used `--write` and `-C/--cwd`; native CLI commands may differ. Verify capability rather than copying wrapper flags blindly.
 
 ## 6. Version bumps stay in lockstep — use `make bump`
 **Churn ended:** 100 manual touches across history on `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`; the Codex manifest silently drifted six minor versions before the lockstep test existed.

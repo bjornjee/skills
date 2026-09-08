@@ -147,7 +147,7 @@ Before a global rollout, keep a verified backup of affected files and the owners
 
 `make test` requires Node.js, Python 3, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory.
 
-Use the `/codex-delegate` skill for its declared delegation workflow.
+Use `codex-delegate` only with its declared tools available. Capture the dispatched session ID and resume that exact task; never use the most recent task as identity.
 
 ## Migration from other rule collections
 
