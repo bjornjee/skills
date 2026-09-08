@@ -1,15 +1,35 @@
 #!/usr/bin/env node
 'use strict';
 
-function hasRmRF(command) {
-  for (const segment of command.split(/[|;&\n]+/)) {
-    const tokens = segment.trim().split(/\s+/);
-    const rmIndex = tokens.indexOf('rm');
-    if (rmIndex === -1) continue;
+const path = require('node:path');
 
+// Advisory lexical check, not a shell interpreter or authorization boundary.
+// No expansion of aliases, variables, substitutions, eval, or script bodies.
+function commands(command) {
+  const segments = [[]];
+  const words = command.match(/"(?:\\.|[^"\\])*"|'[^']*'|[^\s|;&]+|[|;&\n]/g) || [];
+  for (const word of words) {
+    if (/^[|;&\n]$/.test(word)) segments.push([]);
+    else segments[segments.length - 1].push(word.replace(/^("|')([\s\S]*)\1$/, '$2'));
+  }
+  return segments.filter(tokens => tokens.length).map(tokens => {
+    tokens[0] = path.basename(tokens[0]);
+    if (tokens[0] === 'git') {
+      let index = 1;
+      while (tokens[index]?.startsWith('-')) {
+        index += ['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(tokens[index]) ? 2 : 1;
+      }
+      return [tokens[0], ...tokens.slice(index)];
+    }
+    return tokens;
+  });
+}
+
+function hasRmRF(tokens) {
+    if (tokens[0] !== 'rm') return false;
     let recursive = false;
     let force = false;
-    for (const token of tokens.slice(rmIndex + 1)) {
+    for (const token of tokens.slice(1)) {
       if (token === '--') break;
       if (token === '--recursive') recursive = true;
       else if (token === '--force') force = true;
@@ -18,21 +38,19 @@ function hasRmRF(command) {
         force ||= /f/.test(token);
       }
     }
-    if (recursive && force) return true;
-  }
-  return false;
+    return recursive && force;
 }
 
 const DESTRUCTIVE_PATTERNS = [
   { test: hasRmRF, label: 'rm -rf' },
-  { pattern: /\bgit\s+reset\s+--hard\b/, label: 'git reset --hard' },
-  { pattern: /\bgit\s+push\b[^\n]*(?:\s--force(?:=\S+|\s|$)|\s-f(?:\s|$))/, label: 'git push --force' },
-  { pattern: /\bgit\s+clean\s+[^\n]*-[^\s]*f/, label: 'git clean -f' },
-  { pattern: /\bgit\s+checkout\s+\.\s*([;&|]|$)/, label: 'git checkout .' },
-  { pattern: /\bgit\s+restore\s+\.\s*([;&|]|$)/, label: 'git restore .' },
-  { pattern: /\bdrop\s+table\b/i, label: 'DROP TABLE' },
-  { pattern: /\bdrop\s+database\b/i, label: 'DROP DATABASE' },
-  { pattern: /\btruncate\s+table\b/i, label: 'TRUNCATE TABLE' },
+  { pattern: /^git\s+reset\s+--hard\b/, label: 'git reset --hard' },
+  { pattern: /^git\s+push\b[^\n]*(?:\s--force(?:=\S+|\s|$)|\s-f(?:\s|$))/, label: 'git push --force' },
+  { pattern: /^git\s+clean\s+[^\n]*-[^\s]*f/, label: 'git clean -f' },
+  { pattern: /^git\s+checkout\s+\.\s*$/, label: 'git checkout .' },
+  { pattern: /^git\s+restore\s+\.\s*$/, label: 'git restore .' },
+  { pattern: /^drop\s+table\b/i, label: 'DROP TABLE' },
+  { pattern: /^drop\s+database\b/i, label: 'DROP DATABASE' },
+  { pattern: /^truncate\s+table\b/i, label: 'TRUNCATE TABLE' },
 ];
 
 function block(reason) {
@@ -66,10 +84,12 @@ if (require.main === module && !process.stdin.isTTY) {
       return;
     }
 
-    for (const { pattern, test, label } of DESTRUCTIVE_PATTERNS) {
-      if (test ? test(command) : pattern.test(command)) {
-        block(`"${label}" is destructive`);
-        return;
+    for (const tokens of commands(command)) {
+      for (const { pattern, test, label } of DESTRUCTIVE_PATTERNS) {
+        if (test ? test(tokens) : pattern.test(tokens.join(' '))) {
+          block(`"${label}" is destructive`);
+          return;
+        }
       }
     }
   });

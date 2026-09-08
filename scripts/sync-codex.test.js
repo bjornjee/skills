@@ -293,6 +293,16 @@ describe('sync-codex', () => {
 });
 
 describe('warn-destructive hook', () => {
+  it('allows diagnostic arguments that quote a destructive command', () => {
+    assert.equal(runHook("printf '%s\\n' 'rm -rf build'").status, 0);
+    assert.equal(runHook('echo "git reset --hard"').status, 0);
+  });
+
+  it('recognizes executable paths and Git global options', () => {
+    assert.equal(runHook('/bin/rm -rf build').status, 2);
+    assert.equal(runHook('git -C /tmp reset --hard').status, 2);
+  });
+
   it('allows safe commands and force-with-lease', () => {
     for (const command of ['git status', 'git push --force-with-lease']) {
       const result = runHook(command);
