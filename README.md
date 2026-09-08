@@ -46,7 +46,6 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/ai-ml-patterns` | Eval-first AI/ML engineering — RAG, finetune-vs-RAG-vs-prompt, injection defense (lockstep copy of the `ai-ml.md` rule) |
 | `/api-design` | Resource modeling, pagination, error envelopes, versioning, idempotency |
 | `/claude-api` | Claude API judgment — model selection, tool-loop failure modes, caching, cost |
-| `/codegraph-audit` | Call-graph-aware pre-PR review via the local codegraph CLI (on demand) |
 | `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
 | `/context-management` | When to compact + auditing what consumes the context window |
 | `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
@@ -147,7 +146,7 @@ Before a global rollout, keep a verified backup of affected files and the owners
 
 `make test` requires Node.js, Python 3, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory.
 
-Use `codex-delegate` only with its declared tools available. Capture the dispatched session ID and resume that exact task; never use the most recent task as identity.
+Use `codex-delegate` only with its declared tools available. Retain the dispatched job ID, retrieve that job's verified session ID, and resume that session; never use the most recent task as identity.
 
 ## Migration from other rule collections
 

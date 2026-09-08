@@ -6,9 +6,9 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 **Decision:** the plugin package exposes skills. Repository-owned `native-codex/` scripts support explicit personal global installation; they are not automatically enabled by plugin installation.
 **Rule:** `make sync-codex` installs the repository's advisory destructive-command hook and preserves other hook owners' registrations. Agent-dashboard gates are optional and must never be assumed present. Native permissions remain the enforcement boundary. Do not claim directory freezing or complete shell-command coverage from this hook.
 
-## 2. codegraph-audit is on-demand, not a hard pre-PR dispatch
-**Churn ended:** three states across #60/#75 — CI-driven → local hard-dispatch → on-demand. The hard dispatch silently couldn't fire without the third-party `codegraph` CLI installed.
-**Rule:** a mandatory gate whose tooling may be absent is false confidence. codegraph-audit stays on-demand; do not restore the dispatch row.
+## 2. Review uses direct repository inspection
+**Decision:** the owner retired `codegraph-audit`; coding agents and strict reviewers inspect the declared diff, relevant files, and implicated callers directly.
+**Rule:** preserve core doctrine's review and evidence requirements without a codegraph dependency. See [ADR 002](docs/adr/002-retire-codegraph-audit.md).
 
 ## 3. This repo is canonical for doctrine; home-dir copies are synced, never edited
 **Churn ended:** #53 (and repeat confusion before it). `make sync-rules ARGS=--check` inspects Claude symlink drift; `make sync-codex ARGS=--check` inspects Codex file ownership and content. Sync only from the chosen permanent checkout after review.
