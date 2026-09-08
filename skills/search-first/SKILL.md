@@ -38,8 +38,8 @@ Before writing a utility or adding functionality, mentally run through:
 
 0. Does this already exist in the repo? → `rg` through relevant modules/tests first
 1. Is this a common problem? → Search npm/PyPI
-2. Is there an MCP for this? → Check `~/.claude/settings.json` and search
-3. Is there a skill for this? → Check `~/.claude/skills/`
+2. Is there an MCP for this? → Inspect the active runtime's enabled tool catalog first; consult runtime-specific configuration only when relevant
+3. Is there a skill for this? → Inspect the active runtime's enabled skill catalog first; consult runtime-specific installation paths only when relevant
 4. Is there a GitHub implementation/template? → Run GitHub code search for maintained OSS before writing net-new code
 
 ### Full Mode (agent)

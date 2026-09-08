@@ -52,12 +52,12 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
 | `/design-presentations` | Design editable decks with user-directed modes, styles, templates, and visual QA |
 | `/distributed-systems` | Idempotent consumers, retry discipline, outbox, poison messages, backpressure |
-| `/fastapi-patterns` | FastAPI service-layer conventions (lockstep copy of the `fastapi.md` rule) |
+| `/fastapi-patterns` | FastAPI architecture, DI, background work, pagination, and authz placement (lockstep copy of the `fastapi.md` rule) |
 | `/git-workflow` | Branching strategy decisions, bisect protocol, multi-worktree discipline, CODEOWNERS |
 | `/github-ops` | GitHub operations via `gh` — triage, CI debugging, releases, reusable workflows |
 | `/golang-patterns` | Go concurrency, context discipline, module boundaries, reliability |
 | `/golang-testing` | Go integration/race/parallel testing beyond the basics |
-| `/hookify-rules` | Create hookify rules and configure hook syntax (ECC plugin format) |
+| `/hookify-rules` | Create Hookify rules and configure verified engine syntax |
 | `/incident-response` | Mitigate-first incident handling, severity ladder, blameless postmortems |
 | `/mcp-server-patterns` | MCP servers — tool-description engineering, error contracts, sandboxing |
 | `/observability` | Structured-log contracts, RED metrics, trace propagation, SLO-first alerting |
@@ -88,13 +88,13 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | File | Scope | Description |
 |------|-------|-------------|
 | `core.md` | All | Doctrine: workflow gates, decision discipline, architecture judgment, dispatch |
-| `python.md` | `**/*.py` | PEP 8, Pydantic v2, concurrency model, tooling |
+| `python.md` | `**/*.py` | PEP 8, typing, project schema/tooling choices, concurrency |
 | `golang.md` | `**/*.go` | Idiomatic Go, shutdown sequencing, slog |
-| `fastapi.md` | `**/*.py` | Service layer, DI, background work, pagination, authz placement |
+| `fastapi.md` | `**/*.py` | Existing architecture, DI, background work, pagination, authz placement |
 | `typescript.md` | `**/*.ts{,x}` | Strict compiler, parse-don't-cast, promise hygiene, ESM |
 | `react-native.md` | `**/*.ts{,x}` | RN engineering, Expo, worktree isolation |
 | `ai-ml.md` | `**/evals/**`, `**/prompts/**` | Evals, RAG, injection defense, routing |
-| `shell.md` | `**/*.sh` | Bash safety non-negotiables |
+| `shell.md` | `**/*.sh` | Bash/POSIX shell safety |
 
 Use `make sync-rules ARGS=--check` for a read-only drift check. After review/merge, explicitly run `make sync-rules` from the chosen permanent checkout to install links; installation from linked worktrees is refused. Existing files are backed up. Links track later changes in that permanent checkout.
 

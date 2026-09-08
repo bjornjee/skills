@@ -37,7 +37,7 @@ A test flipped red and you don't know which commit did it:
 
 ## Multi-worktree discipline
 - One branch per worktree — git refuses to check the same branch out twice, so this is enforced, not advisory.
-- Per-worktree env and ports. **Never share build caches across worktrees**: most bake absolute paths and will corrupt the sibling tree's build.
+- Isolate workspace-sensitive build outputs, environments, ports, and tool state. Share caches only when the tool documents safe concurrent reuse; otherwise check its cache contract or isolate them.
 - Worktrees share the repo's refs and stash — `git fetch` in one serves all; a stash pushed in one is visible in all.
 - Removed a worktree directory by hand? `git worktree prune` clears the dangling admin entry so its branch is deletable again.
 

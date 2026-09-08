@@ -1,15 +1,15 @@
 ---
 name: hookify-rules
-description: Use when creating or editing hookify rule files (ECC plugin format) that intercept bash commands, file edits, or prompt events — rule syntax, patterns, and configuration guidance.
+description: Use when creating or editing Hookify rule files for an available Hookify engine that handles bash commands, file edits, or prompt events — rule syntax, patterns, and configuration guidance.
 ---
 
 # Writing Hookify Rules
 
-> **Prerequisite:** the `/hookify*` commands referenced below ship with the ECC plugin — without ECC installed, write the rule files by hand using this reference. This plugin itself ships no hooks; runtime hook enforcement in this setup lives in the agent-dashboard plugin.
+> **Prerequisite:** resolve the active Hookify capability before relying on its commands or runtime enforcement. The official Hookify plugin documents `/hookify`, `/hookify:list`, `/hookify:configure`, and `/hookify:help`. You can write a rule file manually, but must verify that the installed engine loads and enforces it before claiming it will run. This repository does not assume one global owner for hook enforcement.
 
 ## Overview
 
-Hookify rules are markdown files with YAML frontmatter that define patterns to watch for and messages to show when those patterns match. Rules are stored in `.claude/hookify.{rule-name}.local.md` files.
+Hookify rules are markdown files with YAML frontmatter that define patterns to watch for and messages to show when those patterns match. The official plugin uses `.claude/hookify.{rule-name}.local.md`; verify an installed engine's load path and schema before relying on it.
 
 ## Rule File Format
 
@@ -109,12 +109,12 @@ python3 -c "import re; print(re.search(r'your_pattern', 'test text'))"
 - **Naming**: `.claude/hookify.{descriptive-name}.local.md`
 - **Gitignore**: Add `.claude/*.local.md` to `.gitignore`
 
-## Commands (ECC plugin)
+## Commands (official Hookify plugin)
 
 - `/hookify [description]` - Create new rules (auto-analyzes conversation if no args)
-- `/hookify-list` - View all rules in table format
-- `/hookify-configure` - Toggle rules on/off interactively
-- `/hookify-help` - Full documentation
+- `/hookify:list` - View all rules in table format
+- `/hookify:configure` - Toggle rules on/off interactively
+- `/hookify:help` - Full documentation
 
 ## Quick Reference
 
