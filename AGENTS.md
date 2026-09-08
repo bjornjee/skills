@@ -17,7 +17,7 @@ scripts/                 Utility scripts
 
 ## Versioning
 
-Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
+Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.codex-plugin/plugin.json`. Bump all three together for a release that changes skills, agents, or rules (`make test` enforces the lockstep). A native GitHub stack treated as one release keeps intermediate PRs at the base version and carries one bump in the final PR; non-stacked PRs carry their own bump. Semver: patch=fix, minor=new, major=breaking.
 
 ## Principles
 

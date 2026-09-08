@@ -1,6 +1,6 @@
 ---
 name: tdd-guide
-description: Proportional proof guide for new features, bug fixes, and refactors. Selects Surgical, Targeted, or Full verification before editing; uses RED → GREEN → REFACTOR only when the selected profile calls for behavior or regression coverage. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands.
+description: "Proportional proof guide for new features, bug fixes, and refactors. Selects Surgical, Targeted, or Full verification before editing; uses RED → GREEN → REFACTOR only when the selected profile calls for behavior or regression coverage. Stack-aware: speaks scoped Make, Go, Python, and Node proof commands."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
