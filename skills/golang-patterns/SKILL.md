@@ -6,6 +6,8 @@ description: Use when writing or reviewing Go concurrency, context handling, mod
 
 Read [Go basics](references/basics.md) for the shared language conventions. This skill adds bounded concurrency, context, and reliability decisions.
 
+Use the language semantics selected by the project's `go.mod` and APIs supported by its toolchain and dependencies. Check those targets before adapting examples; do not upgrade them merely to copy a pattern.
+
 ## Concurrency
 
 ### errgroup over hand-rolled fan-in
@@ -31,7 +33,7 @@ if err := g.Wait(); err != nil {
     return nil, err
 }
 ```
-(Go 1.22+: loop vars are per-iteration — no `i, url := i, url` shim.)
+Check the module's loop-variable semantics before capturing range variables in closures. If iterations share variables, bind `i, url := i, url` inside the loop; omit that binding when each iteration already owns its variables.
 
 ### Goroutine leaks: the send that never returns
 - A goroutine sending on a channel leaks the instant its receiver disappears (caller returned, ctx cancelled). Every send in a spawned goroutine is either buffered-for-what-you-send or wrapped in `select { case ch <- v: case <-ctx.Done(): }`.
@@ -62,7 +64,7 @@ func run(ctx context.Context, jobs <-chan Job, n int) <-chan Result {
     results := make(chan Result)
     var wg sync.WaitGroup
     wg.Add(n)
-    for range n {
+    for worker := 0; worker < n; worker++ {
         go func() {
             defer wg.Done()
             for {

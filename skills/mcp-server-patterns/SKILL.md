@@ -1,11 +1,11 @@
 ---
 name: mcp-server-patterns
-description: Use when building or debugging an MCP server — tool/resource/prompt registration, tool-description engineering, the isError contract, authz and path sandboxing, stdio vs Streamable HTTP. Node/TypeScript SDK; defer to Context7 for current signatures.
+description: Use when building or debugging an MCP server — tool/resource/prompt registration, tool-description engineering, the isError contract, authz and path sandboxing, stdio vs Streamable HTTP. Node/TypeScript SDK; verify signatures for the project's installed SDK.
 ---
 
 # MCP Server Patterns
 
-The Model Context Protocol lets a client's model call your **tools**, read your **resources**, and expand your **prompts**. This covers the design rules that don't churn; the SDK surface does — verify method names and signatures against the current [MCP docs](https://modelcontextprotocol.io) or Context7 (query "MCP") before copying any signature.
+The Model Context Protocol lets a client's model call your **tools**, read your **resources**, and expand your **prompts**. Verify imports, method signatures, and schema support against the project's installed SDK and negotiated protocol using the [MCP docs](https://modelcontextprotocol.io) or Context7 (query "MCP"). Adapt examples to those targets; do not upgrade merely to match a snippet.
 
 ## Primitives
 
@@ -17,11 +17,13 @@ Pick the primitive by control and effect: **resource** for read-only, addressabl
 
 Validate every tool input with **Zod** (or the SDK's schema format) — an unvalidated `input` reaches your handler as `any`.
 
+In this excerpt, `serverVersion` comes from the server's package metadata; it is not an SDK or protocol version.
+
 ```typescript
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-const server = new McpServer({ name: "my-server", version: "1.0.0" });
+const server = new McpServer({ name: "my-server", version: serverVersion });
 
 // registration signature varies by SDK version (positional vs options-object) — check the docs
 server.registerTool(

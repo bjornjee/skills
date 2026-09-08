@@ -1,6 +1,6 @@
 ---
 name: fastapi-patterns
-description: FastAPI service-layer architecture, dependency injection, domain-error handling, SQLAlchemy 2.0 async, and Alembic conventions. Use when building or modifying FastAPI apps, in addition to python-patterns.
+description: FastAPI architecture, dependency injection, domain-error handling, SQLAlchemy data access, async safety, and Alembic conventions. Use when building or modifying FastAPI apps, in addition to python-patterns.
 ---
 # FastAPI
 
@@ -9,7 +9,7 @@ description: FastAPI service-layer architecture, dependency injection, domain-er
 - Use existing boundaries. Simple CRUD may call a store/ORM directly from a router; extract services for substantive shared business logic and repositories only when they add a useful boundary.
 
 ## Dependency Injection
-- `Annotated[Type, Depends()]` for all injected dependencies.
+- Prefer `Annotated` dependencies when supported by the project's FastAPI and Python targets; otherwise preserve the established supported form.
 - Parse settings at a single boundary, using the project’s existing settings mechanism.
 
 ## Error Handling
@@ -17,7 +17,7 @@ description: FastAPI service-layer architecture, dependency injection, domain-er
 
 ## Data
 - Pydantic `BaseModel` for request/response schemas.
-- When SQLAlchemy 2.0 is in use, prefer `select()` to legacy `query()`. Do not run synchronous database I/O on the async event loop.
+- When SQLAlchemy is in use, prefer its current query APIs where supported by the project's installed version. Do not run synchronous database I/O on the async event loop.
 - Choose soft versus hard deletion from retention, uniqueness, and erasure requirements; do not add soft deletion by default.
 - Use Alembic migrations for database schema changes.
 
@@ -29,7 +29,7 @@ description: FastAPI service-layer architecture, dependency injection, domain-er
 - Cursor-based pagination for list endpoints; one shared response envelope schema across all endpoints.
 
 ## AuthN/Z
-- Authentication as a router dependency (`Depends(get_current_user)`); RBAC decisions live in the service layer.
+- Authentication belongs at the HTTP boundary (for example, a router dependency). Authorization is mandatory: enforce each decision at the project's existing reusable policy, dependency, or domain boundary. Put shared business authorization in services when services are that boundary; do not add a service layer solely for route-local checks.
 - Tenancy scoping applied in the session/repository layer only — never per-query `WHERE` discipline.
 
 ## Shared Packages

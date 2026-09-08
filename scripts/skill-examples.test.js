@@ -17,18 +17,32 @@ function pythonScenario(scenario) {
 }
 function claudeScenario(setup, assertion) {
   const code = blocks('claude-api', 'python')[0];
-  const program = `import json\nfrom types import SimpleNamespace as NS\ntask = 'example'\ntools = []\ncalls = []\ndef dispatch(name, args):\n    calls.append((name, args))\n    return 'result'\ndef response(reason):\n    return NS(stop_reason=reason, content=[NS(type='tool_use', name='read', input={}, id=str(len(calls)))])\n${setup}\nclient = NS(messages=NS(create=lambda **kwargs: responses.pop(0)))\n${assertion.replace('EXAMPLE', JSON.stringify(code))}`;
+  const program = `import json\nfrom types import SimpleNamespace as NS\ntask = 'example'\ntools = []\nselected_model = 'configured-model'\ncalls = []\nrequest_messages = []\ndef dispatch(name, args):\n    calls.append((name, args))\n    return 'result'\ndef response(reason):\n    return NS(stop_reason=reason, content=[NS(type='tool_use', name='read', input={}, id=str(len(calls)))])\n${setup}\ndef create(**kwargs):\n    request_messages.append({**kwargs, 'messages': list(kwargs['messages'])})\n    return responses.pop(0)\nclient = NS(messages=NS(create=create))\n${assertion.replace('EXAMPLE', JSON.stringify(code))}`;
   const result = spawnSync('python3', ['-c', program], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
 }
 it('Claude loop permits rereading changed state with identical tool arguments', () => {
   claudeScenario("responses = [response('tool_use'), response('tool_use'), response('end_turn')]", 'exec(EXAMPLE)\nassert len(calls) == 2');
 });
+it('Claude loop uses the configured model for every request', () => {
+  claudeScenario("responses = [response('tool_use'), response('end_turn')]", 'exec(EXAMPLE)\nassert len(request_messages) == 2\nassert all(request["model"] == selected_model for request in request_messages)');
+});
 it('Claude loop reports truncated output instead of presenting completion', () => {
   claudeScenario("responses = [response('max_tokens')]", 'try:\n    exec(EXAMPLE)\nexcept RuntimeError:\n    pass\nelse:\n    raise AssertionError("truncation silently accepted")');
 });
+it('Claude loop rejects an unconfigured stop sequence as completion', () => {
+  claudeScenario("responses = [response('stop_sequence')]", 'try:\n    exec(EXAMPLE)\nexcept RuntimeError:\n    pass\nelse:\n    raise AssertionError("unconfigured completion delimiter accepted")');
+});
 it('Claude loop reports exhausted execution budget', () => {
   claudeScenario("responses = [response('tool_use') for _ in range(10)]", 'try:\n    exec(EXAMPLE)\nexcept RuntimeError:\n    pass\nelse:\n    raise AssertionError("budget exhaustion silently accepted")');
+});
+it('Claude loop pairs sanitized tool failures and continues the conversation', () => {
+  claudeScenario("def dispatch(name, args):\n    raise RuntimeError('credential=secret-value')\nresponses = [response('tool_use'), response('end_turn')]", `exec(EXAMPLE)
+result = request_messages[1]['messages'][-1]['content'][0]
+assert result['tool_use_id'] == '0' and result['is_error'] is True
+assert 'secret-value' not in result['content'] and 'RuntimeError' not in result['content']
+assert 'Do not retry automatically' in result['content'] and 'report the failure' in result['content']
+assert len(request_messages) == 2`);
 });
 it('parser example accepts an intact record', () => pythonScenario(`
 items = parse_structured_text('1. A sufficiently long question?\\nA. first\\nB. second\\nC. third\\nAnswer: B')
@@ -41,6 +55,22 @@ except ValueError:
     pass
 else:
     raise AssertionError('missing record was silently dropped')
+`));
+it('parser example rejects whitespace-only question text', () => pythonScenario(`
+try:
+    parse_structured_text('1.    \\nA. first\\nB. second\\nC. third\\nAnswer: B')
+except ValueError:
+    pass
+else:
+    raise AssertionError('whitespace-only question was accepted')
+`));
+it('parser example rejects whitespace-only choice text', () => pythonScenario(`
+try:
+    parse_structured_text('1. A question\\nA.    \\nB. second\\nC. third\\nAnswer: B')
+except ValueError:
+    pass
+else:
+    raise AssertionError('whitespace-only choice was accepted')
 `));
 it('parser example cannot merge a malformed record into its neighbor', () => pythonScenario(`
 text = '1. A sufficiently long question?\\nA. first\\nB. second\\nC. third\\n2. Another sufficiently long question?\\nA. other\\nB. another\\nC. final\\nAnswer: B'
@@ -59,7 +89,7 @@ it('worker-pool example closes results when cancellation interrupts an idle inpu
 import ("context"; "sync"; "testing")
 type Job int
 type Result int
-func process(args ...any) Result { return 1 }
+func process(ctx context.Context, job Job) Result { return 1 }
 ${code}
 func TestCancelIdle(t *testing.T) {
  ctx, cancel := context.WithCancel(context.Background())

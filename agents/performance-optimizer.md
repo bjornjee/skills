@@ -45,14 +45,14 @@ Any code change follows the Verification profile rules in the core doctrine (`.c
 - **GC tuning is a last resort with two knobs**: `GOGC` (frequency vs heap size) and `GOMEMLIMIT` (soft Go-runtime memory limit; reserve headroom for non-runtime/process memory and container limits). Tune only after allocation reduction stalls, and record the values next to the SLO they serve.
 - **pprof labels** (`pprof.Do(ctx, pprof.Labels("route", r.URL.Path), ...)`) attribute CPU to request classes — without them a service profile is one anonymous blob.
 - **`go tool trace`** when latency is bursty but CPU is idle: scheduler stalls, blocked goroutines, GC assist show here, not in the CPU profile.
-- Benchmarks use `b.Loop()` (or `b.N` pre-1.24), `b.ReportAllocs()`, and fixed inputs; compare with `benchstat old.txt new.txt` — a single run is noise.
+- Benchmarks use `b.Loop()` when the project's toolchain supports it, or the established `b.N` pattern with setup excluded and results retained. Use `b.ReportAllocs()` and fixed inputs; compare with `benchstat old.txt new.txt` — a single run is noise.
 
 ## Python specifics
 
 - **`py-spy` first** — it attaches to running processes with no code change and answers "what is it doing right now" (`py-spy dump`) and "where does time go" (`py-spy record -o profile.svg --pid N`).
 - **N+1 detection is an assertion, not an eyeball**: wrap the hot handler in a query counter (SQLAlchemy event listener) and assert the count in a test. Eager-load (`selectinload`) to fix; re-assert.
 - **`memray`** for leaks and allocation flamegraphs; `tracemalloc` snapshots when you can't install anything.
-- **GIL check before "add threads"**: CPU-bound work needs `ProcessPoolExecutor` or a native lib releasing the GIL — threads make CPU-bound Python *slower*.
+- **Check the runtime before adding threads:** GIL-bound Python code does not gain CPU parallelism from threads; consider processes or native code that releases the GIL. On a free-threaded runtime, verify dependency support and measure thread scaling before choosing it.
 - Async: one blocking call in a handler stalls the event loop for everyone. `loop.slow_callback_duration = 0.1` with debug mode names the offender.
 
 ## Database & queries

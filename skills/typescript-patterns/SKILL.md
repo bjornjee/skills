@@ -31,8 +31,8 @@ General TS/Node rules. React Native specifics live in `react-native.md`; both ma
 - No mutable module-level state; module scope is for constants and pure definitions. A mutable module singleton is a hidden global with import-order semantics.
 
 ## Runtime & deps
-- Stdlib before deps: `node:test`, built-in `fetch`, `node --env-file`, `node:util` `parseArgs` — reach for a package only when these run out.
-- Pin engines (`"engines": { "node": ">=22" }`) and commit the lockfile. CI installs with `npm ci`, never `npm install`.
+- Stdlib before deps: use built-in APIs available in the project's declared supported engine (for example, `node:test`, `fetch`, `node --env-file`, or `node:util` `parseArgs`) before adding a package.
+- Declare the supported Node engine and any required built-in APIs. Commit the package manager's lockfile, and use that project's reproducible, immutable CI install command rather than a general dependency update.
 
 ## Tests
 - Use `node:test` or the established runner. Unit tests isolate external services; hermetic integration tests may exercise local processes, sockets and temporary files. Verify boundary bugs at their original surface.

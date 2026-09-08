@@ -11,10 +11,10 @@ the `python-reviewer-strict` agent.
 
 ## Style & types
 - PEP 8. Type annotations on every public function signature.
-- PEP 604 union syntax (`X | None`), not `Optional[X]`. No untyped `**kwargs` in public APIs.
+- Use union syntax supported by the project's Python target (`X | None` where available; otherwise `Optional[X]`). No untyped `**kwargs` in public APIs.
 - Use stdlib dataclasses for internal records; use Pydantic at boundaries when its validation is needed and already available.
 - `Protocol` for interfaces (duck typing).
-- Pydantic v2 idioms: `@field_validator` / `@model_validator`, discriminated unions via `Field(discriminator=...)`, `model_config` — not the v1 class `Config`.
+- Use validation and configuration APIs consistently for the project's installed Pydantic version; do not migrate solely to copy newer syntax.
 - Top-level imports only. No nested/inline imports inside functions or methods. The only exception is breaking a genuine circular import — and even then, fix the cycle instead.
 
 ## Side effects & boundaries
@@ -36,7 +36,7 @@ the `python-reviewer-strict` agent.
 - Store references to `asyncio.create_task(...)` — bare task spawns can be GC'd mid-flight.
 
 ## Concurrency model
-- asyncio for I/O-bound; `ProcessPoolExecutor` for CPU-bound (the GIL makes threads useless there); thread pools only to wrap sync libraries that can't be made async.
+- Use asyncio for I/O-bound work and thread pools to isolate synchronous libraries when needed. GIL-bound Python code does not gain CPU parallelism from threads; consider processes or native code that releases the GIL. On a free-threaded runtime, verify dependency support and measure thread scaling.
 
 ## Tooling
 - Use the existing formatter, lint/type checks, and security checks. Do not add tooling just to satisfy a preference.

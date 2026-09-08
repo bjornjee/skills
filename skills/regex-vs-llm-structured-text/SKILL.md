@@ -72,7 +72,9 @@ def parse_structured_text(content: str) -> list[ParsedItem]:
         answer = re.fullmatch(r"Answer: ([A-D])", lines[-1])
         choices = [re.fullmatch(r"([A-D])\. (.+)", line) for line in lines[1:-1]]
         if (heading is None or answer is None or len(choices) not in (3, 4)
-                or any(choice is None for choice in choices)):
+                or any(choice is None for choice in choices)
+                or not heading[2].strip()
+                or any(not choice[2].strip() for choice in choices if choice is not None)):
             raise ValueError("Malformed record; preserve source for review")
         labels = "".join(choice[1] for choice in choices if choice is not None)
         if labels != "ABCD"[:len(choices)] or answer[1] not in labels or heading[1] in seen:
