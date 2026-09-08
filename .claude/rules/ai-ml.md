@@ -40,7 +40,7 @@ paths:
 
 ## Routing & cost
 - Cheapest model that passes the eval. Cascade: cheap model first, escalate on low confidence — most volume never needs the frontier model.
-- Cache aggressively: system prompts and few-shots are cache-shaped (prompt caching); identical requests are cache hits, not API calls.
+- Use provider prompt caching for repeated stable prefixes such as system prompts and few-shots to reduce input processing cost and latency; it still makes an API request. Use application response caching only when freshness, identity, and response semantics permit it.
 - Batch API for anything offline (evals, backfills) — typically half price.
 
 ## Production
