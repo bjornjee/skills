@@ -9,7 +9,7 @@ skills/                  Slash command skills (SKILL.md per directory) — canon
 agents/                  Named subagent definitions (.md files)
 .claude/rules/           Claude Code rules (glob-scoped .md files)
 .claude-plugin/          Claude plugin metadata (plugin.json, marketplace.json)
-plugins/skills/          Codex plugin package (.codex-plugin/plugin.json + skills/ symlink to ../../skills)
+.codex-plugin/           Codex manifest; repository root is the package root
 .agents/plugins/         Codex marketplace pointer (marketplace.json)
 .codex/                  Canonical Codex doctrine (AGENTS.md) — synced via make sync-codex
 scripts/                 Utility scripts
@@ -17,7 +17,7 @@ scripts/                 Utility scripts
 
 ## Versioning
 
-Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `plugins/skills/.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
+Three files must stay in sync: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.codex-plugin/plugin.json`. Bump all three in the same commit on every change to skills, agents, or rules (`make test` enforces the lockstep). Semver: patch=fix, minor=new, major=breaking.
 
 ## Principles
 

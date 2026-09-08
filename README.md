@@ -19,7 +19,7 @@ Dashboard lifecycle hooks and generic dashboard workflows remain available from 
 2. Install the plugin:
 
 ```
-/plugin install bjornjee-skills@bjornjee-skills
+/plugin install skills@bjornjee-skills
 ```
 
 ## Structure
@@ -29,12 +29,12 @@ skills/                Canonical workflow and specialty skills (slash commands)
 agents/                Specialized subagents
 .claude/rules/         Rules and guidelines (symlinked into ~/.claude/rules/)
 .claude-plugin/        Claude plugin manifest + marketplace
-plugins/skills/        Codex plugin package; plugins/skills/skills is a symlink → ../../skills
+.codex-plugin/        Codex manifest; repository root is the package root
 .agents/plugins/       Codex marketplace pointer (marketplace.json)
-scripts/               Helper scripts (rules symlink installer, codex plugin link verifier)
+scripts/               Install, drift-check, and verification scripts
 ```
 
-Both plugins read from the same `skills/` directory: the Claude plugin loads it directly, and the Codex plugin sees it through `plugins/skills/skills` → `../../skills`. There is no second copy to keep in sync.
+Both plugins package the actual root `skills/` directory. No escaping symlink or generated mirror is needed.
 
 ## Skills
 
@@ -147,31 +147,16 @@ Codex app-managed worktrees use the Worktree root configured under
 when the exact source-relative layout is required; both forms remain ordinary
 Git worktrees and support normal commits, pushes, and PRs.
 
-### Install the Codex skill plugin
+### Skills plugin
 
-Add this repo as a Codex marketplace and install the `skills` plugin. The marketplace pointer at `.agents/plugins/marketplace.json` directs Codex at the packaged plugin in `plugins/skills/`.
+The marketplace entry in `.agents/plugins/marketplace.json` points to `./`. The package is the repository root:
 
-```bash
-codex plugin marketplace add github.com/bjornjee/skills
-codex plugin add skills@bjornjee-skills
+```text
+.codex-plugin/plugin.json
+skills/<name>/SKILL.md
 ```
 
-Restart Codex after adding the marketplace if the plugin list is already open.
-
-The Codex package follows the official plugin layout:
-
-```
-plugins/skills/
-  .codex-plugin/plugin.json
-  skills/                       # symlink → ../../skills (canonical)
-```
-
-`skills/` and `plugins/skills/skills/` are the same directory on disk. The packaged plugin needs no separate sync step; `scripts/sync-codex-plugin.sh` only verifies (or repairs) the symlink.
-
-```bash
-make sync-codex-plugin   # verifies / repairs the symlink
-make test                # asserts the symlink shape and skill content
-```
+Use the runtime's plugin UI or supported marketplace/install commands to install `skills@bjornjee-skills` from this repository. The plugin exposes skills; it does not install root doctrine, agents, or user hooks. Avoid enabling duplicate skill installations unless the runtime's precedence is understood. `make test` verifies an isolated package with no source-checkout symlinks.
 
 ### Project-local Codex config
 
