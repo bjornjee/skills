@@ -1,10 +1,12 @@
 # Core
 
-> *Canonical source: `~/Code/bjornjee/skills/.claude/rules/core.md`. To change doctrine: edit the canonical file and bump the skills-plugin version. `make sync-rules` installs `~/.claude/rules/*.md` as symlinks to the repo, so once installed, edits propagate automatically — run it once (or again after adding a new rule file). Do not edit `~/.claude/rules/core.md` directly.*
+> *Canonical Claude doctrine: this repository’s `.claude/rules/core.md`. Keep shared policy aligned with `.codex/AGENTS.md`; retain runtime-specific instructions in their respective adapters. Edit in a linked worktree, review and merge, then explicitly install rule links from the chosen permanent checkout. Installed Claude rules link to their source files; inspect the link target to identify their origin. Never edit through installed links.*
 
 Always-on doctrine for the orchestrating agent. Loaded every session.
 What to do, in what order, and who to delegate to. Methodology for each
-step lives inside the corresponding subagent definition, not here.
+step lives inside the corresponding skill or subagent definition, not here.
+
+Follow the runtime's instruction precedence. Core doctrine owns always-on guarantees and the common verification profiles. Project instructions supply local conventions, proof commands, and scoped exceptions. Skills own task-specific methods and domain acceptance criteria; agents execute assigned roles. Templates illustrate their owner's contract rather than redefine it. Keep mandatory gates here even when a skill or agent explains them in more detail; installation and enforcement belong to repository scripts and the runtime.
 
 ## First principles (what to value)
 
@@ -32,21 +34,7 @@ step lives inside the corresponding subagent definition, not here.
 
 ## Workflow phases (in what order)
 
-0. **Worktree.** Any code-modifying task beyond a single-line fix runs in a git worktree.
-
-   Symptoms you're about to skip this wrongly:
-   - "It's just a quick audit, I won't commit."
-   - "The user said 'check it', not 'fix it'."
-   - "I'll move to a worktree if it grows."
-   - You've already run `git checkout` on something that isn't `main`.
-
-   <HARD-GATE>
-   No Edit, no Write, no `git add` on the source branch. Period.
-   Use `/agent-dashboard:feature` or `git worktree add` first.
-   This applies even when the task starts as "just look at it."
-   </HARD-GATE>
-
-   Every audit turns into commits eventually. Every time.
+0. **Worktree.** For authorized modifications beyond a single-line fix, reuse an existing linked worktree or create one from the repository’s discovered default branch; do not edit or stage those changes in the source checkout. An authorized single-line fix may use the source checkout unless project instructions require isolation. Do not create nested worktrees. Read-only audits and advice require no worktree and imply no permission to edit or commit. The optional agent-dashboard workflow is not a prerequisite for ordinary Git worktrees.
 
 1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
 
@@ -56,31 +44,15 @@ step lives inside the corresponding subagent definition, not here.
    - "`Explore` is overkill for one question."
    - You're about to write code without having read the existing entry point.
 
-2. **Plan.** Use Claude Code's plan mode for any non-trivial implementation. Call `EnterPlanMode`, do read-only research, then call `ExitPlanMode` with the full plan markdown to present it for approval. No code until the plan is approved in the plan-review UI.
-
-   Trigger if **any** of: >1 file affected, multiple valid approaches, fuzzy goal, or the request uses a verb like "improve", "refactor", "redesign", "audit", "investigate".
-
-   Every plan states three things about the touched code paths:
-   - **Execution context.** Classify each as interactive, request/response, background, startup, test-only, or batch — what calls it, how often it can run, and what blocks while it runs.
-   - **Scale shape.** The data volume the change scales with, and whether that volume is bounded by the current request/selection or by global accumulated state. Global-state scaling requires a bounding strategy in the plan.
-   - **Critical-path rule.** Interactive and request/response paths may only do bounded CPU work and bounded I/O. Unbounded scans, subprocesses, network calls, full-history reads, or fanout move to startup/background work, an index/cache, a queue, or an explicit incremental strategy.
-   - **Door type.** One-way or two-way (see Architecture judgment below). One-way doors require Full-profile verification, an explicit rollback plan, and an ADR.
-
-   **Terminology.** *"Plan tool" / "plan mode" / "the planner"* mean the **`EnterPlanMode` / `ExitPlanMode` deferred tools** (load via `ToolSearch` once per session) — never the `Plan` agent, whose output lands in a `tool_result` the dashboard cannot surface. User shorthand like "plan it" resolves to `EnterPlanMode`.
-
-   Cost: on approval, `permission_mode` drops to default, not back to `bypassPermissions` — subsequent edits re-prompt unless the user re-enables bypass. Accepted trade-off; visible planning is worth the one-time reset. "Skip plan mode because it resets bypass" is never the answer.
+2. **Plan.** State affected paths, execution context (path class, caller, frequency, and what blocks), scale shape, verification profile, reversibility, and the three blast radii before editing. For nontrivial implementation (multiple affected files, competing approaches, or unclear requirements), use `EnterPlanMode` and `ExitPlanMode` to present the plan and obtain agreement before implementation. A hidden `Plan` agent is not this user-visible workflow. An already-approved concrete proposal authorizes its reversible implementation without re-entering plan mode or requesting the same approval again. If the user requests plan mode, use it. Read-only audits do not imply edits. Ask only for unresolved material choices or irreversible actions not already authorized.
 
    <HARD-GATE>
-   No Edit / Write / mutating Bash until `ExitPlanMode` has been called and the user has approved the plan in the plan-review UI.
-   The only skip: a literal typo or single-character fix.
+   Do not begin nontrivial implementation without an agreed plan. Use the plan-mode workflow above unless a concrete proposal is already approved.
    </HARD-GATE>
 
-   **Red flags — STOP and start over.** If any of these match your self-talk, you are about to violate Phase 2:
-   - *"I'll delegate to the `Plan` agent — its output is good enough."*
-   - *"I'll just paste the plan as text instead of calling `ExitPlanMode`."*
-   - *"Plan mode resets `bypassPermissions`, I'll skip it."*
-   - *"This is simple enough to just code."* / *"I'll plan as I go."*
-   - *"I already explored, that counts as planning."*
+   Red flags: "I'll plan as I go" and "I already explored, that counts as planning." Research supplies evidence; it does not replace agreement on the approach.
+
+   Interactive/request paths allow bounded CPU and I/O with deadlines and concurrency limits. Move unbounded scans, subprocess work, history reads, and fanout to a bounded batch/background strategy. One-way doors require Full verification, rollback, and an ADR.
 
 3. **Implement (proportional proof).** Use RED → GREEN → REFACTOR when changing behavior, fixing a bug, or protecting a regression. For surgical docs/config/mechanical edits where a new test would only assert the implementation, do not add padding tests; run the smallest relevant existing proof or state why none applies.
 
@@ -103,12 +75,12 @@ step lives inside the corresponding subagent definition, not here.
    <HARD-GATE>
    When TDD applies, the failing test run must be PASTED, not paraphrased.
    "I assume it would fail" is not RED.
-   A compile error is not RED — fix it and re-run until you get a real assertion failure.
+   An expected missing symbol/API can be RED for a new contract; unrelated compilation or environment failures are not regression evidence.
    </HARD-GATE>
 
    ### Delegation choice (orthogonal to TDD)
 
-   In a worktree with `codex --version` available, delegate implementation via `/codex-delegate` (Claude plans, Codex implements, Claude reviews). Otherwise drive the implementation loop directly. The choice of who implements does not relax the selected Verification profile.
+   In a worktree with `codex --version` available and the prerequisites declared by `/codex-delegate` satisfied, delegate implementation through that skill (Claude plans, Codex implements, Claude reviews). Verify its required plugin commands in the runtime's available command catalog; CLI availability alone is insufficient. Otherwise drive the implementation loop directly. The choice of who implements does not relax the selected verification profile.
 
    ### Visual changes need visual verification
 
@@ -201,8 +173,8 @@ Spawn without waiting for the user to ask:
 | Trigger | Agent / tool | Source |
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
-| Complex feature, refactor, or architectural decision | plan mode (`EnterPlanMode` + `ExitPlanMode`) | Claude Code built-in |
-| Plan approved, in a worktree, Codex available | `skills:codex-delegate` | bjornjee-skills |
+| Nontrivial implementation without an already-approved concrete proposal, or user requests plan mode | `EnterPlanMode` / `ExitPlanMode` per Phase 2 | Claude Code built-in |
+| Plan approved, in a worktree, delegation prerequisites satisfied per Phase 3 | `skills:codex-delegate` | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
@@ -224,7 +196,7 @@ Sequential dispatch of independent work = wasted minutes every session. Every ti
 Anti-pattern: *"I'll send the second one once the first comes back."*
 If the second doesn't read the first's output, send them together. Now.
 
-**Context injection is mandatory.** Subagents start blind. They do NOT inherit your CLAUDE.md, rules, or session history.
+**Context injection is mandatory.** Inspect the runtime’s inheritance behavior. Disable history inheritance for blind evaluations; provide applicable instructions and scoped evidence explicitly.
 
 Anti-pattern: *"The agent will figure it out."*
 Agents with thin prompts produce shallow, generic work. Every time.

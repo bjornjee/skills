@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "skills",
     "shortDescription": "Personal workflow and coding skills",
-    "longDescription": "Install bjornjee's workflow and coding skills for Codex: search-first research, terminal-ops and git workflows, GitHub ops, Go/Python/FastAPI/React Native/AI-ML language patterns, ponytail minimalism, codex-delegate plan handoff, codegraph-audit pre-PR review, and agent engineering guidance.",
+    "longDescription": "Install bjornjee's workflow and coding skills for Codex: search-first research, terminal-ops and git workflows, GitHub ops, Go/Python/FastAPI/React Native/AI-ML language patterns, ponytail minimalism, codex-delegate plan handoff, and agent engineering guidance.",
     "developerName": "bjornjee",
     "category": "Engineering",
     "capabilities": [

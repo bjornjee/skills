@@ -16,7 +16,7 @@ Pick one per repo. The table is the decision; the note is the judgment.
 | Long-lived (GitFlow) | Scheduled releases or several supported versions in the field | Pure overhead for continuous-deploy SaaS — the `develop` branch just adds a hop |
 
 - Default to GitHub Flow. Escalate to trunk-based only once flags + CI exist; drop to GitFlow only when you actually ship parallel versions.
-- `main` is always deployable and protected — no direct commits (owner hooks enforce this, below).
+- Keep the default branch deployable. Use reviewed branches for nontrivial changes; verify protection and hooks instead of assuming they exist.
 
 ## Owner conventions
 - Conventional commits, **no scopes**: `<type>: <description>`, type ∈ feat/fix/refactor/docs/test/chore/perf/ci. `feat(auth): …` is wrong here — write `feat: …`.
@@ -46,4 +46,4 @@ A test flipped red and you don't know which commit did it:
 - Merge queue vs auto-merge: a queue serializes individually-green PRs and re-tests each against the others, catching semantic (not textual) conflicts. Adopt when >~5 devs merge daily; below that, auto-merge + required status checks is enough and cheaper.
 
 ## When NOT to apply
-Solo throwaway repos and spikes skip worktrees, CODEOWNERS, and merge queues — commit to `main` and move on. The commit-message convention and "never rewrite shared history" still bind the moment a second person clones.
+Solo throwaway repos can skip CODEOWNERS and merge queues. Follow active root doctrine for worktrees and branch protection. The commit-message convention and "never rewrite shared history" still bind the moment a second person clones.

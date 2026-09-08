@@ -68,28 +68,45 @@ that aren't obvious from the codebase.]
 
 ### 3. Delegate
 
+Resolve the active `codex@openai-codex` installation for the current workspace from the runtime's plugin catalog and installed-plugin metadata (`$HOME/.claude/plugins/installed_plugins.json`). Metadata can contain multiple scope-specific entries: use the installation selected by the runtime, not the first array entry. Set `CODEX_PLUGIN_ROOT` to that entry's absolute `installPath` and verify `"$CODEX_PLUGIN_ROOT/scripts/codex-companion.mjs"` exists. If a single active installation cannot be identified, have Claude implement the approved plan directly. Do not use this skill's `CLAUDE_PLUGIN_ROOT`, derive a cache path, or guess a plugin version.
+
+This transport is verified against `codex@openai-codex` 1.0.3. Before use, verify that the selected helper supports `task --json --write --cwd --background --prompt-file`, `status --json --cwd --wait --timeout-ms`, and `result --json --cwd`. If it does not, have Claude implement the approved plan directly; do not install, upgrade, or substitute a recency-based wrapper.
+
+Put the structured prompt in a concrete `PROMPT_FILE`, then dispatch:
+
 ```
-/codex:rescue --write --background -C "$(pwd)" "<structured prompt>"
+node "$CODEX_PLUGIN_ROOT/scripts/codex-companion.mjs" task \
+  --write --background --cwd "$(pwd)" --json --prompt-file "$PROMPT_FILE"
 ```
 
 - `--write` is **required** — it sets Codex's sandbox to `workspace-write`. Without it, Codex runs read-only and cannot modify files.
-- `-C "$(pwd)"` is **required when running in a worktree** — it sets Codex's working directory (and therefore its writable root) to the worktree path. Without it, Codex resolves its writable root from the Claude Code session's original `process.cwd()`, which is the main repo — blocking writes to the worktree.
-
-Use `--wait` instead of `--background` if the task is quick (<2 min).
+- `--cwd "$(pwd)"` is **required when running in a worktree** — it sets the helper's and Codex's working directory (and therefore its writable root) to the worktree path. Without it, Codex resolves its writable root from the Claude Code session's original `process.cwd()`, which is the main repo — blocking writes to the worktree.
+- Save `JOB_ID` from the JSON response's `jobId`. It is the stable handle for this dispatch.
 
 ### 4. Strict Review (Claude)
 
 When Codex finishes, Claude reviews the output using strict reviewers. This is the quality gate.
 
 ```
-/codex:result              # get output + session ID
+node "$CODEX_PLUGIN_ROOT/scripts/codex-companion.mjs" status \
+  --cwd "$(pwd)" --wait --timeout-ms 30000 --json "$JOB_ID"
 ```
+
+Check the status response's `job.id` matches `JOB_ID`. If `waitTimedOut` is true and the job is still queued or running, wait again on the same ID within the task's execution budget; do not fetch a result yet. A completed status permits the result lookup below. Unknown IDs, failed/cancelled jobs, malformed responses, or exhausted budget require reporting the actual state; never switch to another job.
+
+```
+node "$CODEX_PLUGIN_ROOT/scripts/codex-companion.mjs" result \
+  --cwd "$(pwd)" --json "$JOB_ID"
+```
+
+In the result response, require `job.id === JOB_ID`, `storedJob.id === JOB_ID`, `job.status === "completed"`, and a nonempty `storedJob.threadId`; then capture it as `THREAD_ID`. Its `storedJob.result.rawOutput` is the implementation output. For an unknown, active, failed, cancelled, or malformed result, stop and report that result rather than reviewing or selecting another job. Do not call `result` without `JOB_ID`, or use a latest/recent task lookup: those do not establish task identity.
 
 Then run the appropriate strict reviewers on the changed files:
 
 - **Go files changed** → spawn `go-reviewer-strict` with the diff and file paths
 - **Python files changed** → spawn `python-reviewer-strict` with the diff and file paths
-- **Any files changed** → spawn `code-reviewer` for general correctness
+- **TypeScript/Node files changed** → spawn `typescript-reviewer-strict` with the full review scope
+- **Other files changed** → review their declared contracts directly; do not require an unavailable generic reviewer
 
 Review against the **original plan** — does the implementation match what was approved?
 
@@ -113,9 +130,9 @@ For minor issues (formatting, naming, missing error wraps):
 For significant issues (wrong approach, missing feature, architectural mismatch):
 - Either fix in Claude, or re-delegate to Codex with specific feedback:
   ```
-  codex exec resume --last "Review found these issues: [paste findings]. Fix them."
+  codex exec resume "$SESSION_ID" "Review found these issues: [paste findings]. Fix them."
   ```
-  Session resumption preserves Codex's full context from the original implementation.
+  Set `SESSION_ID` to the `THREAD_ID` captured from the matching `JOB_ID` result and resume that exact ID. Never use `--last`, `--resume-last`, or a recency lookup as task identity. Session resumption preserves the original implementation context.
 
 ### 6. Integrate
 
@@ -245,7 +262,7 @@ go vet ./internal/service/...
 | Critical/security-sensitive | `--effort xhigh --profile strict` | Maximum compliance |
 | Fast iteration/scaffolding | `--model gpt-5.3-codex-spark` | Boilerplate |
 
-Model names drift — verify availability with `codex models` before pinning one.
+Model names drift — inspect the current runtime’s advertised models and `codex --help` before selecting a supported command; do not assume a `codex models` subcommand exists.
 
 ## Available Commands
 
