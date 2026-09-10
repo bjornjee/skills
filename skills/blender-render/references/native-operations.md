@@ -1,9 +1,8 @@
 # Native Blender operations
 
-Use these when background rendering or scripting saves work. They are examples to
-adapt to the selected scene, not a required pipeline. Check the installed Blender's
-`--help` and API for version-specific settings; these commands were exercised with
-Blender 5.2.1. No separate `bpy` package, service, or add-on is needed.
+Read only the recipe needed. Commands and preview settings are adaptable examples,
+not a pipeline or quality target; they were exercised with Blender 5.2.1. Check the
+installed version's `--help` and API. No separate `bpy` package or add-on is needed.
 
 ## Render an existing scene
 
@@ -49,6 +48,11 @@ file. Prefer Blender's data API for object/material edits; operators can depend 
 selection, mode, and UI context. An isolated background fixture may use
 `--factory-startup`; never reset a live user session to initialize a test.
 
+For a procedural assembly, expose a small component `apply()` using existing
+geometry/material helpers; leave loading, saving, and rendering in the caller.
+State the expected input checkpoint and owned objects; do not assume reapplication
+is safe. Keep edits in versioned scripts; a console can bridge an authorized live review.
+
 Within Blender, inspect the actual target before editing:
 
 ```python
@@ -80,6 +84,24 @@ resolve. Linked libraries, simulation caches, fonts, and textures may need separ
 delivery; pack supported resources only when portability is needed. Retain the
 originals. Save Blender edits through Blender instead of copying over an open file.
 
+## Pixel-to-surface diagnosis
+
+When surface ownership is unclear, inspect the original render at native dimensions.
+Verify the sampled pixel contains the defect, using a crop or color bounds if useful;
+never guess coordinates from a resized tool image.
+
+Match the rendered state, camera/projection, dimensions, and crop, with explicit pixel
+origin/axes. Derive frame bounds instead of assuming `Camera.view_frame` corner order.
+Before trusting hits, round-trip points along sampled rays to native pixels with
+subpixel agreement. Use `world_to_camera_view` for perspective/orthographic cameras;
+other camera models need a matching projection. Correct a failed mapping and discard
+its diagnoses before adding probes.
+
+Inspect the identified object, adjoining geometry, and existing fit helpers before
+changing materials. Through glass, the first hit may not explain the artifact; check
+nearby layers and intersections. Sampled clearance is not exhaustive surface proof.
+Verify the correction in the same defect-revealing views.
+
 ## Requested animation
 
 Confirm scene/camera animation, frame range, FPS, and output size. Render a few
@@ -98,15 +120,14 @@ FPS/duration and visual playback. A contact sheet checks framing, not temporal q
 
 ## Evidence and failures
 
-Record the render start time; check process completion, logs, and nonempty outputs
-created or updated by this run, then open the rendered pixels. Do not accept a stale
-preview left behind by a failed render. Confirm final size/format/frame count
-independently of requested settings.
-When rendering fails, keep logs and check the named scene/camera, missing resources,
-engine/device support, and destination. `--python-exit-code 1` makes command-line
-Python failures visible as process failures; it is not proof of visual correctness.
+Check the original process handle, logs, and nonempty outputs created/updated after
+this run's start time. Confirm actual size, format, and frame count, then inspect pixels.
+Apply the skill's failure gate: check scene/camera, missing resources, engine/device,
+and destination before retrying. `--python-exit-code 1` exposes command-line Python
+failures; it does not prove visual correctness.
 
 Official references, read only for the operation needed:
 - [Command-line rendering](https://docs.blender.org/manual/en/latest/advanced/command_line/render.html)
 - [Command-line arguments](https://docs.blender.org/manual/en/latest/advanced/command_line/arguments.html)
 - [Save operations](https://docs.blender.org/api/current/bpy.ops.wm.html#bpy.ops.wm.save_as_mainfile)
+- [World-to-camera projection](https://docs.blender.org/api/main/bpy_extras.object_utils.html#bpy_extras.object_utils.world_to_camera_view)
