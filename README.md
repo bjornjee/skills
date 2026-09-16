@@ -46,6 +46,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/ai-ml-patterns` | Eval-first AI/ML engineering — RAG, finetune-vs-RAG-vs-prompt, injection defense (lockstep copy of the `ai-ml.md` rule) |
 | `/api-design` | Resource modeling, pagination, error envelopes, versioning, idempotency |
 | `/blender-render` | Render Blender scenes with fast previews, editable milestones, and visual verification |
+| `/build-with-team` | Architecture interviews with suggested choices, durable decisions, and adaptive native agent delivery |
 | `/claude-api` | Claude API judgment — model selection, tool-loop failure modes, caching, cost |
 | `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
 | `/context-management` | When to compact + auditing what consumes the context window |
