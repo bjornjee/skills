@@ -34,6 +34,10 @@ For decisions spanning features or workers, establish existing ownership, constr
 the proposed boundary, the simplest viable alternative, and evidence that could
 invalidate the choice. Responsibilities need not become separate services or packages.
 
+For architectural diagrams, prefer ImageGen when available unless the user requests
+another format. Verify generated labels and relationships against the written decisions
+before presenting the diagram.
+
 Read only the relevant architecture references:
 
 - UI ownership and reuse: [frontend](references/frontend-architecture.md).
