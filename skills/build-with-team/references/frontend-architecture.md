@@ -6,9 +6,10 @@ after checking fit and setup; empty folders alone demonstrate nothing.
 
 ## Establish ownership before parallel screen work
 
-Inspect the planned screens together. In the project brief, name the shared
-capabilities, their owning paths, consumers, and interfaces. These responsibility
-categories can help; they need not become separate directories or layers:
+Inspect the planned screens together. Name the shared capabilities, their owning
+paths, consumers, and interfaces; preserve these decisions in the project brief
+when work spans handoffs. These responsibility categories can help; they need not
+become separate directories or layers:
 
 | Responsibility | Owns | Reuse boundary |
 | --- | --- | --- |

@@ -60,8 +60,9 @@ verifiable outcomes; briefly explain why the split can succeed. Keep tightly cou
 changes with one owner. Delegate independent capabilities or investigations as useful;
 do not assign workers mechanically by technical layer.
 
-Give workers the outcome, owned scope, relevant decisions and reusable capabilities,
-shared contracts, dependencies, acceptance evidence, and authority to decide locally.
+Give workers the outcome, owned scope and concrete file paths, relevant decisions
+and reusable capabilities, shared contracts, dependencies, acceptance evidence,
+and authority to decide locally.
 Select applicable domain guidance and translate it into concrete acceptance criteria.
 Bound experiments and optimizations by a baseline, target, and budget or stopping
 condition. A completed investigation does not establish production readiness.
