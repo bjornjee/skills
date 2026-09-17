@@ -31,12 +31,23 @@ installation and helps expose accidental imports from the repository root.
 - Introduce a protocol or adapter for a real substitution or boundary. A concrete
   dependency is sufficient when it already expresses the required contract.
 
-## Example and evidence
+## Example: one operation, two entrypoints
 
-KPJ's [composition module](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/src/kpj_privacy/backend/composition.py)
-constructs redaction dependencies and supplies them to its
-[workflow](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/src/kpj_privacy/privacy_pipeline/workflow.py).
-This illustrates dependency ownership, not a required pipeline abstraction.
+Suppose an HTTP endpoint and a batch command both redact documents. Each translates
+its input and calls the same redaction operation. Startup creates the configured
+model client and passes it to that operation; importing the module starts no network
+work. HTTP status handling stays at the endpoint, and batch progress stays in the command.
+
+Verify that both entrypoints apply the same redaction rules and translate failures
+appropriately. A single trivial route can still call its store directly; this example
+does not require a workflow class or an interface for every dependency.
+
+The dependency-composition pattern was observed in KPJ's
+[composition module](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/src/kpj_privacy/backend/composition.py)
+and [workflow](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/src/kpj_privacy/privacy_pipeline/workflow.py).
+These are optional provenance; the two-entrypoint example is illustrative.
+
+## Evidence
 
 Where multiple entrypoints share behavior, trace them to the same implementation
 and exercise their boundary translations. For packaged delivery, verify imports

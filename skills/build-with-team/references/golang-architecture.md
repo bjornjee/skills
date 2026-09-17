@@ -31,6 +31,18 @@ services, models, repositories, and utility packages.
 - Split modules for an actual versioning or distribution boundary, not to mirror
   agent assignments or architectural layers.
 
+## Example: shared behavior without package sprawl
+
+Suppose an HTTP handler and a scheduled job both reserve inventory. The inventory
+package owns reservation rules and exposes the operation both call. Startup supplies
+its dependencies; the handler translates request errors and the job owns retry policy.
+Exercise both callers against the same stock constraints, including concurrent calls
+if the application permits them.
+
+Keep a concrete store dependency unless an actual consumer needs a narrower interface.
+A small application can keep this behavior in one package; separate entrypoints do
+not imply separate services or modules. This is a proposed example, not audited code.
+
 ## Evidence
 
 Trace intended consumers to the owning package. Exercise operations through their

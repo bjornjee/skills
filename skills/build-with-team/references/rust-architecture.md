@@ -32,6 +32,18 @@ capability modules and a workspace split remain design choices.
 - Split into workspace packages when consumers, build requirements, or distribution
   justify it. Modules can separate responsibilities within one package.
 
+## Example: sharing a calculation, not the runtime
+
+Suppose a command and a desktop app calculate the same estimate. A shared operation
+accepts domain input and returns an estimate or domain error. Argument parsing stays
+in the command; UI state stays in the desktop app. Both callers exercise the same
+calculation through its public API, while file and display errors are handled at
+their own boundaries.
+
+If only one binary needs the calculation, a private module can suffice. A second
+caller may justify a library API; it does not automatically justify a workspace or
+trait hierarchy. This is a proposed example, not audited code.
+
 ## Evidence
 
 Trace callers to the same capability implementation and exercise its public API.

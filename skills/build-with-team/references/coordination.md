@@ -112,3 +112,6 @@ evals and rendering a report independently do not establish that integration.
 
 This illustrates decisions and evidence, not mandatory architecture or measured proof
 that this team arrangement outperforms another.
+The split depends on the established contract: if detector experiments must change
+finding identity or lifecycle semantics, report work is no longer independent.
+Resolve that boundary first instead of retaining the same team arrangement.

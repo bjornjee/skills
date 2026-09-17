@@ -34,6 +34,18 @@ as routes, so reusable components belong outside it.
 - Record which behavior must survive navigation, backgrounding, disconnection,
   and permission denial. Those requirements determine state placement and cleanup.
 
+## Example: a resource that outlives one screen
+
+Suppose a capture flow opens a guidance overlay while recording must continue.
+The capture flow owns the camera session; the overlay reads status and requests
+actions through it. Opening the overlay must not start another session. Leaving
+the capture flow releases the resource; permission denial and backgrounding follow
+the product's declared behavior.
+
+If capture ends whenever its only screen closes, keep ownership with that screen.
+A longer lifetime is a requirement to establish, not a reason to introduce a global
+camera manager by default. This is an illustrative scenario, not a validated app.
+
 ## Evidence
 
 Verify shared controls in their actual screen contexts on the target platforms.

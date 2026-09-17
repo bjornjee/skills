@@ -4,9 +4,11 @@ Use these behavioral scenarios when testing the skill. They are expected outcome
 not evidence that tests have already run. Static package validation proves only
 that the skill can be distributed and discovered.
 
-For reproducible trials of reuse, scope changes, and browser integration, use
-[trial setup and checks](evaluation-trials.md). Keep evaluator instructions separate
-from the task prompt. Record actual outcomes before making effectiveness claims.
+Use the [trial design and examples](evaluation-trials.md) to prepare concrete fixtures.
+The scenarios below are probes, not prescribed application designs. Vary domains,
+starting architectures, and uncertainty; do not optimize only for these cases.
+Keep hidden evaluator checks separate from the task prompt, while giving the task
+its acceptance criteria. Record actual outcomes before making effectiveness claims.
 
 | Scenario | Expected observable behavior |
 | --- | --- |

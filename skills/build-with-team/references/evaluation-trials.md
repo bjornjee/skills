@@ -1,134 +1,72 @@
-# Reproducible evaluation trials
+# Behavioral evaluation trials
 
-Evaluator instructions; do not include these setup details, seeded faults, or
-expected solutions in the evaluated task's prompt. These are trial definitions,
-not executed results.
+Use these examples to design trials in a suitable application. They are illustrative
+tasks, not runnable fixtures or evidence of effectiveness. Optional
+[historical KPJ fixtures](historical-kpj-trials.md) preserve exact starting artifacts
+for three frontend cases; access to that private repository is not required to use
+this guidance.
 
-## Shared starting point
+## Prepare a concrete trial
 
-Use isolated disposable checkouts of `deploy-co/sales-kpj-privacy` at
-`1403d1cf01f395adb2cf205b9962d5d6750aa0b5`. Preserve its instructions and lockfile.
-Install frontend dependencies with `npm ci` in `frontend/`; record `node --version`
-and `npm --version`. Run `npm test` before each trial. Failed setup makes the trial
-invalid, not an agent failure. Repository access and dependency availability are
-prerequisites; do not substitute another revision silently.
+Pin the starting revision, dependencies, setup commands, runtime versions, any seed
+patch, user request, acceptance criteria, and resource limits. Use isolated disposable
+checkouts. Verify the unmodified baseline before seeding faults: unrelated setup
+failures invalidate the trial; an intentionally introduced failure is valid task input.
+Record unmet fixture preconditions rather than silently changing the trial.
 
-Run each trial from the same prepared snapshot twice in fresh tasks: ordinary
-execution with this skill unavailable, and execution with this skill explicitly
-selected. Keep model, reasoning effort, tools, other instructions, and limits the
-same. Do not pass prior conversations or results between runs. Both variants may
-use native subagents. Keep evaluator notes outside the target checkout.
+Give the evaluated task the user request and acceptance criteria. Keep fault-seeding
+instructions, hidden evaluator checks, and expected implementations outside its
+context and checkout. Derive expected results independently and verify that a known-bad
+result fails the relevant check, as described in [evaluation guidance](evaluation.md).
 
-This comparison measures the whole skill, including its review policy; it does not
-isolate delegation. For that question, use the controlled comparison below.
+## Examples to instantiate
 
-## 1. Reuse an existing capability
+| Task | Starting condition and request | What the evaluator observes |
+| --- | --- | --- |
+| Reuse a control | Two screens already consume a selector. Add reset-to-first-option behavior in both, preserving disabled, empty, and ordinary selection states. | Both consumers use one reset implementation and behave correctly; a duplicated implementation fails the reuse criterion. |
+| Recover from a scope change | Two views need a count. After a delegated worker first edits one view, remove that view from scope and require preservation of unrelated work. | The prior writer stops before scope reassignment; final behavior matches the revised request. If the intervention cannot occur, record not exercised. |
+| Verify a real UI boundary | A stylesheet hides a required control while unit tests pass. Restore its visible interaction and any specified persistence. | Browser evidence exposes the seeded failure, then demonstrates the repaired user action. Calling its handler directly is insufficient. |
+| Reject an unsuitable optimization | A candidate is faster but changes required outputs, or improves one model metric while violating another agreed limit. Evaluate it against a baseline under a fixed budget. | Acceptance checks detect the violated requirement; the agent rejects or qualifies the candidate rather than promoting it from the favorable metric alone. |
 
-**Starting artifacts:** Unmodified `frontend/src/ModelSelector.tsx`,
-`ChatSurface.tsx`, `LiveTranscription.tsx`, and their existing caller tests.
-Both callers already import `ModelSelector`; confirm this precondition.
+These conditions define which behavior is being tested, not mandatory solutions for
+unrelated applications. Include contrasting cases: two similar controls with different
+policy may not warrant sharing; overlapping state transitions may warrant one owner.
+The optimization case needs a real workload or dataset and independently established
+expected results before it becomes an executable trial.
 
-**Task prompt:**
+## Compare arrangements
 
-> Add a “Reset model” action to the model pickers in chat and live transcription.
-> It should select the first available option, be unavailable when selection is
-> disabled or there are no options, and preserve ordinary model selection.
-> Verify both caller contexts. Work only on this frontend change.
+For the whole skill, configure isolated evaluation environments for fresh tasks with
+and without the skill. Exclude evaluator-only references from both task environments.
+In the baseline, also exclude the skill's entrypoint and architecture/coordination
+references from discovery and accessible context; do not copy their instructions into
+the prompt or alter the user's installed skills. Preserve unrelated repository
+instructions. Keep model/version, reasoning effort, tools, permissions,
+acceptance criteria, and resource limits equal. Both conditions may use native agents.
+Do not share conversations or results between runs.
 
-**Observable checks:** Both callers use one implementation of reset behavior.
-With options A/B and B selected, reset emits A; disabled and empty states emit
-nothing. Ordinary selection still emits the chosen value. Inspect imports and the
-diff for duplicated picker logic, and exercise both caller contexts using synthetic
-props from their existing tests. Verify rendered controls through the project's UI
-verification workflow. A second implementation that merely looks identical fails
-reuse; naming a component “shared” is insufficient.
-
-## 2. Change scope while a worker is active
-
-**Starting artifacts:** The same unmodified frontend. Preserve starting file hashes
-and diffs so rollback can distinguish worker edits from existing work.
-
-**Initial task prompt:**
-
-> Add an accessible “Applied findings” count to chat and live transcription.
-> Delegate the live-transcription UI change to a native subagent while you handle
-> chat. Show zero before results and count applied findings after results arrive.
-> Keep the change local to these views and verify the behavior.
-
-**Intervention:** After the live-transcription worker's first file edit and before
-it completes, send this message through native task controls:
-
-> Change of scope: show the count in chat only. Restore live transcription to its
-> starting behavior, preserve unrelated work, and finish verification for chat.
-
-If no worker is available or it completes before the intervention, record **not
-exercised**; do not claim the recovery case passed. Record the actual intervention
-event, not an approximate elapsed-time trigger.
-
-**Observable checks:** Native status and subsequent writes establish that the
-previous writer stopped before another writer reclaims its scope. Final live-
-transcription behavior matches the baseline; unrelated edits remain intact. Chat
-shows zero and then the correct applied count. The coordinator still owns and
-verifies that acceptance. An acknowledgement without reconciled work fails.
-
-## 3. Passing unit tests with a broken browser journey
-
-**Starting artifacts:** Append exactly this rule to `frontend/src/styles.css`:
-
-```css
-.theme-toggle { display: none !important; }
-```
-
-Keep tests unchanged. Confirm `npm test` passes and the theme switch is invisible
-in a real browser. If either precondition fails, mark the fixture invalid. Start
-the frontend with `npm run dev -- --host 127.0.0.1`; record its actual local URL.
-Use a fresh browser context. Backend unavailability is acceptable for this fixture:
-the theme switch is independent of readiness, so no model service is required.
-
-**Task prompt:**
-
-> Restore theme switching through the visible UI in the local frontend. The unit
-> tests pass, but users cannot use the theme switch in the browser. Reproduce the
-> issue, fix it, and verify the original interaction. Backend readiness is outside
-> this task; do not connect to deployed services.
-
-**Observable checks:** Record the hidden switch before the fix and its visible,
-operable state afterward. Activate it through the browser and verify the theme
-changes; reload and verify the preference persists. The existing suite still
-passes. Changing tests to hide the symptom, invoking the handler without the UI,
-or citing unit results alone does not satisfy acceptance.
+This measures the whole skill, including its review policy. To isolate delegation,
+compare one implementor with parallel implementors under the same review policy.
+Evaluate reviewer count separately. Tasks explicitly requiring delegation test recovery
+or coordination, not the choice between single and parallel implementation.
 
 ## Record and interpret results
 
-For each run, retain fixture revision and seed diff, skill revision or content hash,
-model/settings, prompts and intervention event, final diff, proof outputs, and
-each check's pass/fail/not-exercised status. Record elapsed time, available usage,
-active human attention, escaped defects, integration rework, and non-actionable
-inter-agent messages. Exclude scripted scope changes from avoidable user corrections;
-record external approval waits and unavailable inputs separately.
+Retain starting artifacts and seed patch, skill revision or hash, settings, prompts,
+intervention events, final diff, and proof outputs. Mark each check passed, failed,
+or not exercised. Record accepted outcomes and escaped defects first, then human
+corrections and active attention, integration rework, elapsed time, available usage,
+and messages that changed no decision or artifact. Separate scripted interventions,
+external approval waits, and missing inputs from avoidable corrections.
 
-Compare paired outcomes before attributing an improvement to the skill. Report setup
-failures and regressions alongside successes. One pair is exploratory evidence;
-repeat with fresh tasks before claiming reliability. These frontend trials do not
-establish effectiveness for native, Python, Go, or Rust delivery.
+Evaluate final artifacts without revealing the arrangement where feasible. One pair
+is exploratory: repeat paired runs, vary execution order, and include held-out tasks
+not used to tune the skill, with different structures and domains, before claiming
+generalization. Keep acceptance fixed across each pair. Trials on one frontend cannot
+establish effectiveness on other
+stacks or on architecture from scratch. Report regressions and setup failures too.
 
-## Isolate delegation and review effects
-
-Use the same prepared task snapshot in two arrangements: one implementor with
-independent review, and a coordinator with parallel implementation owners and the
-same review policy. Keep model/version, reasoning effort, tools, permissions,
-acceptance criteria, and total resource limits comparable. Test reviewer count in
-a separate comparison so review gains are not attributed to delegation.
-
-The reuse and browser trials above can supply concrete tasks. The scope-change trial
-explicitly requires delegation, so use it to test recovery rather than to compare
-single versus parallel implementation. Add representative experiment, performance,
-and shared-contract tasks only after pinning their starting artifacts, acceptance
-criteria, and resource limits; the scenario table alone is not an executable trial.
-
-Evaluate final artifacts without revealing the arrangement to the evaluator.
-Repeat paired runs and include unseen tasks before claiming reliability. If instead
-rotating arrangements across real work, report the weaker causal comparison. Prefer
-arrangements that satisfy quality requirements with less human intervention, rework,
-delay, or usage; agent count is not a success measure. Recheck a small regression set
-and fresh tasks after material model or runtime changes before retaining old rules.
+Prefer arrangements that meet quality requirements with less human intervention,
+rework, delay, or usage. If rotating arrangements across different real tasks instead
+of matched snapshots, report the weaker causal comparison. After material model or
+runtime changes, use a small regression set and fresh tasks to reassess retained rules.

@@ -65,16 +65,20 @@ violations. Two similar screenshots do not prove reuse; one import does not prov
 the component handles both screens correctly. A library addition or boundary check
 should address an observed need, not become mandatory template infrastructure.
 
-## Evidence behind this guidance
+## Example: shared control, separate screen policy
 
-KPJ privacy at revision `1403d1c` provides concrete reuse examples:
+A chat screen and a transcription screen both select a model. One selector receives
+options, selection, disabled state, and a change callback. Each screen owns fetching
+its options and deciding when selection is allowed. Both import the same selector;
+verify selection and disabled behavior in both screen contexts.
 
-- [`ModelSelector`](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/frontend/src/ModelSelector.tsx)
-  accepts options, selection, disabled state, and a callback instead of fetching data.
-- [`ChatSurface`](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/frontend/src/ChatSurface.tsx)
-  and [`LiveTranscription`](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/frontend/src/LiveTranscription.tsx)
-  both import `ModelSelector` and `FindingAnnotation`.
+If transcription must stop recording before changing models, that policy belongs
+with transcription, not in a new recording mode on the shared selector. Extract the
+behavior that must stay consistent, not every behavior surrounding similar controls.
 
-These are inspected ownership and reuse patterns, not certification of the whole
-project. The folder layout above is illustrative, not KPJ's existing structure.
-The guidance is self-contained; source links are optional examples, not prerequisites.
+This example is adapted from inspected KPJ code at `1403d1c`:
+[selector](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/frontend/src/ModelSelector.tsx),
+[chat](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/frontend/src/ChatSurface.tsx),
+and [transcription](https://github.com/deploy-co/sales-kpj-privacy/blob/1403d1cf01f395adb2cf205b9962d5d6750aa0b5/frontend/src/LiveTranscription.tsx).
+The recording-policy extension is hypothetical. Links are optional provenance;
+the layout above is not a description of that repository.
