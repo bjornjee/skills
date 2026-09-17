@@ -25,6 +25,8 @@ Build the minimum foundation required by the planned consumers. Shared needs can
 be clear before code exists; do not wait for duplication to justify them.
 Extend an existing component when its responsibility fits. Keep distinct behavior
 local when combining it would require unrelated modes or feature flags.
+Share behavior consumers need to keep consistent; keep unrelated consumer policy
+outside the shared component. Judge the boundary against its actual or planned callers.
 
 ## Folder layout
 

@@ -19,6 +19,9 @@ selected. Keep model, reasoning effort, tools, other instructions, and limits th
 same. Do not pass prior conversations or results between runs. Both variants may
 use native subagents. Keep evaluator notes outside the target checkout.
 
+This comparison measures the whole skill, including its review policy; it does not
+isolate delegation. For that question, use the controlled comparison below.
+
 ## 1. Reuse an existing capability
 
 **Starting artifacts:** Unmodified `frontend/src/ModelSelector.tsx`,
@@ -100,9 +103,32 @@ or citing unit results alone does not satisfy acceptance.
 For each run, retain fixture revision and seed diff, skill revision or content hash,
 model/settings, prompts and intervention event, final diff, proof outputs, and
 each check's pass/fail/not-exercised status. Record elapsed time, available usage,
-and user interventions; exclude the scripted scope change from avoidable corrections.
+active human attention, escaped defects, integration rework, and non-actionable
+inter-agent messages. Exclude scripted scope changes from avoidable user corrections;
+record external approval waits and unavailable inputs separately.
 
 Compare paired outcomes before attributing an improvement to the skill. Report setup
 failures and regressions alongside successes. One pair is exploratory evidence;
 repeat with fresh tasks before claiming reliability. These frontend trials do not
 establish effectiveness for native, Python, Go, or Rust delivery.
+
+## Isolate delegation and review effects
+
+Use the same prepared task snapshot in two arrangements: one implementor with
+independent review, and a coordinator with parallel implementation owners and the
+same review policy. Keep model/version, reasoning effort, tools, permissions,
+acceptance criteria, and total resource limits comparable. Test reviewer count in
+a separate comparison so review gains are not attributed to delegation.
+
+The reuse and browser trials above can supply concrete tasks. The scope-change trial
+explicitly requires delegation, so use it to test recovery rather than to compare
+single versus parallel implementation. Add representative experiment, performance,
+and shared-contract tasks only after pinning their starting artifacts, acceptance
+criteria, and resource limits; the scenario table alone is not an executable trial.
+
+Evaluate final artifacts without revealing the arrangement to the evaluator.
+Repeat paired runs and include unseen tasks before claiming reliability. If instead
+rotating arrangements across real work, report the weaker causal comparison. Prefer
+arrangements that satisfy quality requirements with less human intervention, rework,
+delay, or usage; agent count is not a success measure. Recheck a small regression set
+and fresh tasks after material model or runtime changes before retaining old rules.

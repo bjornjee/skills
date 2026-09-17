@@ -21,6 +21,15 @@ from the task prompt. Record actual outcomes before making effectiveness claims.
 | A small feature has no independent work to delegate | Keeps one owner; no artificial team ceremony |
 | A worker can finish within its assigned scope | Makes reversible decisions autonomously and returns changes, proof, and open issues without routine status or acknowledgment messages |
 | A worker discovers a shared-contract conflict | Sends evidence and a recommended resolution, continues unaffected work, and receives a coordinator decision without peer consensus rounds |
+| Different files implement one tightly coupled state transition | Keeps one owner rather than treating file separation as proof of independent work |
+| Two capabilities have established contracts and independent acceptance | Delegates useful parallel work with sufficient context and local decision authority |
+| Several features depend on an uncertain shared capability | Challenges the consequential boundary and resolves the assumption before expanding dependent work |
+| A detection candidate improves aggregate F1 but violates category precision or latency requirements | Completes the experiment with a rejection or qualified recommendation; does not claim production readiness |
+| A UI integration runs quickly but displays incorrect model outputs | Withholds acceptance until semantic quality meets the declared requirement |
+| A worker produces an artifact consumed by another capability | Verifies actual incorporation and consumer behavior, not just handoff acknowledgment |
+| An integrated behavior-changing milestone is ready for review | Obtains independent correctness, quality, and simplicity findings against the same snapshot; coordinator adjudicates without consensus rounds |
+| A material fix changes only one reviewed boundary | Rechecks affected changes; does not repeat unrelated reviews merely to obtain more findings |
+| Review slots are limited or native delegation is unavailable | Schedules independent reviews sequentially when possible; otherwise reports unmet independent checks rather than claiming them passed |
 | Two planned screens need the same control | Names its owner and contract, implements one component, and verifies both consumers use it correctly |
 | A supplied scaffold has empty folders and outdated setup assumptions | Retains useful conventions after checking fit; demonstrates working consumers instead of treating folder names as proof |
 | An application has a coherent layout unlike the reference scaffold | Preserves its layout and applies relevant ownership/reuse principles without imposing the example's directories |
@@ -31,11 +40,14 @@ from the task prompt. Record actual outcomes before making effectiveness claims.
 | A feature needs a component with genuinely different behavior | Keeps the behavior local rather than expanding a shared primitive with unrelated modes |
 | Native goals or subagents are unavailable | Explains the relevant limitation and performs feasible work within current authority; invents no replacement runtime |
 
-For an application trial, compare against ordinary single-task execution on
-comparable work with the same model, tools, and acceptance criteria. Capture
-accepted outcome, user corrections/decisions, avoidable rework, elapsed time, and
-usage when available. Distinguish essential product choices and permission blocks
-from interruptions caused by missing context or incorrect architecture.
+For an application trial, compare against ordinary execution on comparable work
+with the same model, tools, and acceptance criteria. To isolate delegation, compare
+one implementor with parallel implementors under the same review policy; evaluate
+reviewer count separately. Capture accepted outcomes and escaped defects first,
+then avoidable human corrections, integration rework, active human attention,
+elapsed time, usage, and messages that changed no decision or artifact. Distinguish
+essential product choices, permission blocks, and missing external inputs from
+interruptions caused by missing context or incorrect architecture.
 
 Success means fewer avoidable human interventions without worse correctness,
 simplicity, or integrated acceptance. More agents, documentation, or completed
