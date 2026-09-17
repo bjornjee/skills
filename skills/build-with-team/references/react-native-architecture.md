@@ -1,54 +1,78 @@
-# React Native architecture
+# React Native: composition and resource ownership
 
 Apply [frontend ownership and reuse](frontend-architecture.md). This reference adds
-mobile boundaries; it does not prescribe a navigation library, state manager, or
-Expo versus bare React Native. Preserve a suitable existing setup.
+native lifetimes and a concrete arrangement; preserve a suitable existing router,
+state manager, and Expo or bare React Native setup.
 
-## Illustrative organization
+## Observed structure: car inspection
+
+Selected paths at `3be2132`:
 
 ```text
-app/                    Routes when using Expo Router
-src/
-  features/<feature>/   Screens, feature state, domain behavior, tests
-  components/           Shared native UI
-  theme/                Semantic tokens and typography
-  platform/             Camera, microphone, storage, device integrations
+mobile-reactnative/
+  app/                         Expo routes and navigation composition
+  src/
+    components/
+      ui/                      Button, Typography, StatusPill, etc.
+      review/                  Review-specific compositions
+      recording/
+      engine/
+      enriched-review/
+    hooks/
+    providers/
+    services/
+    types/
+    constants/
 ```
 
-Adapt or omit folders. With another router, keep its navigation composition in
-the project's existing location. Expo Router treats files in its app directory
-as routes, so reusable components belong outside it.
-[Expo routing conventions](https://docs.expo.dev/router/basics/core-concepts/).
+The review route imports shared UI and review-specific cards, inspection/audio hooks,
+providers, report operations, and summary functions. `components/ui/Button.tsx` owns
+visual variants, loading/disabled behavior, and accessibility state; it consumes the
+theme and receives `onPress`. `services/reviewSummary.ts` is a plain TypeScript
+calculation without native rendering imports.
 
-## Decisions that affect reuse
+These paths demonstrate distinct responsibilities rather than mandate a folder
+count. The inspected review route still has substantial screen orchestration; do not
+copy its size or assume every existing route is thin.
 
-- Separate reusable domain calculations and data contracts from native rendering
-  and device APIs. Share UI across platforms only where behavior and accessibility
-  requirements align; visual resemblance alone is insufficient.
-- Give long-lived resources one owner: capture sessions, subscriptions, connections,
-  and persisted state. Screens request actions through that owner rather than
-  independently starting duplicate sessions.
-- Keep platform differences at the affected boundary, such as platform-specific
-  component files or a device adapter. Do not build a generic device framework
-  for a single call.
-- Record which behavior must survive navigation, backgrounding, disconnection,
-  and permission denial. Those requirements determine state placement and cleanup.
+## Scaffold intent and adaptation
 
-## Example: a resource that outlives one screen
+The user's React Native scaffold at `52137d6` separates platform-independent
+`core/{hooks,models,services,constants,utils}`, shared `components`, thin `screens`,
+and `navigation`. Most are placeholders. Extract the intended separation, not its
+bare React Native installation procedure or its exact names. The inspected car
+application uses Expo routing instead. Keep reusable components outside route-owned
+locations when the router treats files there as routes.
 
-Suppose a capture flow opens a guidance overlay while recording must continue.
-The capture flow owns the camera session; the overlay reads status and requests
-actions through it. Opening the overlay must not start another session. Leaving
-the capture flow releases the resource; permission denial and backgrounding follow
-the product's declared behavior.
+## Boundaries to establish
 
-If capture ends whenever its only screen closes, keep ownership with that screen.
-A longer lifetime is a requirement to establish, not a reason to introduce a global
-camera manager by default. This is an illustrative scenario, not a validated app.
+- Screens compose controls and invoke owned behavior. Domain calculations and data
+  contracts should not depend on native rendering or navigation when unnecessary.
+- Put native permissions, capture, playback, storage, and platform differences at
+  their actual boundaries. A device hook can be native-specific; do not describe
+  it as platform-independent merely because it is in `core/`.
+- Give each long-lived session, subscription, or connection one owner. Its lifetime
+  follows requirements across navigation, backgrounding, denial, and disconnection.
+- Share UI only when behavior and accessibility requirements align. Theme and
+  control behavior should remain consistent without absorbing feature policy.
 
-## Evidence
+## Counterexample and proof
 
-Verify shared controls in their actual screen contexts on the target platforms.
-For affected device resources, exercise entry, exit, interruption, and re-entry;
-check that resources are released and duplicate sessions are not created.
-Web rendering alone does not establish native lifecycle behavior.
+If a capture flow must keep recording while a guidance overlay opens, both screens
+must not independently start a camera session. The flow owns it; the overlay reads
+status and requests actions. If capture should end with its sole screen, keep that
+shorter ownership instead of adding a global manager. This is an illustrative change
+scenario, not an executed lifecycle trial of the source app.
+
+Exercise shared controls in real screen contexts. For affected device resources,
+verify entry, interruption, navigation, exit, and re-entry on target platforms;
+check release and duplicate sessions. Unit tests can establish independent domain
+calculations; web screenshots cannot establish native lifecycle behavior.
+
+## Source provenance
+
+[Scaffold intent](https://github.com/bjornjee/scaffold-templates/blob/52137d61f758739d50c9dade0d8ed0ce8dcbd236/react-native-app/README.md),
+[review route](https://github.com/deploy-co/sales-car-inspection-demo/blob/3be2132217494afd2e0f19a5fd81daee546b394c/mobile-reactnative/app/%28review%29/index.tsx),
+[shared button](https://github.com/deploy-co/sales-car-inspection-demo/blob/3be2132217494afd2e0f19a5fd81daee546b394c/mobile-reactnative/src/components/ui/Button.tsx),
+[domain calculation](https://github.com/deploy-co/sales-car-inspection-demo/blob/3be2132217494afd2e0f19a5fd81daee546b394c/mobile-reactnative/src/services/reviewSummary.ts).
+These are inspected sources, not a new execution or blanket quality certification.

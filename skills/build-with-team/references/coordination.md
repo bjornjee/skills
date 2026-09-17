@@ -1,117 +1,103 @@
-# Coordination decisions
+# Coordination and acceptance
 
-Use this reference when challenging shared architecture, dividing work, or reviewing
-an integrated milestone. These are decision criteria, not a fixed team roster.
-
-## Choose the arrangement
-
-Trace dependencies in behavior, contracts, and state. Separate files alone do not
-make assignments independent. A worker may own a capability across UI, application,
-and persistence when that reduces handoffs.
-
-| Evidence about the work | Arrangement |
-| --- | --- |
-| Clear requirements and independently verifiable outcomes | Parallel implementation owners |
-| Clear requirements with tightly connected changes | One owner across the connected work |
-| Uncertain approach with independently testable alternatives | Bounded investigations or experiments against common acceptance criteria |
-| Uncertain shared assumption affecting several features | Resolve the assumption before expanding dependent implementation |
-
-Share relevant factual context and accepted decisions with implementors. Assign
-enough scope and authority to finish without routine approval requests. Use native
-assignment messages; a separate assignment document is unnecessary.
+Use for architectural challenges, ownership assignments, integration, and review.
+Use native tasks/subagents within the runtime's authority; do not introduce another
+task system. The coordinator owns the integrated outcome, including unmet criteria.
 
 ## Challenge consequential architecture
 
-A boundary is consequential when a mistaken choice would force substantial changes
-across consumers or be costly to reverse. Ordinary local choices need no architecture
-review. For a consequential choice, give an independent read-only agent the outcome,
-accepted constraints, repository evidence, and proposed boundary and alternative.
-Exclude prior debate and the coordinator's conversation history.
+Before a mistaken boundary spreads into dependent work, give an independent read-only
+agent the relevant original requirements, authorized changes, repository evidence,
+proposed boundary, and simplest viable alternative. Disable conversation-history
+inheritance and omit prior debate. Preserve facts and requirements, not just the
+coordinator's preferred interpretation.
 
-Ask it to identify missed reuse, unnecessary layers, misplaced state or responsibility,
-unsupported assumptions, and dependencies that defeat the proposed division of work.
-Require concrete evidence and a correction or falsifiable investigation; no findings
-is valid. The coordinator adjudicates and tests unresolved assumptions. Reopen the
-decision when new evidence warrants it, rather than repeating opinion rounds.
+Ask for missed reuse, unsupported assumptions, insufficient or excessive separation,
+misplaced state, and dependencies that defeat the proposed division of work. Require
+evidence, consequence, and a concrete correction or falsifiable investigation.
+No findings is valid. The coordinator adjudicates; peer agreement neither resolves
+an unanswered user choice nor validates an uncertain capability.
 
-## Select acceptance evidence
+## Choose ownership
 
-Use the project's applicable domain guidance and proof commands. This table helps
-select evidence; it does not replace core verification profiles or specialist methods.
-
-| Work | Evidence to establish before acceptance |
+| Evidence | Arrangement |
 | --- | --- |
-| CRUD | Operations, validation, persistence, and relevant access/error behavior |
-| Shared UI | Actual consumers reuse the implementation; rendered states and accessibility work |
-| Model experiments | Baseline, exact metrics and dataset version/splits, protected evaluation data, and relevant latency/cost limits |
-| Performance | Measured bottleneck and before/after results on a representative device/workload, with required behavior preserved |
-| Data changes | Integrity invariants, consumer compatibility, and applicable migration/recovery checks |
-| Realtime integration | Event semantics, ordering, cleanup, and the actual capture-to-consumer lifecycle |
+| Clear requirements and independent acceptance | Parallel implementation owners |
+| Tightly connected behavior or state transitions | One owner across the connected work |
+| Uncertain approach with testable alternatives | Bounded investigations against common acceptance |
+| An unproven shared assumption affects several features | Resolve it before expanding dependent implementation |
 
-Set experiment limits before running; stop when acceptance is met or the budget or
-stopping condition is reached. Report a rejected candidate or unresolved feasibility
-as such. Do not replace the product's quality target with an easier metric.
+An assignment contains the relevant original requirements and approved changes,
+owned paths, existing implementations to reuse, shared contracts, unresolved
+dependencies, expected proof, and authority to decide locally. Supply applicable
+instructions and concrete code context as required by the runtime. A separate
+assignment document is unnecessary. Workers are not alone in the checkout; preserve
+others' changes and route ownership conflicts to the coordinator.
 
-## Adapt from observed signals
+Default to one assignment and one completion report: changes, proof, and open issues.
+Do not relay routine acknowledgments or peer debate. Escalate only a blocker,
+required out-of-scope change, or evidence invalidating the assignment; include a
+recommended resolution and continue unaffected work.
 
-| Signal | Response |
+If clarification repeats, fix the assignment rather than repeating messages. If
+ownership overlaps or a worker fails, inspect partial work and confirm the old
+writer has stopped before reassigning. Reorganize when evidence changes dependencies;
+do not preserve a team arrangement for its own sake.
+
+## Integrate evidence
+
+Trace worker artifacts into actual consumers. Exercise the integrated user journey,
+not just each component in isolation. Verify that runtime selection uses the intended
+implementation; a correct experiment or adapter that the application never uses
+does not satisfy the requirement.
+
+Select proof using applicable domain guidance and core verification profiles:
+
+| Work | Evidence needed for acceptance |
 | --- | --- |
-| Multiple workers need one unresolved decision | Resolve it and pause only dependent work |
-| Overlapping edits or repeatedly conflicting assumptions | Consolidate ownership after stopping the previous writers |
-| An experiment invalidates an assumed capability | Revise affected contracts and assignments before expansion |
-| A contract is sufficiently proven and remaining work is independent | Expand parallel implementation where useful |
-| Messages repeat without new evidence | Inspect the blocker; stop relaying debate or unchanged status |
+| CRUD | Operations, persistence, validation, relevant access/error behavior |
+| Shared UI | Actual consumers reuse it; distinct rendered states and accessibility work |
+| Model-dependent capability | Representative data, independent expectations, exact metrics/splits, unsupported cases, applicable latency/cost limits |
+| Independent tuning or substitution | Domain evaluation outside presentation; replacement preserves real contract semantics |
+| Performance | Measured bottleneck and representative before/after results with behavior preserved |
+| Data changes | Integrity, consumer compatibility, applicable migration and recovery proof |
+| Realtime/device work | Event semantics and the actual capture, interruption, consumer, and cleanup lifecycle |
 
-Separate external authorization or missing inputs from implementation defects.
-Communicate the actionable blocker once; reassess when authority, inputs, or relevant
-state change. Preserve the runtime's required approval and recovery behavior.
+Fixtures can prove orchestration without proving capability quality. Keep those
+claims separate. Record a rejected candidate or missing input honestly; never
+replace the quality target with an easier metric. An incomplete requirement remains
+open unless the user explicitly authorizes its deferral.
 
-## Review an integrated implementation
+## Review and accept
 
-The coordinator launches three separate read-only reviewers at a stable integrated
-milestone, before declaring the behavior-changing outcome complete. Workers do not
-launch their own review hierarchies. Supply each reviewer the same revision or frozen
-diff, changed-file scope, accepted requirements, relevant decisions, and proof artifacts.
-Disable conversation-history inheritance and withhold other reviewers' findings and
-the implementation narrative; retain the actual requirements and constraints.
+At a stable integrated behavior-changing milestone, the coordinator launches three
+separate read-only reviewers. Give each the same revision or frozen diff, changed
+scope, original requirements, authorized changes, relevant decisions, and proof.
+Include unresolved assumptions and capability limits. Disable conversation-history
+inheritance and withhold other reviewers' findings and the implementation narrative.
+Do not use an agent-authored brief as the sole authority for scope.
 
-| Review | Focus |
+| Reviewer | Focus |
 | --- | --- |
-| Correctness | Requirements, contracts, failure paths, security, and regression evidence |
-| Quality | Maintainability, ownership, dependencies, meaningful tests, accessibility, and actual user behavior |
-| Simplicity | Missed reuse, duplication, unnecessary layers/dependencies, and speculative flexibility |
+| Correctness | Requirement fidelity, behavior, contracts, failure paths, security, and regression evidence |
+| Quality | Responsibility ownership, change isolation, meaningful tests, accessibility, and actual user behavior |
+| Simplicity | Missed reuse, duplication, unnecessary machinery, and missing boundaries causing avoidable change impact |
 
-Use an applicable strict language reviewer for correctness instead of automatically
-adding a fourth generic review; preserve any additional checks required by core or
-project instructions. If concurrency is limited, run independent reviews sequentially.
+Each may challenge weakened requirements, simulated capabilities presented as real,
+or unsupported completion claims. Simplicity is not a count of files or interfaces:
+removing a needed boundary and introducing a speculative framework can both fail it.
+Use the applicable strict language reviewer for correctness rather than automatically
+adding a fourth reviewer. Preserve additional core/project checks. With limited
+slots, run reviews sequentially without sharing findings between reviewers.
 
-Findings need evidence, consequence, and a concrete correction. Simplicity proposals
-must preserve acceptance requirements. Allow no findings; reviewer agreement is not
-proof. The coordinator adjudicates, applies fixes, and verifies them using core gates.
-Material fixes require review of affected changes; unrelated reviews remain valid.
-Do not rerun all reviewers merely to solicit more findings. Reviewers assess the
-integrated result, not every intermediate worker response.
+Require evidence, consequence, and a concrete correction. Allow no findings; reviewer
+agreement is not proof. The coordinator adjudicates, fixes, and verifies under core
+gates. Material fixes need review of affected changes; do not repeat unrelated reviews
+to seek consensus. Docs-only/mechanical changes receive proportional review.
 
-## Example: car inspection
-
-Suppose detector quality is uncertain while the inspection-event contract is established.
-First verify the actual owners of detection, duplicate suppression, and coverage
-progression; do not move deduplication into detection merely because duplicates appear
-in the report.
-
-The coordinator can assign a bounded detector experiment and independent report UI
-work using the existing event contract. Keep capture/coverage changes together if
-they depend on the same unresolved state transitions. The experiment compares exact
-type/location quality as well as any-damage detection, with applicable latency limits.
-An F1 improvement that violates another acceptance requirement is not promoted.
-
-If a candidate requires different event semantics, resolve that shared decision before
-dependent workers adopt it. The coordinator finally verifies that the chosen detector,
-tracking behavior, and report agree through a real inspection journey. Passing model
-evals and rendering a report independently do not establish that integration.
-
-This illustrates decisions and evidence, not mandatory architecture or measured proof
-that this team arrangement outperforms another.
-The split depends on the established contract: if detector experiments must change
-finding identity or lifecycle semantics, report work is no longer independent.
-Resolve that boundary first instead of retaining the same team arrangement.
+Before completion, map original outcomes and authorized changes to integrated evidence,
+explicitly approved deferrals, or remaining gaps. State whether the delivered result
+is an accepted product, an approved intermediate milestone, or incomplete work.
+Do not present passing tests, completed reviews, or a runnable prototype as proof
+of an unmet central capability. When a required independent check is unavailable,
+report it rather than fabricating success.

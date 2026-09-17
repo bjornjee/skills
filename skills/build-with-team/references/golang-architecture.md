@@ -1,51 +1,72 @@
-# Go architecture
+# Go: capability packages and supplied dependencies
 
-Organize packages around cohesive capabilities. This is proposed guidance, not
-an audited project template. Preserve existing boundaries that serve the application.
+This reference extracts intent from the user's scaffold at `52137d6`; its directories
+are largely placeholders, not an audited Go application. Preserve existing package
+boundaries that serve the actual consumers.
 
-## Illustrative organization
+## Scaffold structure and what it means
 
 ```text
-go.mod
-cmd/server/main.go       Startup, dependency composition, shutdown
+cmd/server/              Entrypoint
 internal/
-  <capability>/          Behavior and owned types; colocated *_test.go
-  <integration>/         Shared external-system adapter, if needed
+  domain/                Domain concepts
+  models/                Boundary data structures
+  services/              Application orchestration
+  clients/               External dependencies
+  mocks/                 Scaffold's test doubles
+  utils/                 Scaffold's helpers
 ```
 
-A small command can remain in one package. `cmd/` is a convention; `internal/`
-has compiler-enforced import restrictions. Neither requires a catalogue of empty
-services, models, repositories, and utility packages.
-[Official Go layout guidance](https://go.dev/doc/modules/layout).
+The useful intent is a small entrypoint and separately owned domain, orchestration,
+and external behavior. These exact global layer packages are not required. Cohesive
+capability packages can own their types, operations, and adapters together; a small
+command can remain in one package. Do not pre-create mocks/utilities or duplicate
+one concept into domain and models solely to match the scaffold.
 
-## Decisions that affect reuse
+## Establish the actual boundary
 
-- Let the package that owns a capability expose its useful operations. HTTP handlers,
-  jobs, and commands should call those operations rather than reproduce their rules.
-- When a consumer needs an interface, define the smallest contract it uses near
-  that consumer. Do not wrap every concrete dependency or generate mocks by default.
-- Compose dependencies at startup. Avoid mutable package-level clients and test
-  swap functions that make independent callers share hidden state.
-- Keep package dependencies acyclic. Move code according to responsibility instead
-  of introducing a catch-all shared package to break a cycle.
-- Split modules for an actual versioning or distribution boundary, not to mirror
-  agent assignments or architectural layers.
+Let a capability expose operations that preserve its invariants. HTTP handlers,
+jobs, and commands call those operations instead of duplicating rules. Keep transport
+translation separate from substantial domain policy. When a consumer needs a boundary,
+define the smallest interface it uses near that consumer and pass the implementation
+to its owner at startup. Concrete dependencies suffice when no substitution or
+independent ownership is required.
 
-## Example: shared behavior without package sprawl
+The scaffold shows a package-level client and `SetTestClient` that replaces it for
+tests. Do not copy that pattern: unrelated callers would share mutable selection.
+Its actual external-client contract is:
 
-Suppose an HTTP handler and a scheduled job both reserve inventory. The inventory
-package owns reservation rules and exposes the operation both call. Startup supplies
-its dependencies; the handler translates request errors and the job owns retry policy.
-Exercise both callers against the same stock constraints, including concurrent calls
-if the application permits them.
+```go
+type HTTPClient interface {
+    Do(req *http.Request) (*http.Response, error)
+}
+```
 
-Keep a concrete store dependency unless an actual consumer needs a narrower interface.
-A small application can keep this behavior in one package; separate entrypoints do
-not imply separate services or modules. This is a proposed example, not audited code.
+Retain the dependency contract where the actual consumer needs it, but pass the
+client to that owner instead of changing package state. This wiring change is a
+proposed correction, not an observed scaffold implementation. Prefer domain-level
+operations when the consumer needs domain behavior rather than generic HTTP access.
+Do not introduce interfaces around every helper or mandate mock generation. Test
+doubles isolate behavior; real integration checks still matter.
 
-## Evidence
+Keep dependencies acyclic. Resolve a cycle by correcting ownership rather than moving
+unrelated types into a shared package. Split modules for actual consumer/versioning
+or distribution needs, never to mirror agent assignments. Concurrency requires explicit
+context, cancellation, and resource ownership under the applicable Go guidance.
 
-Trace intended consumers to the owning package. Exercise operations through their
-real entrypoints and verify cancellation and resource ownership where concurrency
-is involved. Mocks can isolate a dependency but cannot establish that its actual
-integration works. Use the project's existing Go verification conventions.
+## Demonstrate the separation
+
+For a requested independently tunable or replaceable dependency, supply another
+relevant implementation to the operation and exercise success, failure, and cancellation
+as applicable. Trace intended entrypoints to the same policy owner. Test relevant
+domain invariants under permitted concurrency where applicable, rather than treating
+mocks as proof of storage behavior. Do not create speculative providers for this example.
+
+Do not inherit the scaffold's blanket mocking rule or platform-specific build recipes
+as universal requirements. Use the project's existing Go proof commands.
+
+## Source provenance
+
+[Go scaffold](https://github.com/bjornjee/scaffold-templates/blob/52137d61f758739d50c9dade0d8ed0ce8dcbd236/golang-server/README.md).
+The ownership rules and instance-injection correction are proposed adaptations;
+no populated Go application was inspected for this reference.

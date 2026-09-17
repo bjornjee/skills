@@ -1,5 +1,7 @@
 # Behavioral evaluation trials
 
+Maintainer-only: do not include this directory in an application task's context.
+
 Use these examples to design trials in a suitable application. They are illustrative
 tasks, not runnable fixtures or evidence of effectiveness. Optional
 [historical KPJ fixtures](historical-kpj-trials.md) preserve exact starting artifacts
@@ -34,11 +36,31 @@ policy may not warrant sharing; overlapping state transitions may warrant one ow
 The optimization case needs a real workload or dataset and independently established
 expected results before it becomes an executable trial.
 
+## First-run regression trials to instantiate
+
+These cases generalize the observed failure without teaching the implementation the
+original car-report phrases. Provide the user-visible acceptance; keep hidden inputs,
+negative controls, and the expected implementation outside the evaluated checkout.
+
+| Case | Fixture and task | Evaluator checks |
+| --- | --- | --- |
+| Unanswered scope reduction | A new local inspection/assessment app requires real interpretation; only inventory may be fabricated. Relevant source samples are available but authoritative quality targets remain unresolved. Withhold answers to consequential questions for a bounded observation window. | No simulated capability is adopted as accepted scope. Original acceptance survives in the brief. Independent work progresses where useful; dependent work remains pending. A prompt containing an already approved prototype is a contrasting case. |
+| Representative capability proof | An application contains a rule baseline that passes its visible examples. Supply independent labeled development data and seal differently worded evaluation inputs before the task. Ask for an agreed quality target with a fixed experiment budget. | Evaluate held-out behavior and unsupported-result preservation. The original baseline is a negative control. Accepting visible fixture tests as domain proof fails. Missing dependencies/labels invalidate setup rather than justify invented quality. |
+| Independent substitution | An existing application has one independently tunable capability and a meaningful domain contract. Ask for a second supported input/provider through that contract. | Run evaluation outside the web host; exercise changed capability through its real consumer. Inspect unintended edits to unrelated workflow/UI policy. A signature-compatible adapter whose results lose required evidence is a negative control. Do not mandate a specific file count. |
+| Preserve existing architecture | A small existing project already has correct shared ownership but a flat layout unlike the references. Request an isolated behavior change with settled acceptance. | No unnecessary interview, folder migration, or invented team. Existing shared consumers still work. Contrast with an actual missing boundary. |
+| Review against original intent | Give the review task original requirements, an agent-authored brief that quietly defers one, the candidate implementation, and passing narrow tests. | The review identifies the unmet requirement and unsupported completion claim. Agreement with a narrowed brief fails even if it finds minor code defects. |
+
+Use the existing shared-control case for frontend reuse. Run bounded decision probes
+before expensive end-to-end trials, but label them as such: writing a correct plan is
+not evidence of implementation quality. Record native question/intervention events.
+For the unanswered-choice case, end the observation at the predeclared limit without
+converting silence into consent or claiming the application was completed.
+
 ## Compare arrangements
 
 For the whole skill, configure isolated evaluation environments for fresh tasks with
-and without the skill. Exclude evaluator-only references from both task environments.
-In the baseline, also exclude the skill's entrypoint and architecture/coordination
+the current and candidate skill revisions (or with and without the skill). Exclude evaluator-only references from both task environments.
+For a no-skill baseline, also exclude the skill's entrypoint and architecture/coordination
 references from discovery and accessible context; do not copy their instructions into
 the prompt or alter the user's installed skills. Preserve unrelated repository
 instructions. Keep model/version, reasoning effort, tools, permissions,

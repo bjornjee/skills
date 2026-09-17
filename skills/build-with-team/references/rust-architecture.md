@@ -1,53 +1,42 @@
-# Rust architecture
+# Rust: domain types, visibility, and ownership
 
-This is a proposed baseline, not a pattern audited from the user's projects.
-Let ownership, visibility, and actual consumers determine module boundaries.
+No Rust application was present in the inspected scaffold, KPJ, or car-inspection
+sources. This is proposed guidance, not an extracted or validated project template.
+Use an existing coherent Rust layout rather than manufacturing a matching hierarchy.
 
-## Illustrative organization
+A shared library entrypoint or workspace is appropriate only when consumers, build
+requirements, or distribution need it. Private modules can separate responsibilities
+within one binary. Do not add empty packages or a trait for every type.
 
-```text
-Cargo.toml
-src/
-  main.rs                Binary startup and composition
-  lib.rs                 Library API when shared callers need it
-  <capability>.rs        Behavior and owned types
-tests/                   Integration tests through the public API
-```
+## Boundaries that matter
 
-Adapt to the target: a library need not have a binary, and a small binary need not
-have a library. These paths follow [Cargo conventions](https://doc.rust-lang.org/cargo/guide/project-layout.html);
-capability modules and a workspace split remain design choices.
+- Domain types and operations own valid states and transitions. Reusable behavior
+  should not depend on argument parsing, HTTP status handling, or runtime startup.
+- Expose useful operations through deliberate module APIs; keep implementation
+  details private or restricted. Making every field public to simplify callers can
+  bypass the invariant the abstraction should protect.
+- Use a trait when a real substitution or external boundary requires it, including
+  explicitly requested independent tuning. Supply implementations at composition.
+  Concrete types/functions remain suitable for local behavior with one owner.
+- Name owners of tasks, streams, connections, and other resources. Borrow where the
+  lifetime permits; add shared ownership/synchronization only when the execution
+  model requires it. Cancellation and shutdown are behavioral contracts too.
+- Preserve unsupported, failed, and negative outcomes distinctly when consumers need
+  different actions. Type-checking cannot establish the quality of a model result.
 
-## Decisions that affect reuse
+## Counterexample and proof
 
-- Keep reusable behavior independent of argument parsing, HTTP transport, and runtime
-  startup. Expose the operations consumers need through deliberate module APIs.
-- Keep internals private; use restricted visibility for internal collaboration.
-  Making everything public to simplify imports creates unnecessary API commitments.
-  See [Rust module visibility](https://doc.rust-lang.org/book/ch07-02-defining-modules-to-control-scope-and-privacy.html).
-- Choose traits for an actual boundary or polymorphic behavior. Concrete types and
-  functions are sufficient otherwise; avoid trait hierarchies for hypothetical reuse.
-- Name the owner of long-lived resources and tasks. Borrow when lifetimes permit;
-  introduce shared ownership or synchronization only when the execution model needs it.
-- Split into workspace packages when consumers, build requirements, or distribution
-  justify it. Modules can separate responsibilities within one package.
+Suppose an HTTP application and a batch evaluator need the same assessment operation.
+If the evaluator must construct the web server, or independently reimplements its
+rules, the reusable boundary is missing. Let the capability accept domain inputs
+and expose meaningful results; keep HTTP and batch error presentation at the callers.
+A second caller may justify a library API, not necessarily a multi-crate workspace.
 
-## Example: sharing a calculation, not the runtime
+Exercise the operation outside transport and through affected entrypoints. If provider
+substitution is required, verify meaningful outcomes through that boundary rather
+than only compilation against a trait. Test actual resource cleanup and external
+behavior where affected; borrowing checks alone do not prove them. Retain the
+project's existing build/test setup instead of adding tooling for this illustration.
 
-Suppose a command and a desktop app calculate the same estimate. A shared operation
-accepts domain input and returns an estimate or domain error. Argument parsing stays
-in the command; UI state stays in the desktop app. Both callers exercise the same
-calculation through its public API, while file and display errors are handled at
-their own boundaries.
-
-If only one binary needs the calculation, a private module can suffice. A second
-caller may justify a library API; it does not automatically justify a workspace or
-trait hierarchy. This is a proposed example, not audited code.
-
-## Evidence
-
-Trace callers to the same capability implementation and exercise its public API.
-Compilation establishes type and borrowing constraints, not correct cancellation,
-resource cleanup, or external behavior; verify those at the affected boundary.
-Use the project's existing build and test configuration rather than adding tooling
-to reproduce this example.
+Replace or supplement this proposed example with a pinned, inspected Rust application
+when one is available; do not label it as evidence from the user's existing projects.

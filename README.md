@@ -46,7 +46,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/ai-ml-patterns` | Eval-first AI/ML engineering — RAG, finetune-vs-RAG-vs-prompt, injection defense (lockstep copy of the `ai-ml.md` rule) |
 | `/api-design` | Resource modeling, pagination, error envelopes, versioning, idempotency |
 | `/blender-render` | Render Blender scenes with fast previews, editable milestones, and visual verification |
-| `/build-with-team` | Architecture interviews with suggested choices, durable decisions, and adaptive native agent delivery |
+| `/build-with-team` | Evidence-backed architecture, capability proof, native delegation, and independent acceptance review |
 | `/context-management` | When to compact + auditing what consumes the context window |
 | `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
 | `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
@@ -150,3 +150,6 @@ For the audit's complete disposition, remaining global-only findings, and verifi
 ## Migration from other rule collections
 
 Inventory overlaps and preserve local edits before choosing this repository as owner. Disable or archive only confirmed overlapping rules after separately authorizing the global change. A matching filename is not proof of ownership. Keep unrelated plugin capabilities enabled when they are still used.
+
+Behavioral trials for changes to `/build-with-team` live in
+[evaluations/build-with-team](evaluations/build-with-team/evaluation.md); they are maintainer material, not installed application guidance.
