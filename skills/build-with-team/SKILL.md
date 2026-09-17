@@ -1,110 +1,143 @@
 ---
 name: build-with-team
-description: Coordinate application changes through evidence-backed architecture decisions, adaptive native delegation, and independent review in new or existing repositories.
+description: Build or change applications through architecture decisions, representative capability proof, adaptive native delegation, and independent acceptance review.
 ---
 
 # Build With Team
 
-The current task owns the integrated outcome and may implement work itself.
-Use native coordination with one coordinator and one delegation level.
-If native delegation is unavailable, perform feasible local work and explicitly
-report unmet independent architecture challenges and reviews; do not claim they passed.
+The current task owns the integrated outcome. Use one coordinator and at most one
+delegation level; the coordinator may implement everything when work is coupled.
+For requests about this framework, work on the framework, not an invented application.
 
-## Establish the outcome
+Use the checkpoints below to decide what may proceed. They are not five documents
+or approval meetings. Reuse established evidence in existing repositories; revisit
+only decisions affected by the change. Return to an earlier checkpoint when new
+evidence invalidates it.
 
-Identify the core user journey and observable acceptance criteria.
-Inspect relevant code and prior decisions before asking questions.
-For existing capabilities, establish what they provide, where responsibility
-belongs, and what remains missing. Distinguish active decisions from obsolete ones.
-In existing repositories, preserve coherent architecture; revisit decisions affected
-by the requested change.
+## 1. Establish the outcome
 
-## Resolve consequential choices
+Trace the user journey, relevant code, and prior decisions. Identify what existing
+capabilities actually provide, what can be reused, and what remains missing.
+Preserve required behavior, quality targets, constraints, and explicitly permitted
+simulation separately from implementation assumptions and approved deferrals.
+An agent-authored brief cannot weaken a user requirement. Permission to fabricate
+one input or subsystem does not authorize simulating another required capability.
 
-Prioritize uncertain decisions whose consequences spread across the application:
-data ownership, trust boundaries, shared contracts, deployment, and shared behavior.
+Define observable acceptance and its evidence source before implementation. Expected
+results must come from independent evidence or agreed requirements, not the candidate
+implementation. Missing acceptance data or domain judgments remain open questions.
 
-Ask only for unresolved user intent or consequential tradeoffs.
-Ask one question at a time through the native input tool, with suggested pills,
-a recommendation, and its tradeoff. Derive discoverable facts yourself.
-Skip settled questions and decide reversible implementation details autonomously.
+Determine the active requirement before deciding whether a question blocks work.
+An earlier assistant's question or recommendation does not create user uncertainty:
 
-Stop interviewing when the next meaningful slice can be implemented.
-For decisions spanning features or workers, establish existing ownership, constraints,
-the proposed boundary, the simplest viable alternative, and evidence that could
-invalidate the choice. Responsibilities need not become separate services or packages.
+| Evidence | Next action |
+| --- | --- |
+| The user explicitly requires a capability; an agent proposed weakening it without an answer | Continue under the original requirement. Drop the optional reduction from the critical path; do not ask the user to reconfirm the requirement. |
+| Required technical inputs or feasibility evidence are missing | Investigate and identify the specific input or experiment needed. Keep the requirement active and continue independent work. |
+| The user has not decided a necessary scope, authority, or material tradeoff | Ask that question and pause only work that actually depends on its answer. |
 
-For architectural diagrams, prefer ImageGen when available unless the user requests
-another format. Verify generated labels and relationships against the written decisions
-before presenting the diagram.
+Derive discoverable facts yourself. For a necessary user choice, ask one question
+with suggested choices, a recommendation, and its tradeoff. A suggested default or
+elapsed time is not agreement. Do not repeat a pending question without new information.
+Name useful authorized work that can continue, or explain the actual dependency if
+none can. Missing technical inputs never authorize replacing the required outcome.
 
-Read only the relevant architecture references:
+## 2. Establish the architecture
 
-- UI ownership and reuse: [frontend](references/frontend-architecture.md).
-- Mobile platform boundaries: [React Native](references/react-native-architecture.md).
-- Package and dependency ownership: [Python](references/python-architecture.md),
-  [Go](references/golang-architecture.md), or [Rust](references/rust-architecture.md).
+For a new application or consequential redesign, read the
+[architecture guidance](references/architecture.md). Present the responsibilities,
+reuse decisions, important contracts, alternatives, and uncertain assumptions, with
+the first slice that can test them. Include a responsibility/data-flow diagram;
+prefer ImageGen unless the user requests another format, and verify its labels and
+relationships against the written decisions. If unavailable, explain and provide
+a readable text diagram. Ordinary local changes need no new architecture ceremony.
 
-Their layouts are illustrative; adapt them to the project, not the reverse.
+Resolve user-owned tradeoffs before dependent implementation; reuse agreement already
+given. Decide reversible implementation details autonomously. Obtain an independent
+read-only challenge before consequential boundaries spread across consumers, following
+the [coordination guidance](references/coordination.md). Resolve findings with evidence.
+Reviewer approval does not resolve missing user intent or prove feasibility.
 
-Before consequential boundaries spread into dependent implementation, obtain an
-independent architectural challenge using the [coordination guidance](references/coordination.md).
-Resolve findings with evidence. Test uncertain shared assumptions through a bounded
-experiment or representative end-to-end slice before expanding dependent work.
+Introduce a boundary when it gives a domain concept one owner, protects an invariant,
+isolates a required source of change, or controls a resource lifecycle. Use the
+smallest suitable function, component, module, package, or interface. Required
+independent tuning can justify a boundary before a second implementation exists.
+Separate filenames and declared interfaces do not prove separation of responsibility.
 
-## Choose ownership and proof
+Read the applicable implementation references, which contain selected structures
+and dependency examples rather than mandatory folder layouts:
 
-Before delegating, use the [coordination guidance](references/coordination.md).
-Choose ownership and parallelism from dependencies, uncertainty, and independently
-verifiable outcomes; briefly explain why the split can succeed. Keep tightly coupled
-changes with one owner. Delegate independent capabilities or investigations as useful;
-do not assign workers mechanically by technical layer.
+- UI ownership and shared consumers: [frontend](references/frontend-architecture.md).
+- Screen composition and device lifetimes: [React Native](references/react-native-architecture.md).
+- Domain contracts, composition, and persistence: [Python](references/python-architecture.md).
+- Package ownership and dependency injection: [Go](references/golang-architecture.md).
+- Domain types, visibility, and resource ownership: [Rust](references/rust-architecture.md).
 
-Give workers the outcome, owned scope and concrete file paths, relevant decisions
-and reusable capabilities, shared contracts, dependencies, acceptance evidence,
-and authority to decide locally.
-Select applicable domain guidance and translate it into concrete acceptance criteria.
-Bound experiments and optimizations by a baseline, target, and budget or stopping
-condition. A completed investigation does not establish production readiness.
+## 3. Prove the critical assumption
 
-## Preserve decisions
+If acceptance is established and no consequential uncertainty remains, proceed with
+the applicable core verification profile; do not invent an experiment or dataset.
+Identify the uncertainty whose failure would invalidate the product or cause the
+most dependent rework. Establish a bounded representative slice before expanding
+implementation around it. Specify representative inputs, independently justified
+expected outcomes, acceptance criteria, and a budget or stopping condition.
+Apply the relevant domain guidance; distinguish capability evidence from workflow
+fixtures. Synthetic examples and passing unit tests do not establish domain accuracy.
 
-When work spans handoffs, preserve the outcome, constraints, material decisions and
-rationale, unresolved assumptions, and verification links in a concise project brief.
-Reuse existing project documents when available.
-Update them when direction changes. Reconcile them on resumption with current user
-instructions, repository state, native task state, and proof; a brief is not a task board.
+Demonstrate requested architectural properties through a relevant change or consumer:
+evaluate a tunable capability outside the server, substitute its implementation,
+or exercise shared behavior in its intended consumers. Test the real contract's
+meaning, including unsupported inputs and failures, not just a matching signature.
+Do not create speculative variants to prove flexibility the user did not request.
 
-## Deliver and adapt
+If evidence is missing or the candidate fails, investigate, revise the design, or
+report the specific missing input. Preserve unsupported/unassessed outcomes separately
+from successful negative results. Never lower the quality target or silently replace
+the capability with a demo. Independent work may proceed against an explicitly
+provisional contract; a completed experiment is not product acceptance.
 
-Default to one assignment and one completion report with changes, proof, and open issues.
-Workers decide reversible details within their scope; omit routine status and acknowledgments.
-Interrupt only for blockers, required changes outside ownership, or evidence that
-invalidates the assignment. Include the evidence and a recommended resolution;
-continue unaffected work. The coordinator resolves cross-worker decisions and
-redirects affected workers; do not seek consensus or relay debate between agents.
+## 4. Implement and integrate
 
-Repeated clarification, overlapping edits, or conflicting assumptions require repairing
-the assignment or consolidating ownership. Reorganize when evidence invalidates the
-split; expand parallel work when shared contracts are sufficiently proven.
+Read the [coordination guidance](references/coordination.md) before delegation.
+Choose ownership from dependencies, uncertainty, and independently verifiable outcomes.
+Explain why the split can succeed. Keep tightly coupled changes together; separate
+files or technical layers alone do not justify separate workers.
 
-If a worker stalls or fails, inspect its partial work and confirm the previous
-writer has stopped before reassigning the scope. Unmet acceptance criteria remain
-the coordinator's responsibility.
+Give each worker the relevant original requirements and authorized changes, owned
+paths, reusable capabilities, shared contracts, acceptance evidence, dependencies,
+and local decision authority. Default to one assignment and one completion report.
+Interrupt only for blockers, ownership conflicts, or evidence invalidating the
+assignment; send evidence and a recommended resolution, then continue unaffected work.
+The coordinator resolves cross-worker decisions without peer consensus rounds.
 
-When scope changes, redirect affected work and verify its next action reflects
-the change.
+When work spans handoffs, maintain one concise existing project brief where possible:
+required outcomes; decisions and assumptions; open questions and affected work;
+acceptance evidence. Distinguish user decisions from agent assumptions and measured
+results. Reconcile the brief with current instructions, code, native task state,
+and evidence on resumption; it is not authoritative merely because it is written.
 
-## Review and accept
+Repeated clarification or overlapping changes require repairing the assignment or
+consolidating ownership. Confirm the prior writer has stopped before reassigning
+its scope. When scope changes, redirect affected work and verify its next action.
+Verify that delivered artifacts are incorporated and consumers use the intended
+contracts; handoff acknowledgments do not establish integration.
+
+## 5. Accept the outcome
 
 At an integrated behavior-changing milestone, obtain three independent read-only
-subagent reviews: correctness, quality, and simplicity. Follow the review procedure
-in [coordination guidance](references/coordination.md); docs-only and mechanical changes
-use proportional review. Resolve findings and verify fixes against applicable core gates.
+reviews: correctness, quality, and simplicity. Follow the
+[review procedure](references/coordination.md#review-and-accept); docs-only and mechanical
+changes use proportional review. Supply original requirements and explicitly authorized
+changes alongside the brief, the same implementation snapshot, and proof artifacts.
+Reviewers may challenge the coordinator's interpretation of scope. Agreement does
+not substitute for acceptance evidence. Resolve findings and verify affected fixes
+under the applicable core gates.
 
-Verify that worker artifacts were incorporated, consumers use the intended contracts,
-and the integrated user journey meets acceptance criteria. Reverify consumers affected
-by shared changes. Distinguish completed components, investigations, and accepted
-outcomes; report remaining uncertainty.
+Map each required outcome to demonstrated integrated behavior, an explicitly approved
+deferral, or a remaining gap. Passing tests, completed reviews, a finished component,
+and a runnable prototype are not interchangeable with product completion. Reverify
+consumers affected by shared changes and state what remains unvalidated.
 
-When changing this skill, use the [evaluation scenarios](references/evaluation.md).
+If native delegation or an independent check is unavailable, perform feasible work
+and report the unmet check; do not claim it passed. Improve this workflow using
+observed outcomes; maintainer trials live outside the installed skill bundle.
