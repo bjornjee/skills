@@ -47,8 +47,6 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/api-design` | Resource modeling, pagination, error envelopes, versioning, idempotency |
 | `/blender-render` | Render Blender scenes with fast previews, editable milestones, and visual verification |
 | `/build-with-team` | Architecture interviews with suggested choices, durable decisions, and adaptive native agent delivery |
-| `/claude-api` | Claude API judgment — model selection, tool-loop failure modes, caching, cost |
-| `/codex-delegate` | Plan → Delegate → Review → Rectify handoff to Codex CLI |
 | `/context-management` | When to compact + auditing what consumes the context window |
 | `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
 | `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
@@ -59,7 +57,6 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/github-ops` | GitHub operations via `gh` — triage, CI debugging, releases, reusable workflows |
 | `/golang-patterns` | Go concurrency, context discipline, module boundaries, reliability |
 | `/golang-testing` | Go integration/race/parallel testing beyond the basics |
-| `/hookify-rules` | Create Hookify rules and configure verified engine syntax |
 | `/incident-response` | Mitigate-first incident handling, severity ladder, blameless postmortems |
 | `/mcp-server-patterns` | MCP servers — tool-description engineering, error contracts, sandboxing |
 | `/observability` | Structured-log contracts, RED metrics, trace propagation, SLO-first alerting |
@@ -146,11 +143,9 @@ Before a global rollout, keep a verified backup of affected files and the owners
 
 For the audit's complete disposition, remaining global-only findings, and verification limits, see [audit remediation](docs/audit-remediation.md). Those global-only changes are not performed by this PR.
 
-### Verification and delegation
+### Verification
 
-`make test` requires Node.js, Python 3, Go with race support, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory. They exercise install failures and execute the published parser, worker-pool, and Claude-loop examples without calling paid APIs.
-
-Use `codex-delegate` only with its declared tools available. Retain the dispatched job ID, retrieve that job's verified session ID, and resume that session; never use the most recent task as identity.
+`make test` requires Node.js, Python 3, Go with race support, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory. They exercise install failures and execute the published parser and worker-pool examples without calling paid APIs.
 
 ## Migration from other rule collections
 

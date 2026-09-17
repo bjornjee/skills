@@ -78,10 +78,6 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
    An expected missing symbol/API can be RED for a new contract; unrelated compilation or environment failures are not regression evidence.
    </HARD-GATE>
 
-   ### Delegation choice (orthogonal to TDD)
-
-   In a worktree with `codex --version` available and the prerequisites declared by `/codex-delegate` satisfied, delegate implementation through that skill (Claude plans, Codex implements, Claude reviews). Verify its required plugin commands in the runtime's available command catalog; CLI availability alone is insufficient. Otherwise drive the implementation loop directly. The choice of who implements does not relax the selected verification profile.
-
    ### Visual changes need visual verification
 
    UI / CSS / colour / layout change: identify what should look different, render the running app (Playwright or the project's browser tool), and verify the observable output — only then claim done. The diff is not proof. The screenshot is.
@@ -174,7 +170,6 @@ Spawn without waiting for the user to ask:
 |---|---|---|
 | Codebase research / multi-area search before planning | `Explore` | Claude Code built-in |
 | Nontrivial implementation without an already-approved concrete proposal, or user requests plan mode | `EnterPlanMode` / `ExitPlanMode` per Phase 2 | Claude Code built-in |
-| Plan approved, in a worktree, delegation prerequisites satisfied per Phase 3 | `skills:codex-delegate` | bjornjee-skills |
 | New feature, bug fix, or refactor (any stack) | `tdd-guide` proportional-proof guide | bjornjee-skills |
 | Go file edited | `go-reviewer-strict` | bjornjee-skills |
 | Python file edited | `python-reviewer-strict` | bjornjee-skills |
