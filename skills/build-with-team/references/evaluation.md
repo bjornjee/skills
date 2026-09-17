@@ -40,6 +40,11 @@ from the task prompt. Record actual outcomes before making effectiveness claims.
 | A feature needs a component with genuinely different behavior | Keeps the behavior local rather than expanding a shared primitive with unrelated modes |
 | Native goals or subagents are unavailable | Explains the relevant limitation and performs feasible work within current authority; invents no replacement runtime |
 
+### Check whether the proof can detect failure
+
+- Expected results must come from independent evidence or agreed acceptance criteria—not from the implementation being evaluated.
+- Use a negative control: a known-bad result or deliberately broken fixture must fail the relevant check. If it passes, that check proves little.
+
 For an application trial, compare against ordinary execution on comparable work
 with the same model, tools, and acceptance criteria. To isolate delegation, compare
 one implementor with parallel implementors under the same review policy; evaluate
