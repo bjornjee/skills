@@ -146,8 +146,6 @@ For the audit's complete disposition, remaining global-only findings, and verifi
 
 `make test` requires Node.js, Python 3, Go with race support, and Git. Tests use isolated homes and fixtures under the repository's ignored `tmp/` directory. They exercise install failures and execute the published parser and worker-pool examples without calling paid APIs.
 
-Version 3 removes three retired skills; migration and rollback are documented in [ADR 004](docs/adr/004-retire-unused-claude-skills.md).
-
 ## Migration from other rule collections
 
 Inventory overlaps and preserve local edits before choosing this repository as owner. Disable or archive only confirmed overlapping rules after separately authorizing the global change. A matching filename is not proof of ownership. Keep unrelated plugin capabilities enabled when they are still used.
