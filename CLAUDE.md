@@ -10,7 +10,7 @@ These MUST always match. Bump with `make bump V=<x.y.z>` — it updates all thre
 
 ## When to Bump
 
-Bump all three manifests together for a release that changes plugin behavior. For a native GitHub stack treated as one release, keep intermediate PRs at the base version and carry one bump in the final PR. Non-stacked PRs carry their own bump. This applies to:
+Bump all three manifests together for a release that changes plugin behavior. For a native GitHub stack treated as one release, keep intermediate PRs at the base version and carry one bump in the final PR. Non-stacked PRs carry their own bump unless a maintainer applies `version-bump-deferred` and records the deferral to a separate release PR in the description. The label skips only the per-PR version-increase check; manifest lockstep and the full suite still run. This applies to:
 - Skills (`skills/`)
 - Agents (`agents/`)
 - Rules (`.claude/rules/`)

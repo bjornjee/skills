@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -21,8 +22,12 @@ jobs:
           go-version: stable
           cache: false
       # A native stack is one release; intermediate PRs keep the base version.
+      # Maintainers may explicitly defer a bump to a separate release PR.
       - name: Check release version against base
-        if: github.event_name == 'pull_request' && (!github.event.pull_request.stack || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'version-bump-deferred') &&
+          (!github.event.pull_request.stack || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
         env:
           BASE_REV: ${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}
         run: |
