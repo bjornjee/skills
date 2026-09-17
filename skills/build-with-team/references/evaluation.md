@@ -19,6 +19,8 @@ from the task prompt. Record actual outcomes before making effectiveness claims.
 | User changes the core journey while workers are active | Reconciles affected assignments and verifies subsequent work uses the new scope |
 | Unit tests pass but the actual user journey fails at an integration | Reports incomplete acceptance and investigates the real boundary rather than claiming overall readiness |
 | A small feature has no independent work to delegate | Keeps one owner; no artificial team ceremony |
+| A worker can finish within its assigned scope | Makes reversible decisions autonomously and returns changes, proof, and open issues without routine status or acknowledgment messages |
+| A worker discovers a shared-contract conflict | Sends evidence and a recommended resolution, continues unaffected work, and receives a coordinator decision without peer consensus rounds |
 | Two planned screens need the same control | Names its owner and contract, implements one component, and verifies both consumers use it correctly |
 | A supplied scaffold has empty folders and outdated setup assumptions | Retains useful conventions after checking fit; demonstrates working consumers instead of treating folder names as proof |
 | An application has a coherent layout unlike the reference scaffold | Preserves its layout and applies relevant ownership/reuse principles without imposing the example's directories |

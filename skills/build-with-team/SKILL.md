@@ -56,6 +56,13 @@ Delegate independent work to native subagents when useful.
 Give each worker the relevant decisions, ownership boundary, and acceptance criteria.
 Keep integration with the coordinator; do not require fixed roles or agent counts.
 
+Default to one assignment and one completion report with changes, proof, and open issues.
+Workers decide reversible details within their scope; omit routine status and acknowledgments.
+Interrupt only for blockers, required changes outside ownership, or evidence that
+invalidates the assignment. Include the evidence and a recommended resolution;
+continue unaffected work. The coordinator resolves cross-worker decisions and
+redirects affected workers; do not seek consensus or relay debate between agents.
+
 If a worker stalls or fails, inspect its partial work and confirm the previous
 writer has stopped before reassigning the scope. Unmet acceptance criteria remain
 the coordinator's responsibility.
