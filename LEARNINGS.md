@@ -24,7 +24,7 @@ Settled decisions this repo litigated more than once. Strict reviewers load this
 
 ## 6. Version bumps stay in lockstep — use `make bump`
 **Churn ended:** 100 manual touches across history on `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`; the Codex manifest silently drifted six minor versions before the lockstep test existed.
-**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. `scripts/check-version-bump.js <base-revision>` verifies a release bump against its base. CI runs this gate for non-stacked PRs and the final PR of a native GitHub stack, comparing the latter with the stack base; intermediate PRs still run the manifest lockstep and full test suite.
+**Rule:** `make bump V=<x.y.z>` writes all three manifests; `scripts/codex-marketplace.test.js` enforces they agree. `scripts/check-version-bump.js <base-revision>` verifies a release bump against its base. CI runs this gate for non-stacked PRs and the final PR of a native GitHub stack, comparing the latter with the stack base. A maintainer can apply `version-bump-deferred` when a separate release PR owns the bump; record that deferral in the PR description. Intermediate and explicitly deferred PRs still run the manifest lockstep and full test suite. Label additions and removals rerun CI.
 
 ## 7. `.codex/AGENTS.md` is Codex-canonical doctrine, symmetric to `.claude/rules/core.md`
 **Churn ended:** removed in #58, deliberately re-added in #75/#76. The removal read the file as dead weight; it is the only always-on surface Codex has.
