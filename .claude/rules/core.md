@@ -16,6 +16,7 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
   - Don't add `ruff`, `mypy`, `pre-commit`, `Makefile`, or CI configs unless the brief asks. Add them when you actually need them.
   - Simple must still be bounded under the real workload. Prefer direct code, but do not confuse fewer lines with acceptable cost.
 - **DRY.** Shared logic in shared packages. Constants/types defined once and imported. Copy-paste means extract.
+- **Outcome integrity.** Preserve the distinction between successful empty results and failed, incomplete or unsupported processing wherever consumers depend on that distinction.
 - **No just-in-case code.** No feature flags, backwards-compat shims, or fallbacks unless tied to an explicit migration.
 - **One way to do things.** If a pattern exists, follow it. Don't introduce alternatives.
 - **Battle-tested over hand-rolled.** If an OSS project solves 80%+, adopt or port it. Conversely, stdlib over third-party when stdlib suffices.
@@ -131,6 +132,8 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
    </HARD-GATE>
 
 Coverage goal: **80%+** as an aspiration, not a hard gate. Don't pad tests to hit a number.
+
+**Evidence-based handoff.** Match completion claims to verified scope. Keep unresolved requirements and verification gaps explicit, and make any required user action clear. Skills own domain evidence and task-specific handoff procedures.
 
 ## Decision discipline
 

@@ -6,6 +6,7 @@ description: Eval-first AI/ML engineering — RAG decisions, finetune-vs-RAG-vs-
 
 ## Evals first
 - Build the eval pipeline before optimizing prompts or models. No eval, no tuning — you're guessing with style.
+- A batch inference runner records predictions; an evaluation compares them against independent expected outcomes using task-appropriate metrics or explicit human adjudication. Record coverage and unresolved cases. Missing labels or a rubric leave quality unvalidated; do not manufacture them from the candidate's outputs.
 - Labelled datasets with known ground truth; baseline measurements first (precision, recall, F1, latency p50/p95).
 - Hold-out set is never used for iteration. Tuning against your test set is how "95% accuracy" ships a broken feature.
 - Every prompt change runs the regression eval in CI. Prompts are code; changes without evals are untested deploys.
@@ -36,6 +37,7 @@ description: Eval-first AI/ML engineering — RAG decisions, finetune-vs-RAG-vs-
 - Schema-constrained decoding (tool-use / JSON schema mode) over "respond in JSON" prose instructions.
 - Validate with the real parser; one repair retry with the error message, then fail loudly. Silent regex-rescue of malformed JSON hides model regressions.
 - Temperature 0 for extraction and classification.
+- Apply core outcome integrity to model contracts: represent validity, coverage and abstention so consumers can distinguish a valid negative from rejected output, partial assessment or unsupported input when those distinctions affect behavior. Use the smallest suitable representation, not a mandatory four-state enum. A warning beside an empty findings list is insufficient if consumers treat it as a valid negative. Test semantic rejection and partial coverage through the relevant consumers, beyond parser/schema acceptance.
 
 ## Routing & cost
 - Cheapest model that passes the eval. Cascade: cheap model first, escalate on low confidence — most volume never needs the frontier model.
