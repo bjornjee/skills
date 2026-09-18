@@ -5,6 +5,62 @@ shared behavior, owning paths, consumers, state ownership, and inputs/events. Re
 an existing component when its responsibility fits. Planned consumers can establish
 shared needs before duplicated code exists.
 
+## Design preview and agreement
+
+Resolve visual authority before designing screens:
+
+1. A theme or client resource/website explicitly selected by the user for design
+   controls the visual direction.
+   Inspect that source; do not blend in DeployCo branding unless requested.
+2. For changes without a redesign request, preserve the application's approved theme.
+3. Otherwise use `@deploy-co/design-system` and the DeployCo Brand System PDF.
+
+Inspect the package's available components, tokens and consumption guidance, and
+the PDF's relevant pages. Record the selected sources and reusable components in
+the existing design/brief artifact. The package supplies reusable interaction and
+token primitives; the brand reference supplies visual direction, not product layout.
+Use suitable package components when compatible with the stack. For native or
+non-React UI, adapt the reference's visual principles using platform components;
+do not change frameworks or copy the package internals just to imitate it.
+Client themes can use the package's product-local theming without replacing its
+accessible behavior. Verify the installed/approved version; do not pin a moving
+prerelease in this skill.
+
+Known reference locations: the canonical repository is
+`https://github.com/deploy-co/design-system` (local checkout, when available:
+`/Users/bjornjee/Code/deployco/design-system`); the supplied brand reference is
+`/Users/bjornjee/Downloads/DeployCo Brand System.pdf`. These are discovery hints,
+not prerequisites at those paths. Resolve project-provided or available copies;
+if unavailable, identify the missing source rather than claim to have inspected it.
+The PDF's colour guidance (pages 10–11) uses a white/grey/black foundation with
+sparing accents. Inspect typography, components and imagery too; a palette alone
+is not a design system. Do not substitute a package's generic defaults for a
+contradictory user-approved brand reference.
+
+Before dependent UI implementation, use Impeccable's planning guidance to establish
+the flow and show legible screen-preview images in the conversation, with artifact
+links for reopening. Prefer rendered design prototypes using actual components;
+ImageGen mockups are also proposals, never proof of implemented behavior. Keep
+prototype work limited to design review, without committing backend or domain choices.
+
+Show a representative journey with realistic content and density, covering distinct
+layouts and consequential interactions. Include an empty, loading, error/recovery or
+narrow-screen view when it changes a design decision. Approve the visual system and
+flow, not a mockup of every state; apply approved patterns to the remaining screens.
+A lone attractive landing screen cannot approve a multi-screen workflow.
+Annotate the action, next state, shared component and source inspiration where needed.
+Label previews as proposed screens, not screenshots of a working product.
+
+Present these with the conceptual architecture image and separate Markdown source
+tree at one proposal checkpoint. Ask through the main skill's interview for agreement
+on the flow and visual direction; reuse explicit prior agreement. Keep approval scoped
+to what was shown and revisit material departures, not every routine layout adjustment.
+For a screen addition, reuse approved architecture/source artifacts when their
+boundaries remain valid; show only the affected flow and visual changes.
+Then implement against the agreed previews and verify actual screenshots and live
+interactions with the UI/UX design-loop guidance. A grader's score cannot override
+the user's selected direction or substitute for user-flow smoke testing.
+
 ## Observed structure: KPJ web frontend
 
 Selected paths at `d02b69c` are relatively flat:

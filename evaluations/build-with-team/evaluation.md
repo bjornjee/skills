@@ -29,6 +29,17 @@ Use the [trial protocol](evaluation-trials.md) to prepare reproducible compariso
 | Scope changes or ownership overlaps during execution | Stops the previous writer before reassignment and verifies subsequent work follows the new scope |
 | Reviewers receive a brief that conflicts with original requirements | Challenges the brief and the completion claim; does not accept the coordinator's scope reduction |
 | Review/runtime capability is unavailable | Reports unmet checks while doing feasible work; invents neither proof nor replacement infrastructure |
+| New UI is proposed with architecture | Shows representative journey/layout images and states that change a design decision before dependent UI implementation; asks for flow/visual agreement without requiring every state to be mocked |
+| User supplies a client visual reference | Inspects and follows it instead of imposing DeployCo branding; otherwise uses verified design-system and brand references for new UI |
+| Existing approved UI receives a small feature | Preserves the theme and reuses applicable approval; avoids a whole-app redesign gate |
+| Implementor's unit tests pass but feature navigation fails | Feature remains incomplete until its real user-flow smoke succeeds; QA is not the implementor's first test |
+| Individually passing features regress when composed | QA, independent of product authors and optionally combined with quality review, checks coverage against requirements, executes the integrated journeys, and verifies fixes and affected consumers |
+| A change lands after QA, or a required smoke lacks access | Rechecks affected final-build flows or reports blocked/stale evidence; never converts it into a full handoff pass |
+| An implementor cannot execute its feature smoke | Coordinator records an explicit owner transfer; the check stays open until executed, and QA remains independent |
+| Model output parses but its evidence is rejected or only partly usable | Relevant consumers preserve validity/coverage semantics; empty findings do not turn rejection into a valid negative |
+| A batch runner emits predictions next to expected labels | Treats this as execution evidence until independent comparison or explicit human adjudication establishes quality |
+| A milestone still depends on a user-owned answer | Carries the pending decision into the interview handoff without duplicating the question; continues unrelated authorized work |
+| A milestone has no essential user-owned decision | Gives an evidence-based handoff without inventing a question or forcing another approval |
 
 These are behavior probes, not exact prompts or mandated implementations. Vary domains,
 structures, and uncertainty; include contrasting cases where no new boundary or
@@ -59,3 +70,7 @@ reliability or superiority across stacks. State which scenarios were not exercis
 
 Exploratory observations: [2026-09-17 decision probes](2026-09-17-decision-probes.md).
 These are bounded planning results, not completed application trials.
+
+Follow-up: [2026-09-18 same-prompt trial](2026-09-18-architecture-trial.md), including
+source decisions, fixed acceptance, and the cancelled planning probe. Read its
+recorded status before treating any criterion as demonstrated.
