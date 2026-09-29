@@ -58,6 +58,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/golang-patterns` | Go concurrency, context discipline, module boundaries, reliability |
 | `/golang-testing` | Go integration/race/parallel testing beyond the basics |
 | `/incident-response` | Mitigate-first incident handling, severity ladder, blameless postmortems |
+| `/manage-gpu-runs` | Standalone GPU lifecycle management with bounded resources, verified backups, recovery and cleanup |
 | `/mcp-server-patterns` | MCP servers — tool-description engineering, error contracts, sandboxing |
 | `/observability` | Structured-log contracts, RED metrics, trace propagation, SLO-first alerting |
 | `/ponytail` | Forces the laziest solution that actually works (YAGNI, stdlib-first) |

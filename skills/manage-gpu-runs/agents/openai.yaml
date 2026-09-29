@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage GPU Runs"
+  short_description: "Manage bounded GPU jobs, backups and cleanup"
+  default_prompt: "Use $manage-gpu-runs to manage this authorized GPU workload within its resource limits, verify required backups, and confirm cleanup."
