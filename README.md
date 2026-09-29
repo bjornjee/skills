@@ -58,13 +58,13 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/golang-patterns` | Go concurrency, context discipline, module boundaries, reliability |
 | `/golang-testing` | Go integration/race/parallel testing beyond the basics |
 | `/incident-response` | Mitigate-first incident handling, severity ladder, blameless postmortems |
+| `/manage-gpu-runs` | Standalone GPU lifecycle management with bounded resources, verified backups, recovery and cleanup |
 | `/mcp-server-patterns` | MCP servers — tool-description engineering, error contracts, sandboxing |
 | `/observability` | Structured-log contracts, RED metrics, trace propagation, SLO-first alerting |
 | `/ponytail` | Forces the laziest solution that actually works (YAGNI, stdlib-first) |
 | `/python-patterns` | Python style, typing, concurrency, and tooling conventions (lockstep copy of the `python.md` rule) |
 | `/react-native-patterns` | React Native engineering + worktree isolation (lockstep copy of the `react-native.md` rule) |
 | `/regex-vs-llm-structured-text` | Decision framework for choosing between regex and LLM for parsing |
-| `/run-post-training-experiments` | Choose experiments by decision value and data fitness, with controlled evaluation and bounded execution |
 | `/search-first` | Research-before-coding workflow with supply-chain checks |
 | `/security-design` | Design-time security — threat modeling, secrets, authn/z placement |
 | `/terminal-ops` | Evidence-first repo execution with destructive-command guardrails |

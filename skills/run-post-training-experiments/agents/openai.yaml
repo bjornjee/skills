@@ -1,4 +1,0 @@
-interface:
-  display_name: "Run Post-Training Experiments"
-  short_description: "Choose sound experiments with trustworthy data"
-  default_prompt: "Use $run-post-training-experiments to assess the decision and data quality, choose a worthwhile bounded experiment, and compare the evidence against the acceptance gates."
