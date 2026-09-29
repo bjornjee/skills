@@ -64,6 +64,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/python-patterns` | Python style, typing, concurrency, and tooling conventions (lockstep copy of the `python.md` rule) |
 | `/react-native-patterns` | React Native engineering + worktree isolation (lockstep copy of the `react-native.md` rule) |
 | `/regex-vs-llm-structured-text` | Decision framework for choosing between regex and LLM for parsing |
+| `/run-post-training-experiments` | Choose experiments by decision value and data fitness, with controlled evaluation and bounded execution |
 | `/search-first` | Research-before-coding workflow with supply-chain checks |
 | `/security-design` | Design-time security — threat modeling, secrets, authn/z placement |
 | `/terminal-ops` | Evidence-first repo execution with destructive-command guardrails |
