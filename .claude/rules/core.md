@@ -18,6 +18,7 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
 - **DRY.** Shared logic in shared packages. Constants/types defined once and imported. Copy-paste means extract.
 - **No just-in-case code.** No feature flags, backwards-compat shims, or fallbacks unless tied to an explicit migration.
 - **One way to do things.** If a pattern exists, follow it. Don't introduce alternatives.
+- **Plain technical language.** Use familiar words, direct sentences, and consistent terminology. Explain necessary jargon. Preserve exact identifiers and technical meaning.
 - **Battle-tested over hand-rolled.** If an OSS project solves 80%+, adopt or port it. Conversely, stdlib over third-party when stdlib suffices.
 - **Bounded work.** Every implementation must make the unit of work explicit: what input size it scales with, what triggers it, and where it runs. Work that scales with all user history, all files, all rows, all agents, or all external state is suspect unless the plan bounds it, batches it, caches it, indexes it, or moves it off the critical path.
 - **Stay in declared scope.** If the task says "X only," don't touch Y. When you spot something else worth changing, surface it as a separate proposal — do not silently expand the diff.
@@ -45,6 +46,9 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
    - You're about to write code without having read the existing entry point.
 
 2. **Plan.** State affected paths, execution context (path class, caller, frequency, and what blocks), scale shape, verification profile, reversibility, and the three blast radii before editing. For nontrivial implementation (multiple affected files, competing approaches, or unclear requirements), use `EnterPlanMode` and `ExitPlanMode` to present the plan and obtain agreement before implementation. A hidden `Plan` agent is not this user-visible workflow. An already-approved concrete proposal authorizes its reversible implementation without re-entering plan mode or requesting the same approval again. If the user requests plan mode, use it. Read-only audits do not imply edits. Ask only for unresolved material choices or irreversible actions not already authorized.
+
+   - **Assumptions.** State assumptions that materially affect the result. Ask when an unresolved choice changes scope, correctness, or reversibility; otherwise proceed with a stated assumption within the authorized scope.
+   - **Success criteria.** Translate the request into observable success criteria and identify how each will be verified before implementation.
 
    <HARD-GATE>
    Do not begin nontrivial implementation without an agreed plan. Use the plan-mode workflow above unless a concrete proposal is already approved.
