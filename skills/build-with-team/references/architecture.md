@@ -47,8 +47,8 @@ assess the decisions; a folder tree or attractive image alone does not do that.
 Ask the next unresolved consequential question through suggested choices. Recommend
 from evidence, not the ease of implementation. Obtain agreement on material product
 tradeoffs and architectural commitments; prior agreement counts. Once these are
-settled, proceed autonomously within scope. Reopen them only when new evidence
-invalidates the commitment or changes authority, scope, or acceptance.
+settled, apply the main skill's autonomous-delivery boundary: resolve internal design
+changes within the agreed intent without another approval checkpoint.
 
 For an existing application, preserve settled choices and present only the affected
 boundaries. Do not require a new diagram or interview for an ordinary isolated edit.
