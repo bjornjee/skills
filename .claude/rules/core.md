@@ -47,7 +47,7 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
 
 2. **Plan.** State affected paths, execution context (path class, caller, frequency, and what blocks), scale shape, verification profile, reversibility, and the three blast radii before editing. For nontrivial implementation (multiple affected files, competing approaches, or unclear requirements), use `EnterPlanMode` and `ExitPlanMode` to present the plan and obtain agreement before implementation. A hidden `Plan` agent is not this user-visible workflow. An already-approved concrete proposal authorizes its reversible implementation without re-entering plan mode or requesting the same approval again. If the user requests plan mode, use it. Read-only audits do not imply edits. Ask only for unresolved material choices or irreversible actions not already authorized.
 
-   - **Assumptions.** State assumptions that materially affect the result. Ask when an unresolved choice changes scope, correctness, or reversibility; otherwise proceed with a stated assumption within the authorized scope.
+   - **Assumptions.** State assumptions that materially affect the result. Resolve choices within delegated authority; ask only when a decision affecting scope, correctness, or reversibility exceeds it.
    - **Success criteria.** Translate the request into observable success criteria and identify how each will be verified before implementation.
 
    <HARD-GATE>

@@ -34,7 +34,7 @@ An earlier assistant's question or recommendation does not create user uncertain
 | --- | --- |
 | The user explicitly requires a capability; an agent proposed weakening it without an answer | Continue under the original requirement. Drop the optional reduction from the critical path; do not ask the user to reconfirm the requirement. |
 | Required technical inputs or feasibility evidence are missing | Investigate and identify the specific input or experiment needed. Keep the requirement active and continue independent work. |
-| The user has not decided a necessary scope, authority, or material tradeoff | Ask that question and pause only work that actually depends on its answer. |
+| The user has not decided a necessary scope, authority, or material tradeoff | Before architecture agreement, ask and pause only dependent work. After agreement, apply the autonomous-delivery boundary below. |
 
 Derive discoverable facts yourself. For a necessary user choice, ask one question
 with suggested choices, a recommendation, and its tradeoff. A suggested default or
@@ -52,10 +52,20 @@ prefer ImageGen unless the user requests another format, and verify its labels a
 relationships against the written decisions. If unavailable, explain and provide
 a readable text diagram. Ordinary local changes need no new architecture ceremony.
 
-Resolve user-owned tradeoffs before dependent implementation; reuse agreement already
-given. Decide reversible implementation details autonomously. Obtain an independent
-read-only challenge before consequential boundaries spread across consumers, following
-the [coordination guidance](references/coordination.md). Resolve findings with evidence.
+Resolve user-owned tradeoffs and obtain architecture agreement before dependent
+implementation; reuse agreement already given. Approval authorizes autonomous delivery
+within the agreed intent, scope, and permissions. Derive connected user journeys and
+acceptance criteria from that intent and the app's purpose, including consequential
+recovery and preservation behavior; use them to allocate work and verify outcomes.
+Infer unspecified behavior, revise internal design, and record material assumptions
+in the existing brief without intermediate approvals. Complete implementation,
+independent review, and fixes before returning the product for user testing. Involve
+the user earlier only for an indispensable input, permission, or requirement conflict
+the team cannot resolve within that authority; continue unaffected work.
+
+Obtain an independent read-only challenge before consequential boundaries spread
+across consumers, following the [coordination guidance](references/coordination.md).
+Resolve findings with evidence.
 Reviewer approval does not resolve missing user intent or prove feasibility.
 
 Introduce a boundary when it gives a domain concept one owner, protects an invariant,
