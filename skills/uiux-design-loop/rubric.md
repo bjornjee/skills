@@ -24,7 +24,7 @@ For numeric scores, priority = `(5 - raw_score) * weight`. Higher weight moves a
 
 ## Overall verdict
 
-- `PASS`: every applicable dimension has a numeric score >=4, the requested outcome is fulfilled, fresh audit PASS, preservation PASS/N/A, established reviewer independence, and no verification gaps. Valid N/A dimensions are excluded from the score threshold.
+- `PASS`: every applicable dimension has a numeric score >=4, the requested outcome and declared journey completion criteria are demonstrated through live interactions, fresh audit PASS, preservation PASS/N/A, established reviewer independence, and no verification gaps. Valid N/A dimensions are excluded from the score threshold.
 - `REWORK`: a raw score is 1 or the declared flow needs broader redesign. Explain the needed work; this does not authorize expanding scope.
 - `ACCEPTED_TRADEOFF`: the user explicitly accepted a named nonblocking visual shortfall; audit PASS, preservation PASS/N/A, and complete evidence are still mandatory. Record the acceptance and affected score. This is not PASS.
 - `ITERATE`: acceptance has not been reached and REWORK does not apply, including a score of 2–3, an unfulfilled requested outcome, or a mandatory gate/evidence check that has not passed.
@@ -37,21 +37,24 @@ No score, user tradeoff, or exhausted budget waives unresolved P0/P1 findings or
 
 ## Dimension 1 — `user-flow-fidelity`
 
-**Definition.** Does the render advance the visitor's declared goal at this step of `flow-map.md`? At each flow step, the visitor has one primary goal (read this, decide that, click here). The render either serves the goal or competes with it.
+**Definition.** Can the user complete the declared journeys through actual interactions, with clear decisions and correct state transitions? Visual hierarchy must support that completion; attractive individual screens are insufficient.
 
 ### Anchors
-- **1.** Visitor would not know what to do next. Required affordance is missing or buried. Primary content is below the fold without a scroll cue.
-- **3.** The right thing is on the page, but the visual hierarchy does not prioritise it — visitor will find it after some scanning.
-- **5.** First eye-stop is exactly the thing the flow step says it should be. Affordance is unambiguous and at the visual centre of attention.
+- **1.** A required journey cannot complete: a control dead-ends, loses committed work, reaches the wrong result, or only claims success. Explain the failed transition and impact.
+- **3.** Completion is demonstrated, but competing actions, redundant steps, hidden required content, or confusing mode/navigation behavior create material friction.
+- **5.** Complete journeys and applicable recovery branches are demonstrated. Each state has a clear next action; edit/commit/discard, navigation, selection continuity, and downstream state meet the declared contract without unnecessary steps.
 
 ### Common failures
-- "Improved" UX that removes the page's only CTA in service of strict content rules — visitor lands and has no next step.
-- Hero hierarchy where eyebrow text or subheading out-weights the primary headline.
-- Decision points in the flow that the render does not visually signal as decision points.
+- Competing Done and Save draft actions, unexplained edit mode, or Cancel retaining draft changes.
+- A question-only modal hiding generated topics needed for review, or extra screens with no useful decision.
+- Creation returning to the old selection; stale counts/previews; a shared link or participant flow using the wrong saved preparation.
+- Successful isolated clicks that never demonstrate entry → completion, or screenshot-only claims of working flows.
 
 ### Score from
-- The screenshot per flow step.
-- The visitor goal declared at that step in `flow-map.md`.
+- `flow-map.md` journey completion criteria and control inventory, matched by ID to fresh `behavior-check.md` observations of actions, destinations, persistence, and recovery.
+- Screenshots for hierarchy and discoverability; audit finding IDs for flow defects.
+
+Missing required interaction evidence makes this dimension UNVERIFIED, not a passing visual score. A confirmed failed required journey prevents PASS and ACCEPTED_TRADEOFF even if its audit severity is below P1. A prototype can demonstrate its declared local journey, but simulated generation/storage/submission cannot establish functioning product integrations.
 
 ---
 
@@ -96,7 +99,7 @@ No score, user tradeoff, or exhausted budget waives unresolved P0/P1 findings or
 
 ## Dimension 4 — `affordance-honesty`
 
-**Definition.** Do interactive elements look interactive, and do decorative-only elements stay decorative? Affordances should not over-promise (a decorative arrow that looks clickable but isn't) or under-promise (a primary action styled as ghost text).
+**Definition.** Do controls communicate and deliver their declared purpose and destination, do interactive elements look interactive, and do decorative-only elements stay decorative? Affordances should not over-promise (a decorative arrow that looks clickable but isn't) or under-promise (a primary action styled as ghost text).
 
 ### Anchors
 - **1.** Render contains "cards" that are entire sections of clickable surface but no visible affordance — or, conversely, prominent affordances that lead to dead ends. Primary CTA styled less prominently than secondary chrome.
@@ -109,7 +112,7 @@ No score, user tradeoff, or exhausted budget waives unresolved P0/P1 findings or
 - "Read more →" patterns where the arrow is the only affordance for an entire content block.
 
 ### Score from
-- Screenshots showing interactive elements. If the orchestrator can provide hover-state screenshots, factor them in. If not, score from default-state only and note the limit.
+- Screenshots show affordance styling; the control inventory and live behavior rows establish that labels match actual destinations/effects. Note any missing hover evidence without inventing it. Dead-end actions, fake-success toasts, and unlabelled simulation violate honesty; screenshots alone cannot verify an enabled control.
 
 ---
 

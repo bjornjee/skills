@@ -1,6 +1,6 @@
 # Preservation Contract
 
-> Fill this in before Gate 1 of `/skills:uiux-design-loop`. Every reachable surface not being redesigned must be listed here. "Out of scope" means "preserve compatibility," not "ignore."
+> Fill this in before Gate 1 of `/skills:uiux-design-loop`. List compatibility surfaces affected by the declared journeys, including adjacent entry/exit transitions. Bound the list to the change and its dependencies; do not inventory the entire application. "Out of scope" means "preserve compatibility," not "ignore."
 
 ## In-scope redesign surfaces
 
@@ -12,7 +12,7 @@ List the exact pages, routes, components, or states the redesign is allowed to c
 
 ## Compatibility surfaces
 
-List every reachable surface that must keep working and visually remain compatible while the redesign happens.
+List affected surfaces that must keep working and visually remain compatible. Reference flow-map IDs for saved data, edit/cancel behavior, navigation, selection, shared links, and downstream results that must survive; do not duplicate the control inventory.
 
 | Surface | How to reach it | Preserve visually? | Preserve behavior? |
 |---|---|---|---|

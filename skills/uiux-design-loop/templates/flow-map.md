@@ -1,59 +1,50 @@
 # User flow — <feature or page name>
 
-> Fill this in **before** Gate 1 of `/skills:uiux-design-loop`. The grader will read this verbatim and score the renders against the goals you declare here.
+> Before Gate 1, declare the selected journeys and controls. The grader evaluates live completion as well as renders. Keep this proportional: a cosmetic change may need one control and its adjacent transition; a multi-step editor needs complete journeys and relevant recovery branches.
 
-## Visitor profile
+## User, goal, and scope
 
-Who is the visitor at this flow? One sentence.
+- User and task to accomplish: `<who, why, observable completion>`
+- Selected surfaces, viewports, and locales: `<include relevant adjacent transitions>`
+- Exclusions and rationale: `<what is outside this task and why>`
+- Environment: `<functioning product / prototype; simulated and unavailable integrations>`
+- Persistence contract: `<draft / session / reload / durable storage; what is actually supported>`
 
-> Example: "Returning practitioner who has done Reiki 1 and is deciding whether to book Reiki 2 with this practitioner."
+## Journeys and decision points
 
-## Primary visitor goal at this flow
+Give each journey a stable ID. Follow real controls from entry to completion, including branches material to the change. Declare selected screenshot states/viewports separately from interaction coverage; do not require a screenshot for every click.
 
-One sentence. What does the visitor want to *accomplish* by working through this flow?
+| ID | Entry and preconditions | Steps and decisions | Observable completion | Failure / exit / recovery branches |
+|---|---|---|---|---|
+| J1 | `<user/data/state>` | `<state → action → next state>` | `<result visible to user and persisted as promised>` | `<validation, retry, undo, Back, unsaved exit as applicable>` |
 
-> Example: "Decide whether to book a Reiki 2 attunement session, and if yes, take a next step (contact / book / signup)."
+## Actionable controls
 
-## Flow steps
+Inventory every actionable control in the declared scope: buttons, links, selectors, editable fields, menu items, and keyboard actions. Group repeated instances only when their behavior is equivalent; name the group and representative instances to verify. This table can link an existing button map rather than duplicate it.
 
-Numbered. One screenshot per step × per viewport (desktop + mobile by default). For each step, declare the visitor's sub-goal and the affordance that step is meant to provide.
+| ID / journey / state | Label and purpose | Preconditions | Action | Destination / state change | Persistence | Recovery |
+|---|---|---|---|---|---|---|
+| C1 / J1 / `<state>` | `<visible or accessible label; intended result>` | `<selection, permissions, mode, validity>` | `<click, type, key>` | `<route, selection, focus, visible result>` | `<draft vs committed; lifetime>` | `<Cancel, Back, retry, undo, or reason none applies>` |
 
-1. **Step name** · URL or page-state · visitor sub-goal · expected affordance
-2. **…**
-3. **…**
+## Interaction invariants
 
-> Example:
-> 1. **Land on /cn/healing** · `/cn/healing` · sub-goal: understand what a healing session is and whether it fits · expected affordance: scroll cue to session-details section, primary CTA to "contact us / book"
-> 2. **Read session details** · scrolled to mid-page · sub-goal: confirm session length, format, price, who runs it · expected affordance: clear price + contact path
-> 3. **Decide and act** · footer / contact section · sub-goal: send a contact message or copy contact info · expected affordance: working contact form or copyable info
+Record only applicable contracts, referencing control IDs:
 
-## Decision points
+- Primary completion action per state; labels predict effects/destinations. Explain any necessary intermediate screen or modal.
+- Read-only/edit entry; Save commit boundary; Cancel rollback across all draft fields/generated content (or explicit autosave semantics).
+- Back/close/navigation and unsaved work; selection after creation; consistent preview, counts, links, and downstream consumers.
+- Loading/disabled/error/empty states and retry/undo; keyboard operation, validation focus, and focus return.
+- What remains invariant across viewports/locales, and intentional differences.
 
-Where does the visitor branch? What signals each branch?
+Link preserved behavior to `preservation-contract.md`. Link journey/control IDs to results in `behavior-check.md`; do not infer completion from screenshots.
 
-> Example:
-> - At step 2: visitor decides "Reiki 1 first" vs "Reiki 2 with this practitioner" vs "healing session only" — page needs to make all three paths visible.
-> - At step 3: visitor decides "book now" vs "save for later" — both should be supported (CTA + sharable URL).
+## Example — interview preparation (adapt, do not mandate)
 
-## Failure / exit states
+For a multi-step preparation prototype, useful journeys would be:
 
-What counts as the visitor giving up? Be specific — the grader uses this to score `user-flow-fidelity`.
+- J1: shared brief/sources + roles → generate shared and role-specific questions/topics with source references → review/edit → save plan.
+- J2: existing preparation opens read-only → Edit → change questions/topics/guidance → Cancel restores all originals; repeat and Save commits once.
+- J3: add role → optionally suggest both questions and topics inline → Save role → return with new role selected → preview via role dropdown. Existing roles, counts, and the one shared interview link remain consistent.
+- J4: unchanged shared link → participant name and role → interview uses shared plus selected-role preparation → answer → review/edit → finish.
 
-> Example:
-> - Lands, scrolls once, sees no next-step affordance, closes tab.
-> - Reads to mid-page, no price visible, assumes too expensive or too vague, closes tab.
-> - Reaches contact section, contact form fails to submit, leaves and doesn't return.
-
-## Invariants across viewports
-
-What must stay true on every viewport? Note where intentional divergence is allowed.
-
-> Example:
-> - Primary CTA visible above the fold on desktop AND mobile.
-> - Headline word-order identical across viewports (CN-specific: vertical typography pattern allowed on mobile).
-
-## Locales covered by this flow
-
-If multi-locale, list which locales this flow-map applies to and where divergences live.
-
-> Example: "EN + CN. Divergence: CN replaces the partner-attribution block with a centre-name block (per `project-rules.md`)."
+In a prototype, demonstrate these local transitions while naming sample AI, reset-on-refresh state, and simulated finish. Those observations do not verify real generation, durable storage, or submission.

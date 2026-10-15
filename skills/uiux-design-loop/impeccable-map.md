@@ -17,6 +17,7 @@ The parent writes `audit-findings.md` (using iteration-specific filenames on dis
 - Source revision/content fingerprint and capture time.
 - Exact audited files and excluded or unverified surfaces.
 - Stable finding ID, P0–P3 severity, original severity/optionality, file/line, observed behavior, impact, and concrete repair or optional suggestion.
+- Flow/control IDs and live behavior evidence for interaction defects, including failed completion, misleading actions, commit/discard, navigation, and recovery. Fold these into the same findings list and severity rules; no extra audit round or separate flow scorecard.
 - An explicit empty findings list when a completed audit found nothing; missing audit output is never an empty audit.
 
 Map the installed audit's severity vocabulary to this contract explicitly and retain the original classification. Do not lower severity to pass or promote optional P3 suggestions into required P2 repairs. P0/P1 findings block successful acceptance; P2 findings may remain disclosed and P3 suggestions remain optional. Report P2 and P3 separately in the grader's audit gate. Stale/incomplete audit evidence is WARN, not PASS.
