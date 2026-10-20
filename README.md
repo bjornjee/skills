@@ -48,6 +48,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/blender-render` | Render Blender scenes with fast previews, editable milestones, and visual verification |
 | `/build-with-team` | Evidence-backed architecture, capability proof, native delegation, and independent acceptance review |
 | `/context-management` | When to compact + auditing what consumes the context window |
+| `/correct` | Prevent demonstrated recurring agent mistakes with scoped structural fixes or executable guards |
 | `/create-linear-issue` | Create and verify one Linear implementation issue from a repository-bound task contract |
 | `/data-modeling` | Constraint-first schemas, query-shape indexing, expand/contract migrations, tenancy |
 | `/design-presentations` | Design editable decks with user-directed modes, styles, templates, and visual QA |
@@ -69,6 +70,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/terminal-ops` | Evidence-first repo execution with destructive-command guardrails |
 | `/typescript-patterns` | TypeScript/Node conventions (lockstep copy of the `typescript.md` rule) |
 | `/uiux-design-loop` | Two-loop UI/UX discipline with a cold-context grader (requires `impeccable`) |
+| `/why` | Trace design rationale through cited history, separating recorded intent from inference |
 
 ## Agents
 
