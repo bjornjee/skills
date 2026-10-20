@@ -77,4 +77,5 @@ Briefly report the mistake and evidence, the intervention and why it fits, the
 checks actually run, and any remaining ways the mistake can occur. Keep proposed
 work distinct from implemented and verified work.
 
-Adapted from pstack's `correct`; source revision and MIT notice are in [LICENSE](LICENSE).
+Adapted from [pstack's `correct`](https://github.com/cursor/plugins/tree/d457567332aa6989e753ea289f30ea2bfbc80bc0/pstack/skills/correct)
+by Lauren Tan (MIT).

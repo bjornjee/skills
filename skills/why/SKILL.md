@@ -80,5 +80,5 @@ If the question precedes a code change, translate the findings into concise
 constraints are documented and which still need validation; the investigation
 does not itself authorize implementation or contacting the original authors.
 
-Adapted from pstack's `why` and its epistemics and synthesis guidance; source
-revision and MIT notice are in [LICENSE](LICENSE).
+Adapted from [pstack's `why`](https://github.com/cursor/plugins/tree/d457567332aa6989e753ea289f30ea2bfbc80bc0/pstack/skills/why)
+and its epistemics and synthesis guidance by Lauren Tan (MIT).
