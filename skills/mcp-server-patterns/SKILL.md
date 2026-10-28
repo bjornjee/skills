@@ -5,7 +5,7 @@ description: Use when building or debugging an MCP server — tool/resource/prom
 
 # MCP Server Patterns
 
-The Model Context Protocol lets a client's model call your **tools**, read your **resources**, and expand your **prompts**. Verify imports, method signatures, and schema support against the project's installed SDK and negotiated protocol using the [MCP docs](https://modelcontextprotocol.io) or Context7 (query "MCP"). Adapt examples to those targets; do not upgrade merely to match a snippet.
+The Model Context Protocol lets a client's model call your **tools**, read your **resources**, and expand your **prompts**. Verify imports, method signatures, and schema support against the project's installed SDK and negotiated protocol using the [MCP docs](https://modelcontextprotocol.io) and official SDK documentation. Adapt examples to those targets; do not upgrade merely to match a snippet.
 
 ## Primitives
 
@@ -87,4 +87,4 @@ Tools run with your server's privileges, and the model's input is untrusted.
 - **TypeScript/JavaScript:** `@modelcontextprotocol/sdk` (npm) — the reference implementation.
 - **Go:** `modelcontextprotocol/go-sdk`. **C#:** the official .NET SDK.
 
-For any current signature, defer to Context7 (library "MCP") or the official docs — this skill deliberately doesn't pin them.
+For any current signature, defer to the official SDK documentation matching the installed version — this skill deliberately doesn't pin them.
