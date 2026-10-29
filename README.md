@@ -116,6 +116,18 @@ skills/<name>/SKILL.md
 
 Use the runtime's plugin UI or supported marketplace/install commands to install `skills@bjornjee-skills` from this repository. The plugin exposes skills; it does not install root doctrine, agents, or user hooks. Avoid enabling duplicate skill installations unless the runtime's precedence is understood. `make test` verifies an isolated package with no source-checkout symlinks.
 
+### Library Skills
+
+The `search-first` workflow uses package-bundled skills for installed-version guidance and official documentation for unresolved API questions. Install the Library Skills CLI separately from this plugin:
+
+```bash
+uv tool install library-skills==0.0.19
+```
+
+See [Library Skills usage](https://library-skills.io/use/) for current options. No MCP server or account sign-in is required for this local dependency scan.
+
+In an application project with dependencies installed, run `library-skills scan --json`, read relevant discovered skills, and install selected names with `library-skills install --skill <name> --yes` (add `--claude` for Claude Code). Dependency skills belong to the application; do not copy them into this repository's personal skill collection. Scans that warn about a missing environment are incomplete, not successful evidence of no available skills.
+
 ### Explicit global installation
 
 From the chosen permanent checkout, inspect before applying:

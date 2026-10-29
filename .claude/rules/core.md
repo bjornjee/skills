@@ -37,7 +37,7 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
 
 0. **Worktree.** For authorized modifications beyond a single-line fix, reuse an existing linked worktree or create one from the repository’s discovered default branch; do not edit or stage those changes in the source checkout. An authorized single-line fix may use the source checkout unless project instructions require isolation. Do not create nested worktrees. Read-only audits and advice require no worktree and imply no permission to edit or commit. The optional agent-dashboard workflow is not a prerequisite for ordinary Git worktrees.
 
-1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. Output: a one-line "what already exists" answer.
+1. **Research.** Use the built-in `Explore` agent for any non-trivial codebase question. Search the existing repo, library docs, and package registries before writing anything new. For dependency-specific work, use `search-first` to check installed library skills and the applicable official documentation. Output: a one-line "what already exists" answer.
 
    Symptoms you're about to skip this wrongly:
    - "I already know this codebase."

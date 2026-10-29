@@ -1,6 +1,6 @@
 ---
 name: search-first
-description: Research-before-coding workflow. Search for existing tools, libraries, and patterns before writing custom code. Invokes the researcher agent.
+description: Research existing solutions and verify library APIs before coding. Use installed library skills and official documentation for dependency-specific guidance, alongside repository and package searches.
 ---
 
 # /search-first — Research Before You Code
@@ -14,6 +14,7 @@ Use this skill when:
 - Adding a dependency or integration
 - The user asks "add X functionality" and you're about to write code
 - Before creating a new utility, helper, or abstraction
+- Implementing or debugging code that depends on library APIs or version-specific behavior
 
 ## Workflow
 
@@ -42,6 +43,15 @@ Before writing a utility or adding functionality, mentally run through:
 3. Is there a skill for this? → Inspect the active runtime's enabled skill catalog first; consult runtime-specific installation paths only when relevant
 4. Is there a GitHub implementation/template? → Run GitHub code search for maintained OSS before writing net-new code
 
+### Library guidance and documentation
+
+1. Identify the relevant dependency and installed version from the active project. Read its installed project-local skill when available; keep project conventions and the runtime's instruction precedence authoritative over library preferences.
+2. For Python/Node projects, if dependency skills have not been checked or dependencies changed, run `library-skills scan --json` from the relevant project/workspace member after dependencies are installed (`uvx library-skills scan --json` if the CLI is unavailable). Inspect `warnings`: a missing environment is not evidence that dependencies provide no skills. Scan once per relevant dependency change; do not scan unrelated projects or include transitive dependencies by default.
+3. Read the relevant discovered `SKILL.md` before installing it. When installation is within the user's authorized task, select that skill with `library-skills install --skill <name> --yes`; add `--claude` for Claude Code. Keep dependency skills project-local, separate from globally synced personal skills. Use `library-skills --check` to verify installed links; do not bulk-install unrelated skills.
+4. For unresolved API, setup, migration, or version questions, consult official documentation matching the installed version. Keep specialized official documentation workflows, such as OpenAI Docs, when applicable. Do not assume unversioned documentation matches an older installation.
+
+In the handoff, briefly name the library skill or documentation source actually used, and any unresolved version or access gap. Installing a tool is not evidence that it was used.
+
 ### Full Mode (agent)
 
 For non-trivial functionality, launch the researcher agent:
@@ -68,7 +78,7 @@ Task(subagent_type="general-purpose", prompt="
 - Pre-commit → `husky`, `lint-staged`, `pre-commit`
 
 ### AI/LLM Integration
-- Claude SDK → Context7 for latest docs
+- Claude SDK → Official Anthropic documentation matching the installed version
 - Prompt management → Check MCP servers
 - Document processing → `unstructured`, `pdfplumber`, `mammoth`
 
