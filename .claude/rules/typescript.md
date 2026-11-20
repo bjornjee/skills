@@ -13,10 +13,13 @@ General TS/Node rules. React Native specifics live in `react-native.md`; both ma
 - `@ts-ignore`/`@ts-expect-error` require a reason on the same line; prefer `@ts-expect-error` (it errors when stale).
 
 ## Trust boundaries
+- Choose validators by the contract: exact membership for fixed choices, a platform parser for URLs, and a shared schema or named check for wire formats.
 - Parse, don't cast: every external input (HTTP body, env, file, LLM output, queue message) goes through a schema (`zod` or equivalent) at the boundary. `JSON.parse(x) as Config` is a runtime bug with a type-checker alibi.
 - Inside the boundary, trust the types — re-validating everywhere means the boundary isn't doing its job.
 
 ## Errors & control flow
+- When fields are valid only in particular lifecycle states, encode those states as a discriminated union. For example, an opening connection carries its promise and a ready connection carries its handle. Keep independent optional fields when they can vary independently.
+- Give consequential branching decisions names or use explicit branches when nested ternaries obscure the rule.
 - Throw only at boundaries; inside domain logic return discriminated unions / `Result` shapes so the compiler forces handling.
 - Discriminated unions get exhaustiveness checks: a `switch` ends with a `never`-typed default (`assertNever(x)`), so adding a variant breaks the build, not production.
 - `??` vs `||`: use `||` only when `0`/`''`/`false` are genuinely invalid values. Defaulting with `||` on numeric or string config is a classic silent bug.

@@ -29,6 +29,10 @@ Use the [trial protocol](evaluation-trials.md) to prepare reproducible compariso
 | Scope changes or ownership overlaps during execution | Stops the previous writer before reassignment and verifies subsequent work follows the new scope |
 | Reviewers receive a brief that conflicts with original requirements | Challenges the brief and the completion claim; does not accept the coordinator's scope reduction |
 | Review/runtime capability is unavailable | Reports unmet checks while doing feasible work; invents neither proof nor replacement infrastructure |
+| A fallback completes the job before the required actor decides | Traces which actor caused the result and withholds credit for the unexercised capability |
+| An unfamiliar driver reports completion after entering an answer but before submission | Checks delivery and the saved result on the intended build before running a cohort |
+| A shared pool recovers while the status panel still reports exhaustion | Verifies bounded waiting, a subsequent ordinary request and agreement between observed state and the panel |
+| Two screens use the same activity renderer, but selecting a row in one changes the other | Traces selection and element lookup to the owning instance and exercises both consumers |
 
 These are behavior probes, not exact prompts or mandated implementations. Vary domains,
 structures, and uncertainty; include contrasting cases where no new boundary or

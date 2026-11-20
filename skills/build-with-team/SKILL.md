@@ -25,7 +25,10 @@ one input or subsystem does not authorize simulating another required capability
 
 Define observable acceptance and its evidence source before implementation. Expected
 results must come from independent evidence or agreed requirements, not the candidate
-implementation. Missing acceptance data or domain judgments remain open questions.
+implementation. For a consequential outcome, identify a plausible failure that
+would still pass the proposed check. If the requirement assigns a decision to a
+particular actor, trace that decision and independently observe its effect.
+Missing acceptance data or domain judgments remain open questions.
 
 Determine the active requirement before deciding whether a question blocks work.
 An earlier assistant's question or recommendation does not create user uncertainty:

@@ -29,6 +29,14 @@ Retry = all four, or don't retry:
 - Backpressure over buffering: bounded queues that reject/shed beat unbounded queues that OOM an hour later.
 - Circuit-break outbound dependencies that are down — failing fast preserves your own capacity. Adopt a library; don't hand-roll the state machine.
 
+For a pool, worker or network dependency that can stall a user journey, trace
+acquisition, wait bounds and release on success, cancellation and failure. In an
+isolated test, hold the resource or interrupt the dependency while representative
+operations compete. Observe what happens to in-flight work, restore capacity,
+then complete a fresh ordinary request. Check preserved work and duplicate effects
+where retries matter. For deployment-specific failures, exercise the dependency
+from the relevant image and network.
+
 ## Time & coordination
 - Never compare wall clocks across machines. Use versions, sequence numbers, or single-writer authority for ordering decisions.
 - Leases and locks carry TTLs and fencing tokens; a lock whose holder can die without expiry is a deadlock with extra steps.
@@ -38,4 +46,4 @@ Retry = all four, or don't retry:
 - Every message carries a correlation id from the originating request; a trace that dies at a queue boundary is a bug.
 
 ## When NOT to apply
-Single-process, single-DB apps: skip outbox/saga machinery — a transaction already gives you atomicity. The retry and timeout rules still apply to every external call.
+Single-process, single-DB apps: skip outbox/saga machinery — a transaction already gives you atomicity. Apply retries and timeouts to external calls as above. Shared pools can require contention and recovery checks even in one process.
