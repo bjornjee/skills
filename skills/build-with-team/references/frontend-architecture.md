@@ -76,6 +76,18 @@ because a flat directory is acceptable.
 
 ## Demonstrate the boundary
 
+During design, walk one likely change through the proposed folders. For example,
+a service adds a new status displayed in a timeline and a summary. Identify where
+the payload is decoded, who owns its meaning, and which views render it. At review,
+follow the actual call sites and check both views with the same input. Keep each
+screen's wording and interaction policy local where they differ.
+
+For stateful components, trace who creates, updates and disposes each instance.
+Selection, subscriptions and pending requests follow the lifetime of their owner.
+A reusable renderer that reads page-wide element IDs or retains selection across
+mounts still depends on its original screen. If a server adapter ships with the
+frontend, describe its process and responsibilities separately from browser code.
+
 Before dependent screen work expands, exercise representative consumers of the
 shared contract. Give workers its paths and working examples. During integration,
 trace imports and inspect both rendered interactions, including their different

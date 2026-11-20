@@ -51,6 +51,12 @@ not just each component in isolation. Verify that runtime selection uses the int
 implementation; a correct experiment or adapter that the application never uses
 does not satisfy the requirement.
 
+Before scaling an unfamiliar or changed test harness, exercise one representative
+input through the intended build, entry point and observation path. Confirm the
+input arrived and the expected result can be observed. When measuring a response
+to a fault, establish whether the fault persisted until the response. A driver that
+stops early leaves the outcome unobserved. The test owner resolves the setup gap.
+
 Select proof using applicable domain guidance and core verification profiles:
 
 | Work | Evidence needed for acceptance |
@@ -61,6 +67,7 @@ Select proof using applicable domain guidance and core verification profiles:
 | Independent tuning or substitution | Domain evaluation outside presentation; replacement preserves real contract semantics |
 | Performance | Measured bottleneck and representative before/after results with behavior preserved |
 | Data changes | Integrity, consumer compatibility, applicable migration and recovery proof |
+| Shared capacity or network dependencies | Apply `distributed-systems` recovery guidance. The component owner checks release and recovery; the journey owner verifies an ordinary operation can finish in the claimed environment. |
 | Realtime/device work | Event semantics and the actual capture, interruption, consumer, and cleanup lifecycle |
 
 Fixtures can prove orchestration without proving capability quality. Keep those
