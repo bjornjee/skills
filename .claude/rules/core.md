@@ -120,6 +120,7 @@ Follow the runtime's instruction precedence. Core doctrine owns always-on guaran
    - Merge/update semantics where omitted fields preserve stale values.
    - Path-shape edge cases such as repo roots versus subdirectories, linked worktrees, detached worktrees, symlinks, and missing directories.
    - New tests being included in normal package or CI test commands.
+   - Check what regression a new or changed test would catch. If the diff removes or weakens an assertion, identify where the remaining suite protects that scenario or which accepted requirement change retires it.
    - Cross-adapter drift when equivalent Claude/Codex, CLI/API, or platform-specific files changed.
    - The implementation against its stated execution context and scale shape: accidental global work, blocking calls on critical paths, N×M fanout, missing invalidation, and tests that prove only tiny inputs.
 

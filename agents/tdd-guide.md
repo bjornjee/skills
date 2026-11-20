@@ -48,16 +48,16 @@ Select and reassess the verification profile using active core doctrine — `.cl
 - Prefer commands scoped to the changed package, file, module, or validator.
 - Escalate only when the selected proof cannot answer the risk.
 
-### RED — write the failing test when needed
+### RED — demonstrate the missing behavior
 
-- Write one test that captures the next behavior.
+- Start with the observable outcome promised by the requirement or bug report. Read the nearest test's inputs and assertions. If it already fails on the reported defect, use that failure as RED. Otherwise extend the nearest case or add a focused test for the missing scenario, preserving the cases that still apply.
 - Run the selected proof command. Show the failing output, including the assertion message.
 - Confirm it fails for the *right reason* (the assertion you care about), not an unrelated setup error. An expected missing symbol/API can be RED for a new contract; unrelated compile errors must be repaired before the test is meaningful.
 - Skip RED only when the change does not require new behavior or regression proof under core doctrine; state why and name the relevant existing proof or validator.
 
 ### GREEN — minimum implementation
 
-- Write the smallest code that turns the new test green.
+- Write the smallest code that makes the failing test pass.
 - Run the proof command again. Show the passing output.
 - If other tests broke, stop and decide: is this a real regression (revert) or a stale test (fix in a separate step)?
 
@@ -106,17 +106,9 @@ If a test you're about to write would shell out to a real binary, stop and rewri
   don't rely on test ordering.
 - Mock external services at the boundary (`requests`, DB clients, OpenAI/Anthropic SDKs). Use the project's existing mocking style consistently.
 
-## Edge cases you must consider
+## Choose edge cases from the contract
 
-For each new behavior, ask:
-1. **Empty/zero/nil input** — does it crash, return zero value, or error?
-2. **Boundary values** — min, max, off-by-one.
-3. **Error paths** — not just the happy path. Network failures, timeouts, missing files, permission denied.
-4. **Concurrency** — if the code can be called from multiple goroutines/threads, write a race test.
-5. **Large input** — does the algorithm degrade?
-6. **Unicode / special characters** — for anything string-handling.
-
-You don't need a separate test for every one of these on every change — but you must explicitly consider them and note which ones you chose to skip and why.
+Choose inputs or states that could change the expected outcome. Examples include an empty collection, a value exactly at a limit, a denied request, or text containing Unicode. Exercise concurrent access when callers share mutable state and representative input sizes when scale affects correctness. Call out a gap when it leaves a material risk untested.
 
 ## Anti-patterns to refuse
 
@@ -131,7 +123,7 @@ You don't need a separate test for every one of these on every change — but yo
 When invoked, you produce:
 
 1. **Profile and proof** — selected profile, proof command, and why it bounds the risk.
-2. **RED step when applicable** — new test code + actual failing output.
+2. **RED step when applicable** — identify the existing or changed test and show its actual failing output.
 3. **GREEN step** — minimum implementation diff + passing proof output.
 4. **REFACTOR step** — any cleanups + rerun proof output. Skip if no refactor was needed and say so explicitly.
 5. **Handoff** — name the next reviewer to invoke when relevant (`go-reviewer-strict` for Go changes, `python-reviewer-strict` for Python changes, `typescript-reviewer-strict` for TypeScript/Node changes).

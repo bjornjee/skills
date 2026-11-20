@@ -68,6 +68,7 @@ Both plugins package the actual root `skills/` directory. No escaping symlink or
 | `/search-first` | Research-before-coding workflow with supply-chain checks |
 | `/security-design` | Design-time security — threat modeling, secrets, authn/z placement |
 | `/terminal-ops` | Evidence-first repo execution with destructive-command guardrails |
+| `/test-suite-cleanup` | Plan a one-time cleanup of an existing test suite and propose test-only packages for human review |
 | `/typescript-patterns` | TypeScript/Node conventions (lockstep copy of the `typescript.md` rule) |
 | `/uiux-design-loop` | Two-loop UI/UX discipline with a cold-context grader (requires `impeccable`) |
 | `/why` | Trace design rationale through cited history, separating recorded intent from inference |
